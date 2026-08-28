@@ -29,7 +29,6 @@
  * silenciosa — se você precisar acrescentar uma, escreva o porquê junto.
  */
 import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 
 // O padrão vive em módulo próprio para poder ser testado sem executar o lint —
 // ver a justificativa das duas fronteiras (issue #118) lá.
@@ -185,9 +184,30 @@ const KNOWN_DEBT: { reason: string; files: string[] }[] = [
 
 const DEBT = new Set(KNOWN_DEBT.flatMap((g) => g.files));
 
+/**
+ * Caminho em barra POSIX SEMPRE — inclusive no Windows.
+ *
+ * `join()` devolve `lib\waha\send.ts` no Windows, e as TRÊS comparações abaixo
+ * são escritas com `/`: os regexes de `ALLOWED` (ancorados em `^lib\/channels\/`),
+ * o `Set` de `KNOWN_DEBT`, e a linha que o relatório manda apagar da lista. Com
+ * a barra invertida nenhuma casa, e o lint falha assim:
+ *
+ *   - `lib/channels/**` — que é justamente o lugar ONDE nomear o provider é
+ *     permitido — deixa de bater em `ALLOWED` e é acusado de violação;
+ *   - todo arquivo de dívida conhecida vira "vazamento novo", porque `DEBT.has()`
+ *     erra; e simultaneamente toda entrada de `KNOWN_DEBT` vira "já não vaza,
+ *     apague da lista", porque `offenders.includes()` erra pelo mesmo motivo.
+ *
+ * As duas listas de saída ficam idênticas — essa é a assinatura do defeito. O
+ * efeito é `exit 1` com a árvore limpa em qualquer máquina Windows, e o CI (Linux)
+ * não vê nada: falha-em-verde ao contrário, invisível onde se mede.
+ *
+ * A normalização mora aqui, na única origem de caminho do script, e não em cada
+ * comparação — três normalizações separadas divergem no primeiro conserto.
+ */
 function walk(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
-    const p = join(dir, e.name);
+    const p = `${dir}/${e.name}`;
     if (e.isDirectory()) return e.name === "node_modules" ? [] : walk(p);
     return /\.tsx?$/.test(e.name) ? [p] : [];
   });
