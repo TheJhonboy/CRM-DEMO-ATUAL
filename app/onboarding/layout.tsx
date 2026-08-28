@@ -6,6 +6,7 @@ import { Stepper } from "./_components/Stepper";
 import { SkipToEnd } from "./_components/SkipToEnd";
 import { branding } from "@/lib/branding";
 import { passosVisiveis } from "@/lib/onboarding/passos";
+import { podeAbrirOWizard } from "@/lib/onboarding/quem-passa-pelo-wizard";
 import { env } from "@/lib/env";
 
 export default async function OnboardingLayout({ children }: { children: React.ReactNode }) {
@@ -14,7 +15,13 @@ export default async function OnboardingLayout({ children }: { children: React.R
   if (!activeOrg) redirect("/login");
 
   const { state, onboardedAt } = await loadOnboardingState(activeOrg.orgId);
-  if (onboardedAt) redirect("/app/inbox");
+
+  // A PORTA — o desvio do `/app/*` sozinho deixaria o wizard alcançável por
+  // quem digitasse a URL. Mesma regra, mesma fonte: `podeAbrirOWizard` cobre
+  // tanto quem já concluiu quanto quem não é de plataforma.
+  if (!podeAbrirOWizard({ onboardedAt, isPlatformAdmin: user.is_platform_admin })) {
+    redirect("/app/inbox");
+  }
 
   // Os passos que ESTA instalação oferece, com o que já foi resolvido. O
   // indicador não decide mais nada sozinho — ele desenha o que recebe.

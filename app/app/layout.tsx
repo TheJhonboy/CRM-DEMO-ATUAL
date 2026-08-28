@@ -10,6 +10,7 @@ import { cssDaMarca, ESCOPO_DA_ORGANIZACAO } from "@/lib/branding/css";
 import { marcaDaInstalacao } from "@/lib/branding/instalacao";
 import { resolverMarcaDaOrganizacao } from "@/lib/branding/organizacao";
 import { env } from "@/lib/env";
+import { deveIrParaOWizard } from "@/lib/onboarding/quem-passa-pelo-wizard";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   IMPERSONATE_COOKIE_NAME,
@@ -48,7 +49,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       .select("onboarded_at, status, settings")
       .eq("id", activeOrg.orgId)
       .maybeSingle();
-    if (orgRow && !orgRow.onboarded_at) redirect("/onboarding");
+    // O onboarding é ferramenta de quem INSTALA, não do cliente que usa — a
+    // regra e o porquê moram em `lib/onboarding/quem-passa-pelo-wizard.ts`,
+    // com a outra porta (`/onboarding` digitado direto).
+    if (
+      orgRow &&
+      deveIrParaOWizard({
+        onboardedAt: orgRow.onboarded_at,
+        isPlatformAdmin: user.is_platform_admin,
+      })
+    ) {
+      redirect("/onboarding");
+    }
     if (orgRow?.status === "suspended") redirect("/account-suspended");
     // G4-02: expõe visibility_mode ao client (inbox decide visões visíveis).
     // Fonte confiável (admin client, org do cookie validado) — nunca do body.

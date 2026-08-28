@@ -21,7 +21,11 @@ import {
  * identificador é do sistema, o que ela reconhece é a cidade.
  */
 const FUSOS: { id: string; cidade: string }[] = [
-  { id: "America/Sao_Paulo", cidade: "São Paulo, Rio, Brasília, Sul e Sudeste" },
+  // Goiânia e o Centro-Oeste (menos Mato Grosso) são UTC-3, o MESMO fuso de
+  // Brasília — quem é de Goiás não se reconhecia numa lista que ia de "Sul e
+  // Sudeste" a "Cuiabá e Mato Grosso" e concluía que a cidade dele faltava.
+  // O que mudou é o rótulo; o fuso resolvido é o mesmo de antes.
+  { id: "America/Sao_Paulo", cidade: "São Paulo, Rio, Brasília, Goiânia, Centro-Oeste, Sul e Sudeste" },
   { id: "America/Recife", cidade: "Recife, Salvador, Fortaleza e Nordeste" },
   { id: "America/Belem", cidade: "Belém e Pará" },
   { id: "America/Manaus", cidade: "Manaus e Amazonas" },
