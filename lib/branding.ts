@@ -16,7 +16,8 @@
  * runtime em vez de lida do bundle.
  */
 
-export const DEFAULT_APP_NAME = "DeskcommCRM";
+export const DEFAULT_APP_NAME = "Calixto AI CRM";
+const NOME_LEGADO_DA_INSTALACAO = "DeskcommCRM";
 
 export type Branding = {
   /** Nome exibido na interface e nos títulos de página. */
@@ -39,7 +40,14 @@ export function resolveBranding(
   name: string | undefined | null,
   logoUrl: string | undefined | null,
 ): Branding {
-  const resolvedName = (name ?? "").trim() || DEFAULT_APP_NAME;
+  const configuredName = (name ?? "").trim();
+  // Instalações locais anteriores já traziam o nome interno no `.env` e na
+  // primeira semeadura do banco. Ele não é uma escolha de marca do operador,
+  // então tratamos como ausência e exibimos a identidade do Calixto.
+  const resolvedName =
+    configuredName === "" || configuredName === NOME_LEGADO_DA_INSTALACAO
+      ? DEFAULT_APP_NAME
+      : configuredName;
   const resolvedLogo = (logoUrl ?? "").trim();
   return {
     name: resolvedName,

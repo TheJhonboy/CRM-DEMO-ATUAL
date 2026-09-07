@@ -83,6 +83,7 @@ export {
   MonitorPlay,
   // conversation
   ChatCircle,
+  WhatsappLogo,
   Phone,
   Paperclip,
   Microphone,

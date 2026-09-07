@@ -62,7 +62,11 @@ export function TemplatesClient({ canShare, currentUserId }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex sm:justify-end">
-        <Button type="button" onClick={openNew} className="w-full sm:w-auto">
+        <Button
+          type="button"
+          onClick={openNew}
+          className="w-full bg-accent-600 text-accent-foreground hover:bg-accent-700 sm:w-auto"
+        >
           <Plus /> Novo template
         </Button>
       </div>

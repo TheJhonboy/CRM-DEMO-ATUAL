@@ -23,6 +23,15 @@ const config: Config = {
           DEFAULT: "var(--color-surface)",
           elevated: "var(--color-surface-elevated)",
         },
+        sidebar: {
+          DEFAULT: "var(--color-sidebar)",
+          foreground: "var(--color-sidebar-foreground)",
+          muted: "var(--color-sidebar-muted)",
+          active: "var(--color-sidebar-active)",
+          "active-fg": "var(--color-sidebar-active-fg)",
+          hover: "var(--color-sidebar-hover)",
+          "hover-fg": "var(--color-sidebar-hover-fg)",
+        },
         overlay: "var(--color-overlay)",
         text: {
           DEFAULT: "var(--color-text)",

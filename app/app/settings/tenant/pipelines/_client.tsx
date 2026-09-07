@@ -253,7 +253,11 @@ function PipelineEditor({ pipeline }: { pipeline: PipelineRow }) {
       </div>
 
       <div className="flex sm:justify-end">
-        <Button onClick={handleSave} disabled={isPending} className="w-full sm:w-auto">
+        <Button
+          onClick={handleSave}
+          disabled={isPending}
+          className="w-full bg-accent-500 text-text hover:bg-accent-600 sm:w-auto"
+        >
           {isPending ? "Salvando…" : "Salvar vocabulário e campos"}
         </Button>
       </div>

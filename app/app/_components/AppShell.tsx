@@ -17,7 +17,7 @@ export function AppShell({ sidebarCollapsed, children }: AppShellProps) {
   useNotifyOpenFromServiceWorker();
   return (
     <div className="flex min-h-screen w-full bg-background">
-      <div className="hidden md:block">
+      <div className="hidden self-stretch md:flex">
         <Sidebar collapsed={sidebarCollapsed} />
       </div>
       {/*

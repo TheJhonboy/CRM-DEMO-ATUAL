@@ -329,7 +329,12 @@ export function AgentMappingSection({
       )}
 
       <div className="flex items-center justify-end gap-3">
-        <Button onClick={enviar} disabled={!mudou || gravando} data-testid="salvar-mapeamento">
+        <Button
+          onClick={enviar}
+          disabled={!mudou || gravando}
+          data-testid="salvar-mapeamento"
+          className="bg-accent-500 text-text hover:bg-accent-600"
+        >
           {gravando ? "Salvando…" : "Salvar estas escolhas"}
         </Button>
       </div>

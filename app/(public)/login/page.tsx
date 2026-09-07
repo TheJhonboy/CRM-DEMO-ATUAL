@@ -80,15 +80,6 @@ export default async function LoginPage({
             Esqueci minha senha
           </Link>
         </p>
-        <p className="text-muted-foreground">
-          Não tem conta?{" "}
-          <Link
-            href="/signup"
-            className="font-medium text-foreground underline underline-offset-4"
-          >
-            Criar conta
-          </Link>
-        </p>
       </div>
     </div>
   );

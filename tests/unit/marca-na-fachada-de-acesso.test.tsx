@@ -29,6 +29,9 @@ import type { MarcaDeSaida } from "@/lib/branding/saida";
 
 const marcaDaSaida = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/branding/saida", () => ({ marcaDaSaida }));
+vi.mock("@/components/theme/theme-toggle", () => ({
+  ThemeToggle: () => <button aria-label="Tema: claro">Tema</button>,
+}));
 
 const MARCA: MarcaDeSaida = {
   nome: "Vendas Turbo",
@@ -61,14 +64,18 @@ describe("a casca das telas de acesso", () => {
     expect(html).toContain("formulário");
   });
 
-  it("sem logo, nenhuma imagem — e nunca um `src` vazio", async () => {
+  it("sem logo configurado, mostra o mascote do Calixto sem `src` vazio", async () => {
     const html = await fachada(MARCA);
 
-    // `<img src="">` faz o navegador pedir a própria página e desenhar o ícone
-    // de imagem quebrada no topo do login. É o estado de fábrica de TODA
-    // instalação nova, então o caminho normal não pode ter esse defeito.
-    expect(html).not.toContain("<img");
+    expect(html).toContain('src="/calixto-assistant.png"');
+    expect(html).toContain('alt="Assistente Calixto AI"');
     expect(html).toContain("formulário");
+  });
+
+  it("oferece a troca de tema antes do login", async () => {
+    const html = await fachada(MARCA);
+
+    expect(html).toContain("Tema:");
   });
 
   it("a fachada resolve a marca SEM organização — é o que `null` declara ali", async () => {

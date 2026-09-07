@@ -48,7 +48,10 @@ export function SourcesTab() {
               <li>2. Copie o endereço ou o formulário pronto.</li>
               <li>3. Cole no seu site — cada envio vira um lead aqui dentro.</li>
             </ol>
-            <Button onClick={() => setCreateOpen(true)}>
+            <Button
+              onClick={() => setCreateOpen(true)}
+              className="bg-accent-600 text-accent-foreground hover:bg-accent-700"
+            >
               <Plus /> Criar primeira fonte
             </Button>
           </CardContent>
@@ -68,7 +71,10 @@ export function SourcesTab() {
   return (
     <div className="space-y-4 pt-4">
       <div className="flex sm:justify-end">
-        <Button onClick={() => setCreateOpen(true)} className="w-full sm:w-auto">
+        <Button
+          onClick={() => setCreateOpen(true)}
+          className="w-full bg-accent-600 text-accent-foreground hover:bg-accent-700 sm:w-auto"
+        >
           <Plus /> Nova fonte
         </Button>
       </div>

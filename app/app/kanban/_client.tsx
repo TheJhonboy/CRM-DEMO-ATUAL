@@ -191,7 +191,12 @@ export function FunisClient({
       {podeGerenciar && (
         <div className="flex sm:justify-end">
           {novo === null ? (
-            <Button onClick={() => setNovo("")} disabled={ocupado} data-testid="novo-funil" className="w-full sm:w-auto">
+            <Button
+              data-testid="novo-funil"
+              className="w-full bg-accent-600 text-accent-foreground hover:bg-accent-700 sm:w-auto"
+              onClick={() => setNovo("")}
+              disabled={ocupado}
+            >
               <Plus size={16} className="mr-2" aria-hidden /> Novo funil
             </Button>
           ) : null}

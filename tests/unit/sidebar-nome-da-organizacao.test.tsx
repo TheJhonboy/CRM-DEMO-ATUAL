@@ -99,13 +99,16 @@ describe("o nome da marca na barra lateral", () => {
     expect(screen.queryByText("Sistema do Revendedor")).toBeNull();
   });
 
-  it("recolhida, a inicial acompanha o nome que a barra mostra", () => {
-    // Sem isto, recolher o menu trocaria a marca: o nome viria da organização e
-    // a inicial continuaria vindo da INSTALAÇÃO — "L" expandido, "S" recolhido.
+  it("recolhida, mantém o mascote visível sem poluir a navegação", () => {
+    // A marca precisa continuar reconhecível no menu compacto: uma letra é
+    // pouco distintiva e não acompanha o símbolo usado na barra expandida.
     contexto = { user: usuario, activeOrg: { ...org, marca: { nome: "Loja da Ana" } } };
     renderSidebar({ collapsed: true });
-    expect(screen.getByText("L")).toBeTruthy();
-    expect(screen.queryByText("S")).toBeNull();
+    expect(screen.getByRole("img", { name: "Assistente virtual" })).toHaveAttribute(
+      "src",
+      "/calixto-assistant.png",
+    );
+    expect(screen.queryByText("L")).toBeNull();
   });
 });
 
@@ -171,14 +174,14 @@ describe("o logo na barra lateral", () => {
     expect(imagem().getAttribute("src")).toBe(LOGO_DA_INSTALACAO);
   });
 
-  it("sem logo nenhum, continua sendo o nome — não uma imagem quebrada", () => {
-    // Guarda de vacuidade dos três de cima: se a barra desenhasse `<img>` sempre,
-    // com `src` vazio, todos passariam pelo `getByRole("img")` e o produto
-    // mostraria o ícone de imagem quebrada em toda instalação de fábrica.
+  it("sem logo nenhum, mostra o mascote local ao lado do nome", () => {
+    // O fallback é um arquivo local com URL fixa: não pode virar um `<img>` de
+    // `src` vazio, nem esconder o nome que identifica a instalação.
     contexto = { user: usuario, activeOrg: org };
     renderSidebar({ collapsed: false });
 
-    expect(screen.queryByRole("img")).toBeNull();
+    expect(imagem()).toHaveAttribute("src", "/calixto-assistant.png");
+    expect(imagem()).toHaveAttribute("alt", "Assistente virtual");
     expect(screen.getByText("Sistema do Revendedor")).toBeTruthy();
   });
 });

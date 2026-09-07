@@ -52,7 +52,10 @@ export function RoutersClient({ initialState, channelSessions }: Props) {
     <div className="flex flex-col gap-4">
       <div className="flex sm:justify-end">
         {canManagePerm && (
-          <Button onClick={() => setCreateOpen(true)} className="w-full sm:w-auto">
+          <Button
+            onClick={() => setCreateOpen(true)}
+            className="w-full bg-accent-600 text-accent-foreground hover:bg-accent-700 sm:w-auto"
+          >
             <Plus /> Novo roteador
           </Button>
         )}
@@ -67,7 +70,10 @@ export function RoutersClient({ initialState, channelSessions }: Props) {
             tudo no mesmo WhatsApp. Crie um para o seu número e escolha quais agentes ele aciona.
           </p>
           {canManagePerm && (
-            <Button onClick={() => setCreateOpen(true)}>
+            <Button
+              onClick={() => setCreateOpen(true)}
+              className="bg-accent-600 text-accent-foreground hover:bg-accent-700"
+            >
               <Plus /> Criar meu primeiro roteador
             </Button>
           )}

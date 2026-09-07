@@ -1,3 +1,4 @@
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { marcaDaSaida } from "@/lib/branding/saida";
 
 /**
@@ -29,37 +30,24 @@ import { marcaDaSaida } from "@/lib/branding/saida";
  */
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const marca = await marcaDaSaida(null);
+  const logoUrl = marca.logoUrl ?? "/calixto-assistant.png";
+  const alt = marca.logoUrl ? marca.nome : "Assistente Calixto AI";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-6">
+      <div className="fixed right-5 top-5">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-sm space-y-6">
-        {marca.logoUrl && (
-          <div className="flex justify-center">
-            {/*
-              <img> em vez de next/image pelo mesmo motivo da barra lateral: a URL
-              é de quem hospeda e o `next/image` exige allowlist de domínios
-              fechada em BUILD — a imagem pré-buildada do self-host recusaria o
-              domínio do operador. Altura fixa e largura livre para não distorcer
-              arte de proporção desconhecida.
-
-              O `alt` é o nome DESTA resolução (`marca.nome`), e não o de
-              `branding()`: é a legenda da imagem que está ali, e nomeá-la com a
-              marca de outra fonte descreveria uma marca que não é a do logo.
-
-              O `data-testid` é lido por `tests/e2e/marca-logo.spec.ts`, que prova
-              que o logo da EMPRESA não vaza para cá. Sem ele a spec caía na
-              "primeira <img> da página", e uma asserção de negação com seletor
-              largo passa sozinha assim que outra imagem entra na tela.
-            */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              data-testid="logo-da-fachada"
-              src={marca.logoUrl}
-              alt={marca.nome}
-              className="h-10 w-auto max-w-[12rem] object-contain"
-            />
-          </div>
-        )}
+        <div className="flex justify-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            data-testid="logo-da-fachada"
+            src={logoUrl}
+            alt={alt}
+            className="h-20 w-20 rounded-2xl object-cover shadow-lg shadow-primary/15"
+          />
+        </div>
         {children}
       </div>
     </div>

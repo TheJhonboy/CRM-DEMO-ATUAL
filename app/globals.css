@@ -3,70 +3,81 @@
 @tailwind utilities;
 
 /* ─────────────────────────────────────────────────────────────────────────
-   DeskcommCRM — Design System tokens (Sage palette · density Aerada)
+   Design System tokens (green action palette · density Aerada)
    Source of truth: /app/design/lib/tokens.ts (PALETTES.sage)
    Light + dark drawn separately (NOT inverted).
    ───────────────────────────────────────────────────────────────────────── */
 
 :root {
   /* Surfaces (light) */
-  --color-bg: #faf9f6;
+  --color-bg: #f7fafc;
   --color-surface: #ffffff;
-  --color-surface-elevated: #f5f3ee;
-  --color-overlay: rgba(28, 26, 22, 0.42);
+  --color-surface-elevated: #eff6fb;
+  --color-overlay: rgba(15, 76, 117, 0.32);
 
   /* Text (light) */
-  --color-text: #1c1a16;
-  --color-text-muted: #5d594f;
-  --color-text-subtle: #7d786c;
+  --color-text: #13212d;
+  --color-text-muted: #526574;
+  --color-text-subtle: #718394;
 
   /* Borders (light) */
-  --color-border: #e7e3da;
-  --color-border-strong: #d2cdbf;
+  --color-border: #dbe7ef;
+  --color-border-strong: #bfd2df;
 
-  /* Accent — Sage (11 stops) */
-  --color-accent-50:  #f3f6f1;
-  --color-accent-100: #e4ebe0;
-  --color-accent-200: #c8d6c1;
-  --color-accent-300: #a4ba9a;
-  --color-accent-400: #82a077;
-  --color-accent-500: #67885d;
-  --color-accent-600: #506d48;
-  --color-accent-700: #41573b;
-  --color-accent-800: #374731;
-  --color-accent-900: #2f3c2b;
-  --color-accent-950: #171f15;
-  --color-accent: var(--color-accent-600);
+  /* Accent — verde das ações (11 stops) */
+  --color-accent-50:  #ecf9f0;
+  --color-accent-100: #d8f6e2;
+  --color-accent-200: #b4efc8;
+  --color-accent-300: #81e4a8;
+  --color-accent-400: #41d98a;
+  --color-accent-500: #00ca77;
+  --color-accent-600: #00b66b;
+  --color-accent-700: #158c53;
+  --color-accent-800: #196d42;
+  --color-accent-900: #1b5837;
+  --color-accent-950: #002411;
+  /* O verde-base Calixto fica visível na identidade; ações precisam do 700 para
+   * conservar contraste mínimo de 3:1 sobre as superfícies claras. */
+  --color-accent: var(--color-accent-700);
   --color-accent-fg: #ffffff;
   --color-accent-soft: var(--color-accent-100);
-  --color-accent-hover: var(--color-accent-700);
+  --color-accent-hover: var(--color-accent-800);
 
-  /* Neutrals — greige (11 stops, light) */
-  --color-neutral-50:  #faf9f6;
-  --color-neutral-100: #f3f1ec;
-  --color-neutral-200: #e7e3da;
-  --color-neutral-300: #d2cdbf;
-  --color-neutral-400: #a9a395;
-  --color-neutral-500: #7d786c;
-  --color-neutral-600: #5d594f;
-  --color-neutral-700: #46433b;
-  --color-neutral-800: #2e2c26;
-  --color-neutral-900: #1c1a16;
-  --color-neutral-950: #0e0d0a;
+  /* Neutrals — azulados (11 stops, light) */
+  --color-neutral-50:  #f7fafc;
+  --color-neutral-100: #eff6fb;
+  --color-neutral-200: #dbe7ef;
+  --color-neutral-300: #bfd2df;
+  --color-neutral-400: #91a9b8;
+  --color-neutral-500: #718394;
+  --color-neutral-600: #526574;
+  --color-neutral-700: #384b59;
+  --color-neutral-800: #263744;
+  --color-neutral-900: #13212d;
+  --color-neutral-950: #09131b;
 
   /* States (light) */
-  --color-success: #5a8a5f;
-  --color-success-bg: rgba(90, 138, 95, 0.12);
-  --color-success-fg: #41673f;
-  --color-warning: #b07a2b;
-  --color-warning-bg: rgba(176, 122, 43, 0.12);
-  --color-warning-fg: #875a1a;
-  --color-error: #a94a3c;
-  --color-error-bg: rgba(169, 74, 60, 0.12);
-  --color-error-fg: #8a3a2e;
-  --color-info: #4a7a93;
-  --color-info-bg: rgba(74, 122, 147, 0.12);
-  --color-info-fg: #355d72;
+  --color-success: #00b66b;
+  --color-success-bg: rgba(0, 182, 107, 0.12);
+  --color-success-fg: #158c53;
+  --color-warning: #c98a15;
+  --color-warning-bg: rgba(201, 138, 21, 0.12);
+  --color-warning-fg: #8a5a09;
+  --color-error: #c2413a;
+  --color-error-bg: rgba(194, 65, 58, 0.12);
+  --color-error-fg: #9f332e;
+  --color-info: #1976b9;
+  --color-info-bg: rgba(25, 118, 185, 0.12);
+  --color-info-fg: #125a91;
+
+  /* Navegação (claro) — azul da referência, verde-menta para seleção. */
+  --color-sidebar: #0f4c75;
+  --color-sidebar-foreground: #ffffff;
+  --color-sidebar-muted: #d7e9f5;
+  --color-sidebar-active: #00b66b;
+  --color-sidebar-active-fg: #ffffff;
+  --color-sidebar-hover: rgba(0, 182, 107, 0.32);
+  --color-sidebar-hover-fg: #ffffff;
 
   /* Spacing (4-base) */
   --space-0: 0px;
@@ -93,11 +104,11 @@
   --radius-full: 9999px;
 
   /* Shadows — desaturated, neutral-based */
-  --shadow-xs: 0 1px 2px 0 rgba(20, 18, 14, 0.04);
-  --shadow-sm: 0 1px 2px 0 rgba(20, 18, 14, 0.05), 0 1px 1px 0 rgba(20, 18, 14, 0.03);
-  --shadow-md: 0 4px 12px -2px rgba(20, 18, 14, 0.06), 0 2px 4px -1px rgba(20, 18, 14, 0.04);
-  --shadow-lg: 0 12px 32px -6px rgba(20, 18, 14, 0.10), 0 4px 12px -2px rgba(20, 18, 14, 0.06);
-  --shadow-xl: 0 24px 48px -12px rgba(20, 18, 14, 0.16), 0 8px 16px -4px rgba(20, 18, 14, 0.08);
+  --shadow-xs: 0 1px 2px 0 rgba(19, 33, 45, 0.04);
+  --shadow-sm: 0 1px 2px 0 rgba(19, 33, 45, 0.05), 0 1px 1px 0 rgba(19, 33, 45, 0.03);
+  --shadow-md: 0 4px 12px -2px rgba(19, 33, 45, 0.06), 0 2px 4px -1px rgba(19, 33, 45, 0.04);
+  --shadow-lg: 0 12px 32px -6px rgba(19, 33, 45, 0.10), 0 4px 12px -2px rgba(19, 33, 45, 0.06);
+  --shadow-xl: 0 24px 48px -12px rgba(19, 33, 45, 0.16), 0 8px 16px -4px rgba(19, 33, 45, 0.08);
 
   /* Density — Aerada */
   --density-row: 56px;
@@ -139,7 +150,7 @@
   --destructive-foreground: #ffffff;
   --border: var(--color-border);
   --input: var(--color-border);
-  --ring: var(--color-accent-500);
+  --ring: var(--color-accent-700);
   --radius: var(--radius-md);
   /* ---- Agenda · cor de pessoa (8 trilhas) ------------------------------
    * Quem é o dono do compromisso é o eixo visual da grade, e a accent NÃO
@@ -228,47 +239,54 @@
    (lib/branding/css.ts), que só ganha consumidor com a tela de marca.
    ───────────────────────────────────────────────────────────────────────── */
 [data-theme="light"] {
-  --color-bg: #faf9f6;
+  --color-bg: #f7fafc;
   --color-surface: #ffffff;
-  --color-surface-elevated: #f5f3ee;
-  --color-overlay: rgba(28, 26, 22, 0.42);
-  --color-text: #1c1a16;
-  --color-text-muted: #5d594f;
-  --color-text-subtle: #7d786c;
-  --color-border: #e7e3da;
-  --color-border-strong: #d2cdbf;
-  --color-accent: var(--color-accent-600);
+  --color-surface-elevated: #eff6fb;
+  --color-overlay: rgba(15, 76, 117, 0.32);
+  --color-text: #13212d;
+  --color-text-muted: #526574;
+  --color-text-subtle: #718394;
+  --color-border: #dbe7ef;
+  --color-border-strong: #bfd2df;
+  --color-accent: var(--color-accent-700);
   --color-accent-fg: #ffffff;
   --color-accent-soft: var(--color-accent-100);
-  --color-accent-hover: var(--color-accent-700);
-  --color-neutral-50: #faf9f6;
-  --color-neutral-100: #f3f1ec;
-  --color-neutral-200: #e7e3da;
-  --color-neutral-300: #d2cdbf;
-  --color-neutral-400: #a9a395;
-  --color-neutral-500: #7d786c;
-  --color-neutral-600: #5d594f;
-  --color-neutral-700: #46433b;
-  --color-neutral-800: #2e2c26;
-  --color-neutral-900: #1c1a16;
-  --color-neutral-950: #0e0d0a;
-  --color-success: #5a8a5f;
-  --color-success-bg: rgba(90, 138, 95, 0.12);
-  --color-success-fg: #41673f;
-  --color-warning: #b07a2b;
-  --color-warning-bg: rgba(176, 122, 43, 0.12);
-  --color-warning-fg: #875a1a;
-  --color-error: #a94a3c;
-  --color-error-bg: rgba(169, 74, 60, 0.12);
-  --color-error-fg: #8a3a2e;
-  --color-info: #4a7a93;
-  --color-info-bg: rgba(74, 122, 147, 0.12);
-  --color-info-fg: #355d72;
-  --shadow-xs: 0 1px 2px 0 rgba(20, 18, 14, 0.04);
-  --shadow-sm: 0 1px 2px 0 rgba(20, 18, 14, 0.05), 0 1px 1px 0 rgba(20, 18, 14, 0.03);
-  --shadow-md: 0 4px 12px -2px rgba(20, 18, 14, 0.06), 0 2px 4px -1px rgba(20, 18, 14, 0.04);
-  --shadow-lg: 0 12px 32px -6px rgba(20, 18, 14, 0.10), 0 4px 12px -2px rgba(20, 18, 14, 0.06);
-  --shadow-xl: 0 24px 48px -12px rgba(20, 18, 14, 0.16), 0 8px 16px -4px rgba(20, 18, 14, 0.08);
+  --color-accent-hover: var(--color-accent-800);
+  --color-neutral-50: #f7fafc;
+  --color-neutral-100: #eff6fb;
+  --color-neutral-200: #dbe7ef;
+  --color-neutral-300: #bfd2df;
+  --color-neutral-400: #91a9b8;
+  --color-neutral-500: #718394;
+  --color-neutral-600: #526574;
+  --color-neutral-700: #384b59;
+  --color-neutral-800: #263744;
+  --color-neutral-900: #13212d;
+  --color-neutral-950: #09131b;
+  --color-success: #00b66b;
+  --color-success-bg: rgba(0, 182, 107, 0.12);
+  --color-success-fg: #158c53;
+  --color-warning: #c98a15;
+  --color-warning-bg: rgba(201, 138, 21, 0.12);
+  --color-warning-fg: #8a5a09;
+  --color-error: #c2413a;
+  --color-error-bg: rgba(194, 65, 58, 0.12);
+  --color-error-fg: #9f332e;
+  --color-info: #1976b9;
+  --color-info-bg: rgba(25, 118, 185, 0.12);
+  --color-info-fg: #125a91;
+  --color-sidebar: #0f4c75;
+  --color-sidebar-foreground: #ffffff;
+  --color-sidebar-muted: #d7e9f5;
+  --color-sidebar-active: #00b66b;
+  --color-sidebar-active-fg: #ffffff;
+  --color-sidebar-hover: rgba(0, 182, 107, 0.32);
+  --color-sidebar-hover-fg: #ffffff;
+  --shadow-xs: 0 1px 2px 0 rgba(19, 33, 45, 0.04);
+  --shadow-sm: 0 1px 2px 0 rgba(19, 33, 45, 0.05), 0 1px 1px 0 rgba(19, 33, 45, 0.03);
+  --shadow-md: 0 4px 12px -2px rgba(19, 33, 45, 0.06), 0 2px 4px -1px rgba(19, 33, 45, 0.04);
+  --shadow-lg: 0 12px 32px -6px rgba(19, 33, 45, 0.10), 0 4px 12px -2px rgba(19, 33, 45, 0.06);
+  --shadow-xl: 0 24px 48px -12px rgba(19, 33, 45, 0.16), 0 8px 16px -4px rgba(19, 33, 45, 0.08);
   --background: var(--color-bg);
   --foreground: var(--color-text);
   --card: var(--color-surface);
@@ -286,7 +304,7 @@
   --destructive-foreground: #ffffff;
   --border: var(--color-border);
   --input: var(--color-border);
-  --ring: var(--color-accent-500);
+  --ring: var(--color-accent-700);
   /* ---- Agenda · cor de pessoa (espelho do :root) -----------------------
    * Espelhado aqui porque o tema escuro sobrescreve estas oito chaves, e
    * `tests/unit/branding-tema-claro-escopavel.test.ts` exige que este bloco
@@ -320,21 +338,21 @@
   --color-border: #33312a;
   --color-border-strong: #444239;
 
-  /* Accent stays same hex stops; default shifts up for dark contrast */
-  --color-accent-50:  #f3f6f1;
-  --color-accent-100: #e4ebe0;
-  --color-accent-200: #c8d6c1;
-  --color-accent-300: #a4ba9a;
-  --color-accent-400: #82a077;
-  --color-accent-500: #67885d;
-  --color-accent-600: #506d48;
-  --color-accent-700: #41573b;
-  --color-accent-800: #374731;
-  --color-accent-900: #2f3c2b;
-  --color-accent-950: #171f15;
+  /* A mesma rampa verde; o escuro usa um grau mais claro para contraste. */
+  --color-accent-50:  #ecf9f0;
+  --color-accent-100: #d8f6e2;
+  --color-accent-200: #b4efc8;
+  --color-accent-300: #81e4a8;
+  --color-accent-400: #41d98a;
+  --color-accent-500: #00ca77;
+  --color-accent-600: #00b66b;
+  --color-accent-700: #158c53;
+  --color-accent-800: #196d42;
+  --color-accent-900: #1b5837;
+  --color-accent-950: #002411;
   --color-accent: var(--color-accent-400);
   --color-accent-fg: #161510;
-  --color-accent-soft: rgba(130, 160, 119, 0.16);
+  --color-accent-soft: rgba(65, 217, 138, 0.16);
   --color-accent-hover: var(--color-accent-300);
 
   /* Neutrals — greige (11 stops, dark) */
@@ -363,6 +381,15 @@
   --color-info: #7da9bf;
   --color-info-bg: rgba(125, 169, 191, 0.18);
   --color-info-fg: #9bbfd2;
+
+  /* Navegação (escuro) — preserva a paleta atual até a próxima etapa. */
+  --color-sidebar: var(--color-surface);
+  --color-sidebar-foreground: var(--color-text);
+  --color-sidebar-muted: var(--color-text-muted);
+  --color-sidebar-active: var(--color-success);
+  --color-sidebar-active-fg: #ffffff;
+  --color-sidebar-hover: var(--color-success-bg);
+  --color-sidebar-hover-fg: var(--color-success-fg);
 
   /* Shadows — heavier in dark */
   --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.30);
@@ -459,13 +486,13 @@
     color: var(--color-accent-950);
   }
   [data-theme="dark"] ::selection {
-    background-color: var(--color-accent-700);
+    background-color: var(--color-accent-800);
     color: var(--color-accent-50);
   }
 
-  /* Focus ring: Sage 500/400, 2px with offset */
+  /* Anel de foco verde, 2px com afastamento. */
   :focus-visible {
-    outline: 2px solid var(--color-accent-500);
+    outline: 2px solid var(--color-accent-700);
     outline-offset: 2px;
     border-radius: var(--radius-sm);
   }

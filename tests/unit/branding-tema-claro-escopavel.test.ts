@@ -89,6 +89,11 @@ describe("tema claro escopável em subárvore", () => {
     // pintando scrollbar, `<input>` e menu nativo em escuro dentro dela.
     expect(CSS).toMatch(/\[data-theme="light"\]\s*\{\s*color-scheme:\s*light;/);
   });
+
+  it("usa o verde forte escolhido para a seleção da lateral", () => {
+    expect(blocoDe(":root").get("--color-sidebar-active")).toBe("#00b66b");
+    expect(blocoDe('[data-theme="light"]').get("--color-sidebar-active")).toBe("#00b66b");
+  });
 });
 
 describe("indicador de foco no modo de alto contraste", () => {

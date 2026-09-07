@@ -124,4 +124,20 @@ describe("Sidebar agrupado", () => {
     // "Kanban" saiu da interface; o item da mesma URL agora se chama "Funis".
     expect(screen.getByRole("link", { name: "Funis" })).not.toHaveAttribute("aria-current");
   });
+
+  it("usa verde claro na seleção e no hover da navegação", () => {
+    comoPapel("admin");
+    render(<Sidebar collapsed={false} />);
+
+    expect(screen.getByRole("link", { name: /Inbox/ })).toHaveClass(
+      "bg-sidebar-active",
+      "text-sidebar-active-fg",
+      "duration-200",
+    );
+    expect(screen.getByRole("link", { name: "Radar" })).toHaveClass(
+      "hover:bg-sidebar-hover",
+      "hover:text-sidebar-hover-fg",
+      "duration-200",
+    );
+  });
 });

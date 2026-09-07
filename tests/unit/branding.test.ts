@@ -12,7 +12,7 @@ describe("resolveBranding", () => {
     expect(resolveBranding(undefined, undefined)).toEqual({
       name: DEFAULT_APP_NAME,
       logoUrl: null,
-      initial: "D",
+      initial: "C",
     });
   });
 
@@ -23,6 +23,10 @@ describe("resolveBranding", () => {
     expect(resolveBranding("", "").name).toBe(DEFAULT_APP_NAME);
     expect(resolveBranding("   ", "   ").name).toBe(DEFAULT_APP_NAME);
     expect(resolveBranding("   ", "   ").logoUrl).toBeNull();
+  });
+
+  it("migra o nome legado para a marca do Calixto", () => {
+    expect(resolveBranding("DeskcommCRM", null).name).toBe("Calixto AI CRM");
   });
 
   it("usa a marca configurada e deriva a inicial", () => {
@@ -131,7 +135,7 @@ describe("nome do arquivo de códigos de recuperação", () => {
   it("deriva o prefixo da marca, sem acento e sem espaço", () => {
     expect(prefixoDoArquivo("Vendas Turbo")).toBe("vendas-turbo");
     expect(prefixoDoArquivo("Ótima Gestão")).toBe("otima-gestao");
-    expect(prefixoDoArquivo(DEFAULT_APP_NAME)).toBe("deskcommcrm");
+    expect(prefixoDoArquivo(DEFAULT_APP_NAME)).toBe("calixto-ai-crm");
   });
 
   it("não devolve hífen pendurado nem repetido", () => {

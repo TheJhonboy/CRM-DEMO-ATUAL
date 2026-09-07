@@ -48,10 +48,16 @@ describe("a barra ocupa lugar, em vez de flutuar", () => {
     expect(BARRA, "a barra voltou a flutuar").not.toMatch(/\bfixed\b/);
   });
 
-  it("é `sticky` e ocupa a altura da tela", () => {
-    // O efeito visual precisa continuar: a barra não rola com a página.
-    expect(BARRA).toMatch(/\bsticky\b/);
-    expect(BARRA).toMatch(/h-screen/);
+  it("estica até o fim da página, não só até a altura da janela", () => {
+    // `h-screen` corta o fundo da lateral em páginas altas, como a Agenda.
+    // Como a casca é um flex em linha, `self-stretch` acompanha a altura do
+    // conteúdo sem criar uma segunda medida para a largura.
+    expect(BARRA).toMatch(/self-stretch/);
+    expect(BARRA).not.toMatch(/h-screen/);
+    // O invólucro desktop também precisa ser um flex esticado. Um `block`
+    // comum mede só a altura do conteúdo da própria barra e deixa fundo branco
+    // quando a página ao lado continua rolando.
+    expect(CASCA).toMatch(/hidden self-stretch md:flex/);
   });
 
   it("não encolhe", () => {

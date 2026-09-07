@@ -76,14 +76,14 @@ export type MarcaDeSaida = {
 /**
  * O accent do tema CLARO do produto — LIDO da régua, nunca redigitado.
  *
- * `REGUA_DO_PRODUTO.claro.indices.accent` é 6 (`regua-do-produto.ts:175`) e o
- * grau 600 da rampa do produto é `#506d48` (`:34`). Escrever `"#506d48"` aqui
+ * `REGUA_DO_PRODUTO.claro.indices.accent` aponta para o grau de ação do tema claro.
+ * Escrever um hex aqui
  * criaria a QUARTA cópia do mesmo hex no repositório (as outras vivem em
  * `regua-do-produto.ts`, `app/globals.css` e na rampa derivada), e nada as
  * manteria em sincronia — o dia em que o produto mudar de cor, o botão dos
  * e-mails ficaria com a cor velha e nenhum teste reprovaria.
  *
- * `stop()` e não `[6]`: sob `noUncheckedIndexedAccess`, indexar a tupla com um
+ * `stop()` e não um índice literal: sob `noUncheckedIndexedAccess`, indexar a tupla com um
  * `number` devolveria `string | undefined`, e o `!` para calar isso é
  * exatamente o cast que a doutrina proíbe.
  */

@@ -285,6 +285,7 @@ export function AgendaClient({
           )}
           <Button
             size="sm"
+            className="border border-info/30 bg-info-bg text-info-fg hover:bg-info/20 hover:text-info-fg"
             disabled={!tipo}
             title={tipo ? undefined : "Cadastre um tipo de agendamento para começar"}
             onClick={() => setMarcando(true)}
@@ -354,7 +355,7 @@ export function AgendaClient({
                   "rounded-sm px-2.5 py-1 text-xs transition-colors duration-fast ease-out",
                   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-500",
                   visao === v.id
-                    ? "bg-accent font-semibold text-accent-fg"
+                    ? "bg-info-bg font-semibold text-info-fg"
                     : "text-text-muted hover:bg-surface-elevated hover:text-text",
                 )}
               >

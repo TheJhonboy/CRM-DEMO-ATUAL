@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useT } from "@/hooks/i18n/useT";
 import { usePathname } from "next/navigation";
 import { useTransition } from "react";
-import { ArrowRight, CaretDoubleLeft, CaretDoubleRight, Gear } from "@/lib/ui/icons";
+import { ArrowRight, CaretDoubleLeft, CaretDoubleRight, Gear, WhatsappLogo } from "@/lib/ui/icons";
 import { cn } from "@/lib/utils";
 import { toggleSidebar } from "@/app/actions/shell/toggleSidebar";
 import { useAuth } from "@/hooks/auth/AuthProvider";
@@ -89,19 +89,28 @@ export function SidebarContent({
             alt={nome}
             className="h-7 w-auto max-w-[10rem] object-contain"
           />
+        ) : collapsed ? (
+          // Recolhida, a marca ainda precisa ser reconhecível. Mantém o logo
+          // configurado quando existir e usa o mascote apenas como fallback.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={logo || "/calixto-assistant.png"}
+            alt={logo ? nome : "Assistente virtual"}
+            className="h-9 w-9 object-contain"
+          />
         ) : (
-          <span className={cn("font-semibold tracking-tight", collapsed && "sr-only")}>
-            {nome}
-          </span>
-        )}
-        {collapsed && (
-          <span aria-hidden className="text-lg font-bold text-primary">
-            {/* Spread e não `[0]`: nome começando com emoji ou acento composto
-                quebraria no meio do code point. Mesma regra de `resolveBranding`
-                — a inicial precisa acompanhar o nome que a barra mostra, senão
-                recolher o menu troca a marca. */}
-            {[...nome][0]?.toUpperCase() ?? brand.initial}
-          </span>
+          <>
+            {/* O arquivo local é o fallback visual da instalação. Logo enviado
+                pela organização continua tendo prioridade no bloco acima. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/calixto-assistant.png"
+              alt="Assistente virtual"
+              className="h-9 w-9 shrink-0 object-contain"
+            />
+            <span className="ml-2 font-semibold tracking-tight">{nome}</span>
+            <WhatsappLogo size={16} weight="fill" aria-hidden className="ml-1 text-[#bff7dd]" />
+          </>
         )}
       </div>
       <nav className="flex-1 space-y-3 overflow-y-auto p-2" aria-label="Navegação principal">
@@ -116,7 +125,7 @@ export function SidebarContent({
               ) : (
                 <h2
                   id={tituloId}
-                  className="px-3 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60"
+                  className="px-3 text-[10px] font-medium uppercase tracking-wider text-sidebar-muted/70"
                 >
                   {t(group.label)}
                 </h2>
@@ -133,10 +142,10 @@ export function SidebarContent({
                         aria-current={isActive ? "page" : undefined}
                         onClick={onNavigate}
                         className={cn(
-                          "relative flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors",
+                          "relative flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors duration-200",
                           isActive
-                            ? "bg-accent text-accent-foreground"
-                            : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                            ? "bg-sidebar-active text-sidebar-active-fg"
+                            : "text-sidebar-muted hover:bg-sidebar-hover hover:text-sidebar-hover-fg",
                           collapsed && "justify-center px-2",
                         )}
                       >
@@ -159,10 +168,10 @@ export function SidebarContent({
                       aria-current={pathname === group.hub.href ? "page" : undefined}
                       onClick={onNavigate}
                       className={cn(
-                        "flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors",
+                        "flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors duration-200",
                         pathname === group.hub.href
-                          ? "bg-accent text-accent-foreground"
-                          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                          ? "bg-sidebar-active text-sidebar-active-fg"
+                          : "text-sidebar-muted hover:bg-sidebar-hover hover:text-sidebar-hover-fg",
                         collapsed && "justify-center px-2",
                       )}
                     >
@@ -184,10 +193,10 @@ export function SidebarContent({
             aria-current={pathname.startsWith(rodape.href) ? "page" : undefined}
             onClick={onNavigate}
             className={cn(
-              "mb-1 flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors",
+              "mb-1 flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors duration-200",
               pathname.startsWith(rodape.href)
-                ? "bg-accent text-accent-foreground"
-                : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                ? "bg-sidebar-active text-sidebar-active-fg"
+                : "text-sidebar-muted hover:bg-sidebar-hover hover:text-sidebar-hover-fg",
               collapsed && "justify-center px-2",
             )}
           >
@@ -202,7 +211,7 @@ export function SidebarContent({
             onClick={() => startTransition(() => toggleSidebar(collapsed))}
             disabled={isPending}
             className={cn(
-              "flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+              "flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs text-sidebar-muted transition-colors duration-200 hover:bg-sidebar-hover hover:text-sidebar-hover-fg",
               collapsed && "justify-center px-2",
             )}
             aria-label={collapsed ? "Expandir sidebar" : "Recolher sidebar"}
@@ -220,7 +229,7 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
   return (
     <aside
       className={cn(
-        // ⚠️ `sticky`, e NUNCA `fixed`.
+        // A barra ocupa lugar na linha, e NUNCA é `fixed`.
         //
         // Com `fixed` a barra sai do fluxo: ela não ocupa lugar nenhum na linha,
         // e quem afastava o conteúdo era um `md:ml-16`/`md:ml-60` do lado de lá.
@@ -233,13 +242,12 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
         // que é a assinatura de servidor e navegador terem pintado estados
         // diferentes — e `AppShell` e `Sidebar` são ambos `"use client"`.
         //
-        // `sticky top-0 h-screen` dá o mesmo efeito visual (a barra não rola com
-        // a página) e ela VOLTA a ocupar lugar: sobra para o conteúdo exatamente
-        // o que ela não usou, e não há segunda medida para discordar.
+        // `self-stretch` acompanha a altura da página. `h-screen` a cortava na
+        // primeira janela em telas longas, deixando um bloco branco na Agenda.
         //
         // `shrink-0` porque item de flex encolhe por padrão, e uma barra de 60
         // espremida para caber é o mesmo defeito por outro caminho.
-        "sticky top-0 z-30 flex h-screen shrink-0 flex-col border-r bg-card transition-[width] duration-200",
+        "z-30 flex self-stretch shrink-0 flex-col border-r border-sidebar-muted/20 bg-sidebar text-sidebar-foreground transition-[width] duration-200",
         collapsed ? "w-16" : "w-60",
       )}
     >

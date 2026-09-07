@@ -39,4 +39,10 @@ describe("régua congelada em módulo", () => {
     expect(REGUA_DO_PRODUTO.claro.base).toHaveLength(3);
     expect(REGUA_DO_PRODUTO.escuro.semanticas).toHaveLength(4);
   });
+
+  it("usa o verde Calixto como ação principal no tema claro", () => {
+    // O grau 600 é o que alimenta `--color-accent`, logo é a cor dos botões
+    // primários, abas selecionadas e demais ações do produto.
+    expect(REGUA_DO_PRODUTO.rampaDoProduto[6]).toBe("#00b66b");
+  });
 });

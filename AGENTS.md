@@ -244,6 +244,13 @@ regra de packaging acima se mudou o artefato que o self-hoster instala.
 
 ## Regra final — não invente
 
+## Preferência de colaboração
+
+Quando o responsável pelo produto pedir para usar Superpowers, conduza a descoberta em
+blocos sob um **título geral**, com **1 a 4 perguntas numeradas**, cada qual com sugestões e
+recomendação. Ele pode escolher, combinar opções ou responder livremente; evite uma pergunta
+isolada por mensagem.
+
 Este repositório tem PRDs, specs, regras de negócio e doutrina escritos
 (`docs/prd/`, `docs/specs/`, `docs/business-rules/`, `docs/doctrine/`).
 **Nunca invente regra de negócio, número, SLA ou comportamento de produto.**

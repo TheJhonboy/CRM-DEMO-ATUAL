@@ -1,5 +1,5 @@
-// Design tokens for DeskcommCRM showcase.
-// "Soft-tech / calmo" — neutros desaturados (greige/warm-gray), accent não-saturado.
+// Tokens da vitrine de design.
+// "Soft-tech / calmo" — neutros azulados, verde Calixto.
 // 5-Constraint Rule applied: Shape, Color (exact hex), Typography, Motion, Layout.
 
 export type PaletteId = "sage" | "clay" | "mist" | "plum" | "olive";
@@ -24,7 +24,7 @@ export type PaletteDef = {
   name: string;
   description: string;
   accent: ColorScale;
-  // Greige/warm-gray neutrals — explicitly NOT slate/zinc.
+  // Neutros azulados para superfícies claras e legíveis.
   neutralLight: ColorScale;
   neutralDark: ColorScale;
   states: { light: StateColors; dark: StateColors };
@@ -40,17 +40,17 @@ export type PaletteDef = {
 export const PALETTES: Record<PaletteId, PaletteDef> = {
   sage: {
     id: "sage",
-    name: "Sage",
-    description: "Verde-erva desaturado. Calmo, confiável, vegetal.",
+    name: "Calixto",
+    description: "Verde vivo, claro e confiável para ações do CRM.",
     accent: {
-      50: "#f3f6f1", 100: "#e4ebe0", 200: "#c8d6c1", 300: "#a4ba9a",
-      400: "#82a077", 500: "#67885d", 600: "#506d48", 700: "#41573b",
-      800: "#374731", 900: "#2f3c2b", 950: "#171f15",
+      50: "#ecf9f0", 100: "#d8f6e2", 200: "#b4efc8", 300: "#81e4a8",
+      400: "#41d98a", 500: "#00ca77", 600: "#00b66b", 700: "#158c53",
+      800: "#196d42", 900: "#1b5837", 950: "#002411",
     },
     neutralLight: {
-      50: "#faf9f6", 100: "#f3f1ec", 200: "#e7e3da", 300: "#d2cdbf",
-      400: "#a9a395", 500: "#7d786c", 600: "#5d594f", 700: "#46433b",
-      800: "#2e2c26", 900: "#1c1a16", 950: "#0e0d0a",
+      50: "#f7fafc", 100: "#eff6fb", 200: "#dbe7ef", 300: "#bfd2df",
+      400: "#91a9b8", 500: "#718394", 600: "#526574", 700: "#384b59",
+      800: "#263744", 900: "#13212d", 950: "#09131b",
     },
     neutralDark: {
       50: "#f5f4ef", 100: "#e6e4dc", 200: "#bbb8ac", 300: "#8e8b7f",
@@ -58,11 +58,11 @@ export const PALETTES: Record<PaletteId, PaletteDef> = {
       800: "#1d1c17", 900: "#161510", 950: "#0c0b08",
     },
     states: {
-      light: { success: "#5a8a5f", warning: "#b07a2b", error: "#a94a3c", info: "#4a7a93" },
+      light: { success: "#00b66b", warning: "#c98a15", error: "#c2413a", info: "#1976b9" },
       dark:  { success: "#82a077", warning: "#d09455", error: "#c87263", info: "#7da9bf" },
     },
     surfaces: {
-      light: { bg: "#faf9f6", surface: "#ffffff", surfaceElevated: "#f5f3ee", text: "#1c1a16", textMuted: "#5d594f", border: "#e7e3da" },
+      light: { bg: "#f7fafc", surface: "#ffffff", surfaceElevated: "#eff6fb", text: "#13212d", textMuted: "#526574", border: "#dbe7ef" },
       dark:  { bg: "#161510", surface: "#1d1c17", surfaceElevated: "#272620", text: "#f5f4ef", textMuted: "#8e8b7f", border: "#33312a" },
     },
   },
