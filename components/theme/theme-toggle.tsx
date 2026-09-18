@@ -6,12 +6,14 @@ import { useTheme } from "@/lib/theme";
 import { useHotkeys } from "react-hotkeys-hook";
 import { Sun, Moon, MonitorPlay } from "@/lib/ui/icons";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/hooks/i18n/useT";
 
 const subscribe = () => () => {};
 const clientSnapshot = () => true;
 const serverSnapshot = () => false;
 
 export function ThemeToggle() {
+  const t = useT();
   const { theme, setTheme } = useTheme();
   const mounted = React.useSyncExternalStore(subscribe, clientSnapshot, serverSnapshot);
 
@@ -24,7 +26,9 @@ export function ThemeToggle() {
   // Antes do efeito, servidor e navegador desenham exatamente o mesmo botão.
   // Só depois de hidratar lemos a preferência persistida e trocamos o ícone.
   const Icon = !mounted ? Sun : theme === "dark" ? Moon : theme === "system" ? MonitorPlay : Sun;
-  const ariaLabel = mounted ? `Tema: ${theme}. Cmd+Shift+L para alternar.` : "Alternar tema";
+  const ariaLabel = mounted
+    ? t(`Tema: ${theme}. Cmd+Shift+L para alternar.`)
+    : t("Alternar tema");
 
   return (
     <Button

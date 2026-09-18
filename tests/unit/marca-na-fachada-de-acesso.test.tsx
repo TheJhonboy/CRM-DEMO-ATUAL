@@ -32,6 +32,15 @@ vi.mock("@/lib/branding/saida", () => ({ marcaDaSaida }));
 vi.mock("@/components/theme/theme-toggle", () => ({
   ThemeToggle: () => <button aria-label="Tema: claro">Tema</button>,
 }));
+// A casca passou a resolver o idioma da interface (ver `IdiomaProvider` no
+// próprio layout) e por isso chama `createClient()`, que lê cookies — algo que
+// só existe dentro de uma requisição real. Fora do login quase nunca há
+// sessão, e o mock reflete exatamente isso: nenhum usuário.
+vi.mock("@/lib/supabase/server", () => ({
+  createClient: vi.fn(async () => ({
+    auth: { getUser: vi.fn(async () => ({ data: { user: null } })) },
+  })),
+}));
 
 const MARCA: MarcaDeSaida = {
   nome: "Vendas Turbo",

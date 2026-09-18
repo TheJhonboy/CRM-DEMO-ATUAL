@@ -12,11 +12,11 @@ import { z } from "zod";
 import type { NextRequest } from "next/server";
 
 import { fail, ok } from "@/lib/api/wrappers";
-import { requireAuth, resolveActiveOrg } from "@/lib/auth/server";
-import { ROLE_RANK } from "@/lib/auth/types";
+import { requireRole } from "@/lib/auth/require-role";
 import { PONTO_POR_ID } from "@/lib/ai/pontos/registro";
 import { EXPLICACAO_DA_ORIGEM, type OrigemDaEscolha } from "@/lib/ai/pontos/resolver";
 import { createClient } from "@/lib/supabase/server";
+import { traduzir } from "@/lib/i18n/dicionario";
 
 export const dynamic = "force-dynamic";
 
@@ -73,12 +73,10 @@ const filtrosDaQuery = z.object({
 });
 
 export async function GET(req: NextRequest): Promise<Response> {
-  const user = await requireAuth();
-  const org = await resolveActiveOrg(user);
-  if (!org) return fail("no_active_org", "nenhuma organização ativa", 400);
-  if (ROLE_RANK[org.role] < ROLE_RANK.manager) {
-    return fail("forbidden", "requer papel de gerente ou superior", 403);
-  }
+  const authz = await requireRole("manager", { resource: "ai_runs" });
+  if (!authz.ok) return authz.response;
+  const t = (texto: string) => traduzir(texto, authz.user.idioma);
+  const { org } = authz;
 
   // Zod na query string, como a rota irmã de uso já faz. `Math.min(Number(…))`
   // não valida nada: `?limit=abc` virava `NaN` e `?limit=-5` passava direto,
@@ -86,7 +84,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   // crua no corpo — resposta de servidor para um erro do cliente.
   const filtros = filtrosDaQuery.safeParse(Object.fromEntries(new URL(req.url).searchParams));
   if (!filtros.success) {
-    return fail("invalid_query", "filtros inválidos", 422, { details: filtros.error.issues });
+    return fail("invalid_query", t("filtros inválidos"), 422, { details: filtros.error.issues });
   }
   const { purpose, status, limit: limite } = filtros.data;
 

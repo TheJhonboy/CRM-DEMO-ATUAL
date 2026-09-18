@@ -1,3 +1,4 @@
+import type { ServiceBoundary } from "@/lib/atendimento/fronteira";
 /**
  * O ENVIO do aviso de escalação — lado do CRM (`supabase-js`).
  *
@@ -51,6 +52,7 @@ import { logger } from "@/lib/logger";
 const ATOR_DO_AVISO = "handoff-orchestrator";
 
 export interface AvisoDoCrmInput {
+  serviceBoundary?: ServiceBoundary;
   organizationId: string;
   conversationId: string;
   /** `contacts.id` — semente da variante do texto (nada dele aparece na frase). */
@@ -78,6 +80,7 @@ export async function avisarLeadDoCrm(
       admin,
       {
         organization_id: input.organizationId,
+        serviceBoundary: input.serviceBoundary,
         actor: { type: "ai_agent", id: ATOR_DO_AVISO, role: "manager" },
         requestId: `handoff-aviso-${input.conversationId}`,
       },
@@ -122,8 +125,8 @@ async function quemPodeAssumir(
   organizationId: string,
 ): Promise<QuemPodeAssumir | null> {
   try {
-    const roster = await carregarRosterDeAtendimento(admin, organizationId);
     const agora = new Date();
+    const roster = await carregarRosterDeAtendimento(admin, organizationId, agora);
     return {
       total: roster.length,
       disponiveis: roster.filter((a) => podeAssumirAgora(a, agora)).length,

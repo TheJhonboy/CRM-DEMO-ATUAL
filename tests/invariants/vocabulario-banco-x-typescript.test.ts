@@ -49,6 +49,20 @@ const PARES: Array<{
   simbolo: string;
 }> = [
   {
+    tabela: "extension_operations",
+    coluna: "kind",
+    // O recibo das extensões (0271). Quatro cópias no TypeScript viraram uma; um kind
+    // novo que nascesse só no banco faria o navegador descartar o recibo como inválido.
+    arquivo: "lib/extensions/vocabulario.ts",
+    simbolo: "EXTENSION_OPERATION_KINDS",
+  },
+  {
+    tabela: "extension_operations",
+    coluna: "status",
+    arquivo: "lib/extensions/vocabulario.ts",
+    simbolo: "EXTENSION_OPERATION_STATUSES",
+  },
+  {
     tabela: "crm_lead_activities",
     coluna: "actor_kind",
     // lib/leads/activity-emitter.ts → ActivityActorKind
@@ -170,6 +184,14 @@ const PARES: Array<{
     simbolo: "ChannelProvider",
   },
   {
+    tabela: "messages",
+    coluna: "sent_via",
+    // lib/types/messaging.ts → SentVia. A union deixa de viver inline em Message
+    // para o gate ler a fonte real em vez de manter uma terceira lista manual.
+    arquivo: "lib/types/messaging.ts",
+    simbolo: "SentVia",
+  },
+  {
     tabela: "followup_enrollments",
     coluna: "status",
     // hooks/followup/useFollowupQueue.ts → FollowupEnrollmentStatus.
@@ -244,6 +266,31 @@ const PARES: Array<{
     // a aba Atividade não mostrava NADA enquanto a regra aguardava a janela).
     arquivo: "hooks/webhooks/useAutomationRules.ts",
     simbolo: "AutomationRunStatus",
+  },
+  {
+    tabela: "crm_tasks",
+    coluna: "priority",
+    // lib/tarefas/tipos.ts → PRIORIDADES_DA_TAREFA. Nasce com o par no mesmo
+    // commit da migration 0210, que é a lição desta lista: todos os que
+    // divergiram divergiram por terem nascido sozinhos.
+    arquivo: "lib/tarefas/tipos.ts",
+    simbolo: "PRIORIDADES_DA_TAREFA",
+  },
+  {
+    tabela: "crm_tasks",
+    coluna: "status",
+    // lib/tarefas/tipos.ts → SITUACOES_DA_TAREFA.
+    arquivo: "lib/tarefas/tipos.ts",
+    simbolo: "SITUACOES_DA_TAREFA",
+  },
+  {
+    tabela: "team_invites",
+    coluna: "role",
+    // lib/schemas/team.ts → ROLES (tupla `as const`). O `z.enum(ROLES)` das
+    // rotas de convite e o CHECK da migration 0238 espelham a mesma lista;
+    // nasce com o par no mesmo commit da migration — a lição desta lista.
+    arquivo: "lib/schemas/team.ts",
+    simbolo: "ROLES",
   },
 ];
 
@@ -341,7 +388,6 @@ function valoresDoCheck(tabela: string, coluna: string): string[] {
   }
   return definidoras[0]?.valores ?? [];
 }
-
 
 /**
  * Os literais do union type, LIDOS DO ARQUIVO — nunca transcritos.

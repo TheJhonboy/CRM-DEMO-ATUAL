@@ -6,6 +6,7 @@ import { useRefetchDeSeguranca } from "@/hooks/realtime/useRefetchDeSeguranca";
 import { apiClient } from "@/lib/api/client";
 import { showApiError } from "@/components/feedback/ApiErrorToast";
 import type { Conversation } from "@/lib/types/messaging";
+import type { ComandoDoBanco } from "@/lib/inbox/comando-da-conversa";
 
 export interface ContactSummary {
   id: string;
@@ -78,7 +79,18 @@ export interface ConversationsFilters {
   /** Esconde fechadas/arquivadas — ver `exclude_finished` no schema da rota. */
   exclude_finished?: boolean;
   assigned_to?: "me" | "unassigned" | string;
+  /**
+   * QUEM MANDA na conversa — o filtro que as abas Fila e Automático passaram a
+   * usar (migration 0203). Pergunta diferente de `status`: aquele é ciclo de
+   * vida, este é quem responde a próxima mensagem do cliente.
+   */
+  comando?: readonly ComandoDoBanco[];
   search?: string;
+  /**
+   * Só as que têm mensagem não lida para o dono. Vai ao BANCO — migration nenhuma,
+   * a coluna `unread_count_for_assignee` já existe.
+   */
+  unread?: boolean;
   channel_session_id?: string;
   tag?: string;
 }
@@ -106,9 +118,16 @@ export function useConversationsRealtime(
           typeof filters.status === "string" ? [filters.status] : filters.status;
         qs.set("status", lista.join(","));
       }
+      // O `qs.set` é metade do trabalho, e é a metade que o typecheck NÃO pega:
+      // com o campo no tipo e sem esta linha, a aba Fila pediria filtro nenhum e
+      // mostraria a lista inteira — parecendo funcionar.
+      if (filters.comando && filters.comando.length > 0) {
+        qs.set("comando", filters.comando.join(","));
+      }
       if (filters.exclude_finished) qs.set("exclude_finished", "true");
       if (filters.assigned_to) qs.set("assigned_to", filters.assigned_to);
       if (filters.search) qs.set("search", filters.search);
+      if (filters.unread) qs.set("unread", "true");
       if (filters.channel_session_id) qs.set("channel_session_id", filters.channel_session_id);
       if (filters.tag) qs.set("tag", filters.tag);
       if (pageParam) qs.set("cursor", pageParam);

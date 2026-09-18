@@ -62,16 +62,17 @@ export const crmListAvailableAttendants: McpToolDefinition<typeof atendentesInpu
   name: "crm_list_available_attendants",
   description:
     "Atendentes da org com is_available, capacity, current_load e can_take_now (disponível ∧ " +
-    "com folga ∧ dentro do horário — mesmo predicado do worker de roteamento). Use ANTES de " +
-    "escalar: com zero elegíveis a conversa vai para a fila e pode não ser puxada. Sem e-mail " +
-    "nem telefone.",
+    "com folga ∧ dentro do horário — mesmo predicado do worker de roteamento), mais `present` " +
+    "e `last_signal_at`: se a pessoa está com a tela do CRM aberta agora. Presença é SÓ " +
+    "informação — quem pode receber é o can_take_now. Use ANTES de escalar: com zero elegíveis " +
+    "a conversa vai para a fila e pode não ser puxada. Sem e-mail nem telefone.",
   inputSchema: atendentesInputShape,
   category: "read",
   requiresRole: "agent",
   requiresScope: "mcp:read",
   handler: async (input, ctx) => {
     const agora = new Date();
-    const roster = await carregarRosterDeAtendimento(ctx.supabase, ctx.organizationId);
+    const roster = await carregarRosterDeAtendimento(ctx.supabase, ctx.organizationId, agora);
     const linhas = roster.map((a) => ({
       user_id: a.userId,
       role: a.papel,
@@ -79,19 +80,33 @@ export const crmListAvailableAttendants: McpToolDefinition<typeof atendentesInpu
       capacity: a.capacidade,
       current_load: a.cargaAtual,
       can_take_now: podeAssumirAgora(a, agora),
+      // Leitor declarado (issue #996): a IA passa a saber se há alguém de fato
+      // na frente da tela. `present: false` NÃO tira ninguém da lista nem
+      // impede a passagem — quem decide isso é `can_take_now`. Serve para
+      // escolher o prazo que o agente promete ao cliente e para dizer a verdade
+      // quando prometer atendimento imediato for exagero.
+      present: a.presente,
+      last_signal_at: a.ultimoSinalEm,
     }));
     const elegiveis = linhas.filter((l) => l.can_take_now);
+    const presentes = elegiveis.filter((l) => l.present).length;
     return {
       attendants: input.only_available ? elegiveis : linhas,
       // O total elegível vai SEMPRE, mesmo com only_available=false: é o número
       // que decide se escalar agora faz sentido, e deixá-lo implícito na
       // contagem do array faria o modelo errar quando a lista vem filtrada.
       available_count: elegiveis.length,
+      // Quantos dos elegíveis têm sinal de presença agora. `present` nunca
+      // reduz `available_count`; este campo é o que permite ao agente medir o
+      // próprio exagero ao prometer "uma pessoa vai te atender".
+      present_count: presentes,
       total_count: linhas.length,
       next_action:
         elegiveis.length === 0
           ? "Ninguém pode assumir agora. Avise o cliente do prazo real em vez de prometer atendimento imediato."
-          : "Há gente disponível: pode passar o atendimento.",
+          : presentes === 0
+            ? "Há gente elegível, mas ninguém com a tela aberta agora: passe o atendimento se o prazo puder ser maior, e não prometa resposta imediata."
+            : "Há gente disponível e com a tela aberta: pode passar o atendimento.",
     };
   },
 };

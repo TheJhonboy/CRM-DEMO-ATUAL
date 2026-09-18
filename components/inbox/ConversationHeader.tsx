@@ -9,7 +9,11 @@ import { Phone, ArrowRight } from "@/lib/ui/icons";
 import { useAuth } from "@/hooks/auth/AuthProvider";
 import { useClaimConversation } from "@/hooks/inbox/useClaimConversation";
 import { useReleaseConversation } from "@/hooks/inbox/useReleaseConversation";
-import { useCloseConversation } from "@/hooks/inbox/useCloseConversation";
+import {
+  useArchiveConversation,
+  useCloseConversation,
+  useReopenConversation,
+} from "@/hooks/inbox/useCloseConversation";
 import { useResumeAiAttendance } from "@/hooks/inbox/useResumeAiAttendance";
 import { usePauseAiAttendance } from "@/hooks/inbox/usePauseAiAttendance";
 import { useAutomaticoAtivo } from "@/hooks/ai/useAutomaticoAtivo";
@@ -25,20 +29,28 @@ interface Props {
   conversation: ConversationWithContact;
 }
 
+/**
+ * O CHIP NOMEIA CICLO DE VIDA, NÃO COMANDO.
+ *
+ * Ele afirmava quem manda — "Automático atendendo", "Aguardando atendente" — a
+ * 20px de um selo que responde a MESMA pergunta por outra fonte, e as duas se
+ * contradiziam na tela: `conversations.status` não acompanha silêncio, trava de
+ * contato nem atribuição, e o motor nunca o lê. Medido em 2026-08-30 num print
+ * do dono: "Aguardando atendente" e "Automático" no mesmo cabeçalho.
+ *
+ * Quem responde "quem manda" é o `OwnerBadge`, que vem de `comandoDaConversa`.
+ * Aqui fica só o que o status realmente sabe: o episódio está aberto ou acabou.
+ *
+ * Cobre os SETE valores do CHECK de propósito — o call site é
+ * `t(STATUS_LABEL[status] ?? status)`, e um buraco imprime o token cru em inglês
+ * no rosto do atendente. Vigiado pelo invariante de espelho.
+ */
 const STATUS_LABEL: Record<string, string> = {
   open: "Aberta",
-  // É EXATAMENTE o estado em que a passagem para humano deixa a conversa
-  // (`performHumanHandoff`: 'ai_handling' → 'pending'), e o rótulo faltava — toda
-  // conversa escalada mostrava `pending` cru no rosto do atendente. O
-  // `conversationStatusSchema` não lista 'pending' porque valida ENTRADA da API;
-  // quem escreve este estado é o motor, e a tela precisa saber lê-lo.
-  pending: "Aguardando atendente",
-  claimed: "Em atendimento",
-  // "Automático", não "IA": com o selo de comando ao lado dizendo quem manda, o
-  // header mostrava DUAS palavras para o MESMO ator na mesma linha ("IA
-  // atendendo" + "Automático"). A palavra do estado já é contrato em quatro
-  // arquivos e no dicionário; a que sobrava era esta.
-  ai_handling: "Automático atendendo",
+  pending: "Aberta",
+  claimed: "Aberta",
+  ai_handling: "Aberta",
+  resolved: "Resolvida",
   closed: "Fechada",
   archived: "Arquivada",
 };
@@ -49,6 +61,8 @@ export function ConversationHeader({ conversation }: Props) {
   const claim = useClaimConversation();
   const release = useReleaseConversation();
   const close = useCloseConversation();
+  const reopen = useReopenConversation();
+  const arquivar = useArchiveConversation();
   const retomar = useResumeAiAttendance();
   const pausar = usePauseAiAttendance();
   // "Existe automático nesta org?" — sem isto o selo afirmava que o robô estava
@@ -57,7 +71,7 @@ export function ConversationHeader({ conversation }: Props) {
   const [reassignOpen, setReassignOpen] = useState(false);
 
   const c = conversation.contacts ?? null;
-  const displayName = rotuloDoContato(c);
+  const displayName = rotuloDoContato(c, t);
   const phone = c?.phone_number ? phoneForDisplay(c.phone_number) : null;
   const status = conversation.status;
   const isMineAssigned = conversation.assigned_to_user_id === user.id;
@@ -80,10 +94,11 @@ export function ConversationHeader({ conversation }: Props) {
     assignee_kind: conversation.assignee_kind ?? null,
     bot_silenced_until: conversation.bot_silenced_until ?? null,
     force_human: c?.force_human ?? null,
+    is_blocked: conversation.contacts?.is_blocked ?? null,
     automaticoDaOrg: automaticoDaOrg.data,
   });
 
-  const encerrada = status === "closed" || status === "archived";
+  const encerrada = status === "closed" || status === "archived" || status === "resolved";
   /**
    * A VOLTA aparece sempre que há algo a devolver — inclusive em conversa
    * ENCERRADA. Antes ela era condicionada a `status !== "closed"`, e o resultado
@@ -116,6 +131,9 @@ export function ConversationHeader({ conversation }: Props) {
   const podePausar =
     automaticoAtivo && !encerrada && conversation.assigned_to_user_id !== null;
 
+  if (user.support?.access_mode === "support_readonly") return <header className="flex items-center justify-between border-b p-4">
+    <strong>{displayName}</strong><span className="text-sm text-muted-foreground">{STATUS_LABEL[status] ?? status} · Somente leitura</span>
+  </header>;
   return (
     // `flex-wrap` porque este header travava a LARGURA DA TELA INTEIRA. Ele
     // media 707px de `min-content` — a identidade do contato encolhia bem
@@ -167,9 +185,9 @@ export function ConversationHeader({ conversation }: Props) {
             mesma tela. Cor não sobrevive ao daltonismo nem ao teste do metro. */}
         <div className="mt-1 flex items-center gap-2" data-testid="comando-da-conversa">
           {comando.quem === "humano" ? (
-            <OwnerBadge ownerKind="user" ownerName={comando.nome ?? "Atendente"} />
+            <OwnerBadge ownerKind="user" ownerName={comando.nome ?? t("Atendente")} />
           ) : comando.quem === "automatico" ? (
-            <OwnerBadge ownerKind="ai" ownerName="Automático" />
+            <OwnerBadge ownerKind="ai" ownerName={t("Automático")} />
           ) : (
             // `ninguem`, `aguardando` e `encerrada` sem dono caem aqui: o disco
             // TRACEJADO do OwnerBadge, que é como o funil já desenha "ninguém".
@@ -196,7 +214,7 @@ export function ConversationHeader({ conversation }: Props) {
             // dicionário de espanhol o citam). O que faltava era a consequência
             // dita: desde a 0173 assumir também para o atendimento automático, e
             // um botão que muda duas coisas precisa anunciar as duas.
-            title="Você passa a responder esta conversa e o atendimento automático para aqui."
+            title={t("Você passa a responder esta conversa e o atendimento automático para aqui.")}
             onClick={() =>
               claim.mutate({
                 conversation_id: conversation.id,
@@ -243,12 +261,12 @@ export function ConversationHeader({ conversation }: Props) {
             // que às vezes faz mais do que o nome promete precisa dizer quando.
             title={
               motivo === "contato_travado"
-                ? "Religa o atendimento automático para este cliente — vale para todas as conversas dele."
-                : "Devolve esta conversa ao atendimento automático."
+                ? t("Religa o atendimento automático para este cliente — vale para todas as conversas dele.")
+                : t("Devolve esta conversa ao atendimento automático.")
             }
             onClick={() => retomar.mutate({ conversation_id: conversation.id })}
           >
-            {retomar.isPending ? "Devolvendo..." : t("Devolver ao automático")}
+            {retomar.isPending ? t("Devolvendo...") : t("Devolver ao automático")}
           </Button>
         )}
         {podePausar && (
@@ -260,35 +278,76 @@ export function ConversationHeader({ conversation }: Props) {
             // `podePausar` já exige dono != null, então este botão NUNCA aparece
             // sem dono — prometer "você assume" aqui seria prometer o que a rota
             // não faz: com dono, ela só cala, nunca rouba a conversa de quem a tem.
-            title="O atendimento automático para nesta conversa. O dono não muda."
+            title={t("O atendimento automático para nesta conversa. O dono não muda.")}
             onClick={() => pausar.mutate({ conversation_id: conversation.id })}
           >
-            {pausar.isPending ? "Pausando..." : t("Pausar o automático")}
+            {pausar.isPending ? t("Pausando...") : t("Pausar o automático")}
           </Button>
         )}
-        {status !== "closed" && status !== "archived" && (
+        {!encerrada && (
           <Button size="sm" variant="outline" onClick={() => setReassignOpen(true)}>
             {t("Transferir")}
           </Button>
         )}
-        {status !== "closed" && status !== "archived" && (
+        {!encerrada && (
           <SnoozeButton
             conversationId={conversation.id}
             snoozeUntil={conversation.snooze_until ?? null}
           />
         )}
-        {status !== "closed" && status !== "archived" && (
+        {!encerrada && (
           <Button
             size="sm"
             variant="outline"
             disabled={close.isPending}
             onClick={() => {
-              if (confirm("Fechar esta conversa?")) {
-                close.mutate({ conversation_id: conversation.id });
+              if (confirm(t("Fechar esta conversa?"))) {
+                close.mutate({ conversation_id: conversation.id, expected_revision: conversation.service_revision });
               }
             }}
           >
             {t("Fechar")}
+          </Button>
+        )}
+        {encerrada && <Button size="sm" variant="outline" disabled={reopen.isPending}
+          onClick={() => reopen.mutate({ conversation_id: conversation.id, expected_revision: conversation.service_revision })}>
+          {t("Reabrir")}
+        </Button>}
+        {/* ARQUIVAR (#923): tira da frente sem destruir.
+            A conversa já arquivada não mostra o botão — arquivar duas vezes não
+            é um gesto que exista, e o botão só reapareceria como um clique que
+            não muda nada. Fechada E resolvida mostram: são exatamente as que se
+            quer mandar para o arquivo depois de encerradas, e é o caminho que
+            faz a aba "Arquivadas" deixar de ser uma pasta morta.
+            A permissão é a mesma de fechar (a rota `/conversations/[id]` é
+            `requireSupportWrite`): quem pode encerrar, pode arquivar. */}
+        {status !== "archived" && (
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={arquivar.isPending}
+            onClick={() => {
+              // A confirmação precisa dizer o que ACONTECE, e o que acontece
+              // depende do estado. `fn_conversation_set_status` trata
+              // `archived` como terminal: encerra o atendimento (grava
+              // `service_closed_at`, incrementa a revisão) e, com isso, desfaz
+              // a pausa do automático. Um atendente que leia "arquivar = tirar
+              // da vista, volto depois" encerraria o atendimento sem saber — e
+              // o robô voltaria a responder no próximo "oi" do cliente.
+              const aviso = encerrada
+                ? t("Arquivar esta conversa?")
+                : t(
+                    "Arquivar encerra este atendimento e guarda a conversa no histórico. Se o cliente escrever de novo, ela volta. Arquivar?",
+                  );
+              if (confirm(aviso)) {
+                arquivar.mutate({
+                  conversation_id: conversation.id,
+                  expected_revision: conversation.service_revision,
+                });
+              }
+            }}
+          >
+            {arquivar.isPending ? t("Arquivando...") : t("Arquivar")}
           </Button>
         )}
         {/* `xl:hidden` porque a partir de 1280px o painel lateral de CRM entra
@@ -305,7 +364,7 @@ export function ConversationHeader({ conversation }: Props) {
         {c?.id && (
           <Button asChild size="sm" variant="ghost" className="xl:hidden">
             <Link href={`/app/contacts/${c.id}`} className="flex items-center gap-1">
-              Ver contato
+              {t("Ver contato")}
               <ArrowRight size={12} weight="regular" aria-hidden />
             </Link>
           </Button>

@@ -13,11 +13,16 @@ import {
   ShieldCheck,
   CalendarBlank,
   Palette,
+  Key,
+  WebhooksLogo,
   ArrowRight,
 } from "@/lib/ui/icons";
 import type { Icon as PhosphorIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
+import { SimboloDoProduto } from "@/components/branding/MarcaDoProduto";
+import { marcaEhADoProduto } from "@/lib/branding";
 import { useMarcaDaInstalacao } from "@/lib/branding/contexto";
+import { useT } from "@/hooks/i18n/useT";
 
 interface NavItem {
   href: string;
@@ -43,6 +48,14 @@ const NAV_ITEMS: NavItem[] = [
   // A porta da tela do app OAuth do Google — mesma razão da de cima: é
   // configuração da INSTALAÇÃO, e /admin tem navegação própria.
   { href: "/admin/google", label: "Google Agenda", icon: CalendarBlank },
+  // A porta da tela do App da Meta (chave secreta e token de verificação do
+  // webhook) — mesma razão da de cima: é da INSTALAÇÃO. O rótulo é o da aba de
+  // Conexões, para quem vem de lá reconhecer o mesmo nome.
+  { href: "/admin/meta", label: "API Oficial (Meta)", icon: WebhooksLogo },
+  // A porta da tela que decide quem pode criar conta nesta instalação — mesma
+  // razão das duas de cima: é configuração da INSTALAÇÃO, e /admin tem
+  // navegação própria (o registro de `lib/navigation/` cobre só `app/app/**`).
+  { href: "/admin/cadastro", label: "Cadastro", icon: Key },
 ];
 
 interface AdminSidebarProps {
@@ -53,6 +66,7 @@ interface AdminSidebarProps {
 }
 
 export function AdminSidebar({ userEmail, variant = "desktop" }: AdminSidebarProps) {
+  const t = useT();
   const isMobile = variant === "mobile";
   const pathname = usePathname();
   // Por PROP do servidor, e nunca `branding()`: aquela função lê fontes
@@ -69,15 +83,19 @@ export function AdminSidebar({ userEmail, variant = "desktop" }: AdminSidebarPro
         isMobile ? "h-full w-full" : "hidden w-60 shrink-0 lg:flex",
       )}
     >
-      <div className="flex h-14 items-center border-b px-4">
+      <div className="flex h-14 items-center gap-3 border-b px-4">
+        {/* O nome já está escrito ao lado — o símbolo é reforço, não legenda. */}
+        {marcaEhADoProduto(marca) && (
+          <SimboloDoProduto nome={marca.name} decorativo className="h-8 w-8" />
+        )}
         <div className="flex flex-col">
           <span className="text-xs uppercase tracking-wider text-muted-foreground">
             {marca.name}
           </span>
-          <span className="text-sm font-semibold tracking-tight">Admin Plataforma</span>
+          <span className="text-sm font-semibold tracking-tight">{t("Admin Plataforma")}</span>
         </div>
       </div>
-      <nav className="flex-1 space-y-1 overflow-y-auto p-2" aria-label="Navegação plataforma">
+      <nav className="flex-1 space-y-1 overflow-y-auto p-2" aria-label={t("Navegação plataforma")}>
         {NAV_ITEMS.map((item) => {
           const isActive =
             pathname === item.href || pathname.startsWith(item.href + "/");
@@ -95,7 +113,7 @@ export function AdminSidebar({ userEmail, variant = "desktop" }: AdminSidebarPro
               )}
             >
               <Icon size={18} weight={isActive ? "fill" : "regular"} aria-hidden />
-              <span className="truncate">{item.label}</span>
+              <span className="truncate">{t(item.label)}</span>
             </Link>
           );
         })}
@@ -106,7 +124,7 @@ export function AdminSidebar({ userEmail, variant = "desktop" }: AdminSidebarPro
           className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent/50 hover:text-foreground"
         >
           <ArrowRight size={14} aria-hidden />
-          <span>Voltar pra app</span>
+          <span>{t("Voltar pra app")}</span>
         </Link>
         <p className="truncate px-2 text-xs text-muted-foreground" title={userEmail}>
           {userEmail}
