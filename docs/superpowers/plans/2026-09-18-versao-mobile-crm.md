@@ -39,7 +39,7 @@
 | `tests/unit/kanban-colunas-mobile.test.ts` | **novo** |
 | `tests/unit/contatos-cartoes-mobile.test.tsx` | **novo** (comportamental) |
 | `tests/unit/cliente-pela-agenda-na-tela.test.tsx` | o caso "ligada" passa a olhar cada vista (duas vistas no DOM) |
-| `tests/unit/tarefas-alvos-de-toque.test.ts` | **novo** |
+| `tests/unit/tarefas-alvos-de-toque.test.tsx` | **novo** (comportamental) |
 
 ---
 
@@ -887,84 +887,152 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 
 ### Task 5: Tarefas — alvos de toque no celular
 
+> **Emenda (ledger, antes do despacho):** a versão original só crescia o checkbox para 24px e deixava os botões de editar/apagar em `h-7 w-7` (28px) — longe dos 44px e contra a restrição global de reaproveitar as variantes de 44px do `Button` — e o teste era só de texto-fonte. Emendado: o checkbox mantém o desenho de 24px mas ganha área de toque de 44px por pseudo-elemento; os botões da linha perdem o tamanho fixo abaixo de `md` (o `size="icon"` padrão já é 44px) e mantêm exatamente o tamanho de hoje a partir de `md`; os testes passam a ser comportamentais (o componente só recebe props, é barato de montar).
+
 **Files:**
-- Modify: `app/app/tasks/_components/ListaDeTarefas.tsx:86-91,132`
-- Test: `tests/unit/tarefas-alvos-de-toque.test.ts` (novo)
+- Modify: `app/app/tasks/_components/ListaDeTarefas.tsx`
+- Test: `tests/unit/tarefas-alvos-de-toque.test.tsx` (novo)
 
 **Interfaces:**
-- Nenhuma nova — só classes CSS.
+- Consumes: `Tarefa` de `@/lib/tarefas/tipos` (campos: `id, organization_id, title, description, due_date, priority, status, lead_id, contact_id, assigned_to, created_by, created_at, updated_at`; `priority` ∈ `low|medium|high|urgent`, `status` ∈ `pending|in_progress|done|cancelled`); as props já existentes de `ListaDeTarefas` (`tarefas`, `podeEditar`, `aoAlternarConcluida`, `aoEditar`, `aoApagar`) — nenhuma prop nova.
+- Produces: nada novo exportado — só classes.
 
 - [ ] **Step 1: Escrever o teste que falha**
 
-Criar `tests/unit/tarefas-alvos-de-toque.test.ts`:
+Criar `tests/unit/tarefas-alvos-de-toque.test.tsx`:
 
-```ts
-import fs from "node:fs";
-import path from "node:path";
-import { describe, expect, it } from "vitest";
-
-const RAIZ = process.cwd();
-const ARQUIVO = path.join(RAIZ, "app/app/tasks/_components/ListaDeTarefas.tsx");
-
+```tsx
 /**
  * Dois defeitos de toque encontrados na auditoria:
  *
  *  1. O checkbox de concluir era 16px (h-4 w-4) — abaixo de qualquer alvo de
- *     toque confortável.
- *  2. Editar/apagar só apareciam em `:hover` — em toque não existe hover, e
- *     em alguns navegadores móveis esses dois botões ficavam praticamente
- *     inalcançáveis. Isto é bug de uso, não só de estilo.
- *
- * md: preserva o comportamento de mouse de hoje (16px, hover-reveal) —
- * ambos os defeitos eram só no celular.
+ *     toque confortável. Agora o desenho tem 24px e a ÁREA de toque 44px (um
+ *     pseudo-elemento `after:` que se estende 10px para cada lado); a partir de
+ *     md volta ao desenho de 16px e o pseudo-elemento coincide com o botão.
+ *  2. Editar/apagar só apareciam em `:hover` — em toque não existe hover, e em
+ *     alguns navegadores móveis esses botões ficavam praticamente
+ *     inalcançáveis. Abaixo de md ficam sempre visíveis, e com o tamanho padrão
+ *     do `Button` (44px); a partir de md voltam ao comportamento de mouse de
+ *     hoje (28px, revelados no hover).
  */
+import { fireEvent, render, screen } from "@testing-library/react";
+import type { ComponentProps } from "react";
+import { describe, expect, it, vi } from "vitest";
+
+import { ListaDeTarefas } from "@/app/app/tasks/_components/ListaDeTarefas";
+import type { Tarefa } from "@/lib/tarefas/tipos";
+
+vi.mock("@/hooks/i18n/useT", () => ({ useT: () => (s: string) => s }));
+
+const TAREFA: Tarefa = {
+  id: "t-1",
+  organization_id: "org-1",
+  title: "Ligar para a Joana",
+  description: null,
+  due_date: null,
+  priority: "medium",
+  status: "pending",
+  lead_id: null,
+  contact_id: null,
+  assigned_to: null,
+  created_by: null,
+  created_at: "2026-01-01T10:00:00.000Z",
+  updated_at: "2026-01-01T10:00:00.000Z",
+};
+
+function montar(over: Partial<ComponentProps<typeof ListaDeTarefas>> = {}) {
+  const props = {
+    tarefas: [TAREFA],
+    podeEditar: true,
+    aoAlternarConcluida: vi.fn(async () => undefined),
+    aoEditar: vi.fn(),
+    aoApagar: vi.fn(async () => undefined),
+    ...over,
+  };
+  render(<ListaDeTarefas {...props} />);
+  return props;
+}
+
 describe("Tarefas — alvos de toque no celular", () => {
-  it("o checkbox de concluir tem alvo maior no celular", () => {
-    const src = fs.readFileSync(ARQUIVO, "utf8");
-    expect(src).toContain(
-      "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-colors md:h-4 md:w-4",
-    );
+  it("o checkbox tem desenho de 24px e área de toque de 44px no celular, 16px a partir de md", () => {
+    montar();
+    const caixa = screen.getByRole("checkbox", { name: "Marcar como concluída" });
+    expect(caixa).toHaveClass("h-6", "w-6", "md:h-4", "md:w-4");
+    expect(caixa).toHaveClass("relative", "after:absolute", "after:-inset-2.5", "md:after:inset-0");
   });
 
-  it("editar/apagar ficam sempre visíveis no celular — hover só a partir de md", () => {
-    const src = fs.readFileSync(ARQUIVO, "utf8");
-    expect(src).toContain(
-      "flex shrink-0 items-center gap-1 opacity-100 transition-opacity md:opacity-0 md:focus-within:opacity-100 md:group-hover:opacity-100",
+  it("tocar no checkbox conclui a tarefa", () => {
+    const props = montar();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Marcar como concluída" }));
+    expect(props.aoAlternarConcluida).toHaveBeenCalledWith(TAREFA);
+  });
+
+  it("editar/apagar ficam sempre visíveis no celular — o hover só existe a partir de md", () => {
+    montar();
+    const acoes = screen.getByRole("button", { name: "Editar a tarefa" }).parentElement!;
+    expect(acoes).toHaveClass(
+      "opacity-100",
+      "md:opacity-0",
+      "md:focus-within:opacity-100",
+      "md:group-hover:opacity-100",
     );
+    expect(acoes).not.toHaveClass("opacity-0");
+  });
+
+  it("os botões não carregam tamanho fixo abaixo de md — herdam os 44px do Button", () => {
+    montar();
+    for (const nome of ["Editar a tarefa", "Apagar a tarefa"]) {
+      const botao = screen.getByRole("button", { name: nome });
+      expect(botao).toHaveClass("md:h-7", "md:w-7");
+      expect(botao).not.toHaveClass("h-7");
+      expect(botao).not.toHaveClass("w-7");
+    }
+  });
+
+  it("apagar continua em dois toques, e o botão de confirmar também herda o tamanho de toque", () => {
+    const props = montar();
+    fireEvent.click(screen.getByRole("button", { name: "Apagar a tarefa" }));
+    const confirmar = screen.getByRole("button", { name: "Confirmar" });
+    expect(confirmar).toHaveClass("md:h-7", "md:px-2");
+    expect(confirmar).not.toHaveClass("h-7");
+    fireEvent.click(confirmar);
+    expect(props.aoApagar).toHaveBeenCalledWith(TAREFA);
+  });
+
+  it("quem não pode editar não vê editar nem apagar", () => {
+    montar({ podeEditar: false });
+    expect(screen.queryByRole("button", { name: "Editar a tarefa" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Apagar a tarefa" })).toBeNull();
   });
 });
 ```
 
 - [ ] **Step 2: Rodar e confirmar que falha**
 
-Run: `pnpm vitest run tests/unit/tarefas-alvos-de-toque.test.ts`
-Expected: FAIL — as duas strings não existem ainda.
+Run: `pnpm vitest run tests/unit/tarefas-alvos-de-toque.test.tsx`
+Expected: FAIL nos casos de classe (1, 3, 4 e 5) — o código de hoje tem `h-4 w-4`, `opacity-0` e `h-7 w-7`. Os casos 2 e 6 já passam (comportamento que não muda) — é o esperado, e serve de controle de que a montagem do componente funciona.
 
 - [ ] **Step 3: Implementar**
 
-Trocar (linhas 86-91):
+Em `app/app/tasks/_components/ListaDeTarefas.tsx`:
+
+3a. Checkbox — trocar (linhas 86-91):
 
 ```tsx
         className={cn(
           "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-md border transition-colors",
-          encerrada
-            ? "border-primary bg-primary text-primary-foreground"
-            : "border-muted-foreground/40 hover:border-primary",
-        )}
 ```
 
 por:
 
 ```tsx
         className={cn(
-          "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-colors md:h-4 md:w-4",
-          encerrada
-            ? "border-primary bg-primary text-primary-foreground"
-            : "border-muted-foreground/40 hover:border-primary",
-        )}
+          "relative mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-colors after:absolute after:-inset-2.5 after:content-[''] md:h-4 md:w-4 md:after:inset-0",
 ```
 
-Trocar (linha 132):
+(o resto do `cn(...)` — `encerrada ? … : …` — fica como está).
+
+3b. Barra de ações — trocar (linha 132):
 
 ```tsx
         <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
@@ -976,19 +1044,32 @@ por:
         <div className="flex shrink-0 items-center gap-1 opacity-100 transition-opacity md:opacity-0 md:focus-within:opacity-100 md:group-hover:opacity-100">
 ```
 
+3c. Os três botões da barra perdem o tamanho fixo abaixo de `md` (o `size="icon"`/`size="sm"` já dá 44px abaixo de `lg`; a partir de `md` o tamanho de hoje volta pelo prefixo `md:`, e a partir de `lg` a variante do `Button` continua mandando, exatamente como hoje):
+- botão de editar (linha ~136): `className="h-7 w-7"` → `className="md:h-7 md:w-7"`
+- botão de confirmar (linha ~152): `className="h-7 px-2 text-[11px]"` → `className="text-[11px] md:h-7 md:px-2"`
+- botão de apagar (linha ~162): `className="h-7 w-7"` → `className="md:h-7 md:w-7"`
+
 - [ ] **Step 4: Rodar e confirmar que passa**
 
-Run: `pnpm vitest run tests/unit/tarefas-alvos-de-toque.test.ts`
-Expected: PASS (2 testes)
+Run: `pnpm vitest run tests/unit/tarefas-alvos-de-toque.test.tsx`
+Expected: PASS (6 testes)
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Outros testes que citam o componente, typecheck e ESLint**
+
+Run: `grep -rlE "ListaDeTarefas|TarefasClient|tasks/_components" tests lib components app --include=*.test.ts --include=*.test.tsx` — rodar cada arquivo listado (hoje a lista é vazia; dizer isso no relatório se continuar vazia). Depois `pnpm typecheck` e `pnpm exec eslint app/app/tasks/_components/ListaDeTarefas.tsx tests/unit/tarefas-alvos-de-toque.test.tsx`.
+
+- [ ] **Step 6: Commit**
 
 ```bash
-git add app/app/tasks/_components/ListaDeTarefas.tsx tests/unit/tarefas-alvos-de-toque.test.ts
-git commit -m "fix(mobile): alvos de toque em Tarefas — checkbox maior, ações sempre visíveis
+git add app/app/tasks/_components/ListaDeTarefas.tsx tests/unit/tarefas-alvos-de-toque.test.tsx
+git commit -m "fix(mobile): alvos de toque em Tarefas — checkbox e ações de 44px, ações sempre visíveis
 
 Editar/apagar só apareciam em :hover, que não existe em toque — bug de
-uso, não só de estilo. md: preserva o comportamento de mouse de hoje."
+uso, não só de estilo. Checkbox com desenho de 24px e área de toque de
+44px (pseudo-elemento); botões da linha herdam os 44px do Button abaixo
+de md. A partir de md o comportamento de mouse de hoje fica intacto.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 ```
 
 ---
