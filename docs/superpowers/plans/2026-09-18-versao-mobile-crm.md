@@ -37,7 +37,8 @@
 | `tests/unit/navegacao-registry.test.ts` | + testes de `bottomNavItems` |
 | `tests/unit/mobile-bottom-nav.test.tsx` | **novo** |
 | `tests/unit/kanban-colunas-mobile.test.ts` | **novo** |
-| `tests/unit/contatos-cartoes-mobile.test.ts` | **novo** |
+| `tests/unit/contatos-cartoes-mobile.test.tsx` | **novo** (comportamental) |
+| `tests/unit/cliente-pela-agenda-na-tela.test.tsx` | o caso "ligada" passa a olhar cada vista (duas vistas no DOM) |
 | `tests/unit/tarefas-alvos-de-toque.test.ts` | **novo** |
 
 ---
@@ -554,110 +555,285 @@ alinhado com a largura real para não 'pular' quando os dados chegam."
 
 ### Task 4: Contatos — lista de cartões no celular
 
+> **Emenda (ledger, antes do despacho):** a versão original desta task duplicava, palavra por palavra, a regra dos selos de estado e das ações do contato (uma cópia na tabela, outra no cartão) e o teste era só de texto-fonte. Duas correções: (1) os selos e as ações viram dois componentes locais usados pelas DUAS vistas — a tabela e o cartão mostram o MESMO registro e não podem divergir na regra; (2) o teste passa a ser comportamental (Testing Library) e o teste existente `tests/unit/cliente-pela-agenda-na-tela.test.tsx` precisa ser atualizado, porque com as duas vistas no DOM (o CSS esconde uma em cada largura, o jsdom não aplica CSS) `getByText("Cliente")` acha DOIS elementos e lança.
+
 **Files:**
 - Modify: `components/contacts/ContactsTable.tsx`
-- Test: `tests/unit/contatos-cartoes-mobile.test.ts` (novo)
+- Modify: `tests/unit/cliente-pela-agenda-na-tela.test.tsx` (o caso "ligada" passa a olhar cada vista)
+- Test: `tests/unit/contatos-cartoes-mobile.test.tsx` (novo)
 
 **Interfaces:**
-- Consumes: as mesmas props/handlers que a tabela já usa (`contacts`, `displayName`, `formatUltimaAtividade`, `iniciarConversa`, `setAlvo`, `clientesLigado`, `abrindo`) — nenhuma prop nova no componente.
-- Produces: nenhuma interface nova exportada; só marcação (`data-testid="lista-mobile-contatos"` / `data-testid="tabela-contatos-desktop"`) para o teste.
+- Consumes: as mesmas props e handlers que a tabela já usa — nenhuma prop nova em `ContactsTable`.
+- Produces (internos ao arquivo, não exportados): `SelosDoContato({ c, clientesLigado })` e `AcoesDoContato({ c, abrindo, compacta?, onIniciarConversa, onExcluir })`; marcação `data-testid="lista-mobile-contatos"` (cartões, `md:hidden`) e `data-testid="tabela-contatos-desktop"` (tabela, `hidden md:block`).
 
-- [ ] **Step 1: Escrever o teste que falha**
+- [ ] **Step 1: Escrever os testes que falham**
 
-Criar `tests/unit/contatos-cartoes-mobile.test.ts`:
+Criar `tests/unit/contatos-cartoes-mobile.test.tsx`:
 
-```ts
-import fs from "node:fs";
-import path from "node:path";
-import { describe, expect, it } from "vitest";
-
-const RAIZ = process.cwd();
-
+```tsx
 /**
- * A tabela HTML pura não tinha NENHUMA classe responsiva — no celular ela
- * rolava na horizontal e o nome do contato podia ficar fora da tela. Abaixo
- * de md a lista vira cartões (mesmo estilo de app/app/tasks/_components/
- * ListaDeTarefas.tsx: rounded-xl border bg-card); a tabela populada
- * continua exatamente igual a partir de md.
+ * A lista de Contatos existe em DUAS vistas no DOM: cartões abaixo de md
+ * (`md:hidden`) e a tabela a partir de md (`hidden md:block`) — o CSS esconde
+ * uma em cada largura; o jsdom não aplica CSS, então aqui as duas estão
+ * presentes e cada uma é consultada pelo seu próprio contêiner. A tabela HTML
+ * não tinha nenhuma classe responsiva: no celular rolava na horizontal e o
+ * nome do contato podia sair da tela.
  */
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { fireEvent, render, screen, within } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { describe, expect, it, vi } from "vitest";
+
+import { ContactsTable } from "@/components/contacts/ContactsTable";
+import { phoneForDisplay } from "@/lib/channels/phone-variants";
+import type { Contact } from "@/lib/types/contacts";
+
+vi.mock("@/hooks/auth/AuthProvider", () => ({
+  useActiveOrg: () => ({ orgId: "org-1", name: "Clínica", role: "admin", cliente_pela_agenda: true }),
+}));
+vi.mock("@/hooks/i18n/useT", () => ({ useT: () => (s: string) => s }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }) }));
+
+const CONTATO = {
+  id: "c-1",
+  organization_id: "org-1",
+  name: "Joana Prado",
+  display_name: "Joana Prado",
+  email: "joana@example.com",
+  email_normalized: "joana@example.com",
+  phone_number: "+5511999990000",
+  cpf_hash: null,
+  birthdate: null,
+  is_blocked: false,
+  blocked_reason: null,
+  is_anonymized: false,
+  anonymized_at: null,
+  is_merged_into: null,
+  merged_at: null,
+  consent: {},
+  tags: ["vip"],
+  source: "whatsapp",
+  source_metadata: {},
+  custom_fields: {},
+  created_at: "2026-01-01T10:00:00.000Z",
+  updated_at: "2026-01-01T10:00:00.000Z",
+  last_activity_at: null,
+  first_service_at: "2025-03-12T14:00:00.000Z",
+} satisfies Contact;
+
+function montar(contacts: Contact[]) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const ui: ReactNode = (
+    <QueryClientProvider client={qc}>
+      <ContactsTable contacts={contacts} orderBy="last_activity_at" orderDir="desc" onSort={() => {}} />
+    </QueryClientProvider>
+  );
+  return render(ui);
+}
+
 describe("Contatos — lista de cartões no celular", () => {
-  it("existe uma lista de cartões só no celular", () => {
-    const src = fs.readFileSync(path.join(RAIZ, "components/contacts/ContactsTable.tsx"), "utf8");
-    expect(src).toContain('<div data-testid="lista-mobile-contatos" className="space-y-2 md:hidden">');
+  it("cada vista fica no seu breakpoint: cartões abaixo de md, tabela a partir de md", () => {
+    montar([CONTATO]);
+    expect(screen.getByTestId("lista-mobile-contatos")).toHaveClass("md:hidden");
+    expect(screen.getByTestId("tabela-contatos-desktop")).toHaveClass("hidden", "md:block");
   });
 
-  it("a tabela fica escondida abaixo de md", () => {
-    const src = fs.readFileSync(path.join(RAIZ, "components/contacts/ContactsTable.tsx"), "utf8");
-    expect(src).toContain('<div data-testid="tabela-contatos-desktop" className="hidden md:block">');
+  it("a mesma pessoa, com os mesmos dados e os mesmos selos, aparece nas duas vistas", () => {
+    montar([CONTATO]);
+    for (const vista of [
+      screen.getByTestId("lista-mobile-contatos"),
+      screen.getByTestId("tabela-contatos-desktop"),
+    ]) {
+      expect(within(vista).getByRole("link", { name: "Joana Prado" })).toHaveAttribute(
+        "href",
+        "/app/contacts/c-1",
+      );
+      expect(within(vista).getByText("joana@example.com")).toBeInTheDocument();
+      expect(within(vista).getByText(phoneForDisplay("+5511999990000"))).toBeInTheDocument();
+      expect(within(vista).getByText("vip")).toBeInTheDocument();
+      expect(within(vista).getByText("Cliente")).toBeInTheDocument();
+      expect(within(vista).getByText("Ativo")).toBeInTheDocument();
+    }
   });
 
-  it("o cartão usa o mesmo estilo de card da tela de Tarefas — identidade visual coerente", () => {
-    const src = fs.readFileSync(path.join(RAIZ, "components/contacts/ContactsTable.tsx"), "utf8");
-    expect(src).toContain('className="rounded-xl border bg-card p-3"');
+  it("contato bloqueado mostra o selo Bloqueado e NÃO o Ativo, nas duas vistas", () => {
+    montar([{ ...CONTATO, is_blocked: true }]);
+    for (const vista of [
+      screen.getByTestId("lista-mobile-contatos"),
+      screen.getByTestId("tabela-contatos-desktop"),
+    ]) {
+      expect(within(vista).getByText("Bloqueado")).toBeInTheDocument();
+      expect(within(vista).queryByText("Ativo")).toBeNull();
+    }
+  });
+
+  it("a lixeira do cartão abre a confirmação de exclusão", () => {
+    montar([CONTATO]);
+    fireEvent.click(
+      within(screen.getByTestId("lista-mobile-contatos")).getByRole("button", {
+        name: /Excluir contato/,
+      }),
+    );
+    expect(screen.getByRole("alertdialog")).toHaveTextContent("Excluir contato?");
+  });
+
+  it("sem telefone e sem conversa, o cartão não oferece o ícone de conversa — mesma regra da tabela", () => {
+    montar([{ ...CONTATO, phone_number: null }]);
+    for (const vista of [
+      screen.getByTestId("lista-mobile-contatos"),
+      screen.getByTestId("tabela-contatos-desktop"),
+    ]) {
+      expect(within(vista).queryByRole("button", { name: /conversa/i })).toBeNull();
+      expect(within(vista).queryByRole("link", { name: /conversa/i })).toBeNull();
+    }
   });
 });
 ```
 
-- [ ] **Step 2: Rodar e confirmar que falha**
-
-Run: `pnpm vitest run tests/unit/contatos-cartoes-mobile.test.ts`
-Expected: FAIL — nenhuma das três strings existe ainda.
-
-- [ ] **Step 3: Implementar**
-
-Em `components/contacts/ContactsTable.tsx`, trocar (linhas 155-157):
+Em `tests/unit/cliente-pela-agenda-na-tela.test.tsx`: acrescentar `within` ao import de `@testing-library/react` (`import { render, screen, within } from "@testing-library/react";`) e trocar o caso "ligada" do bloco `selo 'Cliente' na lista de contatos` (linhas 103-107):
 
 ```tsx
-  return (
-    <>
-    <Table>
+  it("ligada: o mesmo contato ganha selo", () => {
+    ligada = true;
+    render(comQuery(<ContactsTable contacts={[CONTATO]} orderBy="last_activity_at" orderDir="desc" onSort={() => {}} />));
+    expect(screen.getByText("Cliente")).toBeInTheDocument();
+  });
 ```
 
 por:
 
 ```tsx
+  it("ligada: o mesmo contato ganha selo — na tabela e no cartão do celular", () => {
+    ligada = true;
+    render(comQuery(<ContactsTable contacts={[CONTATO]} orderBy="last_activity_at" orderDir="desc" onSort={() => {}} />));
+    // A lista tem duas vistas no DOM (cartões abaixo de md, tabela a partir de
+    // md; o CSS esconde uma em cada largura e o jsdom não aplica CSS), então o
+    // selo é procurado em cada uma — `getByText` solto acharia DOIS.
+    expect(within(screen.getByTestId("tabela-contatos-desktop")).getByText("Cliente")).toBeInTheDocument();
+    expect(within(screen.getByTestId("lista-mobile-contatos")).getByText("Cliente")).toBeInTheDocument();
+  });
+```
+
+O caso "desligada" (`queryByText("Cliente")` nulo) continua como está: sem selo em nenhuma das duas vistas, continua nulo.
+
+- [ ] **Step 2: Rodar e confirmar que falham**
+
+Run: `pnpm vitest run tests/unit/contatos-cartoes-mobile.test.tsx tests/unit/cliente-pela-agenda-na-tela.test.tsx`
+Expected: FAIL — `getByTestId("lista-mobile-contatos")` não existe ainda (todos os casos novos e o caso "ligada" atualizado).
+
+- [ ] **Step 3: Implementar em `components/contacts/ContactsTable.tsx`**
+
+3a. Import: acrescentar `import { cn } from "@/lib/utils";` junto dos outros imports de `@/lib`.
+
+3b. Logo depois da função `SortableHead` (antes de `export function ContactsTable`), acrescentar os dois componentes. A regra e o comentário dos selos SAEM da célula da tabela e passam a viver aqui, uma vez só — mover o comentário existente sobre "Lê a COLUNA, nunca a tag" junto com o `Badge` de Cliente, sem reescrevê-lo:
+
+```tsx
+/**
+ * Os selos de estado do contato. Uma definição só para a tabela e para o
+ * cartão do celular: as duas vistas mostram o MESMO registro e não podem
+ * divergir na regra.
+ */
+function SelosDoContato({ c, clientesLigado }: { c: Contact; clientesLigado: boolean }) {
+  const t = useT();
   return (
     <>
+      {c.is_anonymized && <Badge variant="destructive">{t("Anonimizado")}</Badge>}
+      {c.is_blocked && <Badge variant="warning">{t("Bloqueado")}</Badge>}
+      {/* ⟵ mover para cá, intacto, o comentário "Lê a COLUNA, nunca a tag…" */}
+      {clientesLigado && c.first_service_at && <Badge variant="secondary">{t("Cliente")}</Badge>}
+      {!c.is_anonymized && !c.is_blocked && <Badge variant="success">{t("Ativo")}</Badge>}
+    </>
+  );
+}
+
+/**
+ * As ações do contato (abrir/iniciar conversa e excluir). `compacta` é a
+ * tabela (botão de 32px, ícone de 16); o cartão do celular usa o tamanho
+ * `icon` padrão do `Button`, que abaixo de `lg` é de 44px — o alvo de toque.
+ */
+function AcoesDoContato({
+  c,
+  abrindo,
+  compacta = false,
+  onIniciarConversa,
+  onExcluir,
+}: {
+  c: Contact;
+  abrindo: string | null;
+  compacta?: boolean;
+  onIniciarConversa: (c: Contact) => void;
+  onExcluir: (c: Contact) => void;
+}) {
+  const t = useT();
+  const tamanho = compacta ? "h-8 w-8" : undefined;
+  const icone = compacta ? 16 : 18;
+  return (
+    <>
+      {c.conversa ? (
+        <Button variant="ghost" size="icon" className={tamanho} asChild>
+          <Link
+            href={`/app/inbox?id=${c.conversa.id}`}
+            title={t("Abrir conversa no Inbox")}
+            aria-label={`${t("Abrir conversa com")} ${displayName(c, t)} ${t("no Inbox")}`}
+          >
+            <ChatCircle size={icone} weight="regular" aria-hidden />
+            {c.conversa.unread > 0 && (
+              <span className="sr-only">{c.conversa.unread} {t("sem ler")}</span>
+            )}
+          </Link>
+        </Button>
+      ) : c.phone_number ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          className={tamanho}
+          title={t("Iniciar conversa no Inbox")}
+          aria-label={`${t("Iniciar conversa com")} ${displayName(c, t)} ${t("no Inbox")}`}
+          disabled={abrindo === c.id}
+          onClick={() => onIniciarConversa(c)}
+        >
+          <ChatCircle size={icone} weight="regular" aria-hidden />
+        </Button>
+      ) : null}
+      <Button
+        variant="ghost"
+        size="icon"
+        className={cn(tamanho, "text-muted-foreground hover:text-error-fg")}
+        title={t("Excluir contato")}
+        aria-label={`${t("Excluir contato")} ${displayName(c, t)}`}
+        onClick={() => onExcluir(c)}
+      >
+        <Trash size={icone} weight="regular" aria-hidden />
+      </Button>
+    </>
+  );
+}
+```
+
+3c. Na tabela (as duas células que hoje têm o markup inline), trocar pelo uso dos componentes — o comportamento e as classes de fora ficam exatamente como estão:
+- Célula "Status": `<div className="flex flex-wrap gap-1"><SelosDoContato c={c} clientesLigado={clientesLigado} /></div>`
+- Célula de ações: `<div className="flex items-center justify-end gap-0.5"><AcoesDoContato c={c} abrindo={abrindo} compacta onIniciarConversa={(x) => void iniciarConversa(x)} onExcluir={setAlvo} /></div>`
+
+3d. No `return`, trocar (`<>` + `<Table>` … `</Table>`) por: a lista de cartões, e a tabela dentro de um `div` que só existe a partir de md. Abrir assim (imediatamente depois do `<>`):
+
+```tsx
     <div data-testid="lista-mobile-contatos" className="space-y-2 md:hidden">
       {contacts.map((c) => (
         <div key={c.id} className="rounded-xl border bg-card p-3">
           <div className="flex items-start justify-between gap-2">
-            <Link href={`/app/contacts/${c.id}`} className="min-w-0 flex-1 truncate font-medium hover:underline">
+            <Link
+              href={`/app/contacts/${c.id}`}
+              className="min-w-0 flex-1 truncate font-medium hover:underline"
+            >
               {displayName(c)}
             </Link>
             <div className="flex shrink-0 items-center gap-0.5">
-              {c.conversa ? (
-                <Button variant="ghost" size="icon" asChild>
-                  <Link
-                    href={`/app/inbox?id=${c.conversa.id}`}
-                    title={t("Abrir conversa no Inbox")}
-                    aria-label={`${t("Abrir conversa com")} ${displayName(c, t)} ${t("no Inbox")}`}
-                  >
-                    <ChatCircle size={18} weight="regular" aria-hidden />
-                  </Link>
-                </Button>
-              ) : c.phone_number ? (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  title={t("Iniciar conversa no Inbox")}
-                  aria-label={`${t("Iniciar conversa com")} ${displayName(c, t)} ${t("no Inbox")}`}
-                  disabled={abrindo === c.id}
-                  onClick={() => void iniciarConversa(c)}
-                >
-                  <ChatCircle size={18} weight="regular" aria-hidden />
-                </Button>
-              ) : null}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-muted-foreground hover:text-error-fg"
-                title={t("Excluir contato")}
-                aria-label={`${t("Excluir contato")} ${displayName(c, t)}`}
-                onClick={() => setAlvo(c)}
-              >
-                <Trash size={18} weight="regular" aria-hidden />
-              </Button>
+              <AcoesDoContato
+                c={c}
+                abrindo={abrindo}
+                onIniciarConversa={(x) => void iniciarConversa(x)}
+                onExcluir={setAlvo}
+              />
             </div>
           </div>
           <div className="mt-1 space-y-0.5 text-sm text-muted-foreground">
@@ -668,12 +844,7 @@ por:
             )}
           </div>
           <div className="mt-2 flex flex-wrap gap-1">
-            {c.is_anonymized && <Badge variant="destructive">{t("Anonimizado")}</Badge>}
-            {c.is_blocked && <Badge variant="warning">{t("Bloqueado")}</Badge>}
-            {clientesLigado && c.first_service_at && (
-              <Badge variant="secondary">{t("Cliente")}</Badge>
-            )}
-            {!c.is_anonymized && !c.is_blocked && <Badge variant="success">{t("Ativo")}</Badge>}
+            <SelosDoContato c={c} clientesLigado={clientesLigado} />
             {c.tags.map((tag) => (
               <Badge key={tag} variant="neutral">{tag}</Badge>
             ))}
@@ -685,43 +856,31 @@ por:
     <Table>
 ```
 
-E, para fechar a nova `<div>`, trocar (linha 285, logo depois de `</Table>`):
+e fechar depois do `</Table>` com `</div>` (antes do `<AlertDialog …>`, que continua UMA só, compartilhada pelas duas vistas).
 
-```tsx
-    </Table>
+- [ ] **Step 4: Rodar e confirmar que passam**
 
-    <AlertDialog open={alvo !== null} onOpenChange={(open) => { if (!open) setAlvo(null); }}>
-```
+Run: `pnpm vitest run tests/unit/contatos-cartoes-mobile.test.tsx tests/unit/cliente-pela-agenda-na-tela.test.tsx`
+Expected: PASS (todos os casos dos dois arquivos).
 
-por:
+- [ ] **Step 5: Typecheck e ESLint dos arquivos tocados**
 
-```tsx
-    </Table>
-    </div>
-
-    <AlertDialog open={alvo !== null} onOpenChange={(open) => { if (!open) setAlvo(null); }}>
-```
-
-- [ ] **Step 4: Rodar e confirmar que passa**
-
-Run: `pnpm vitest run tests/unit/contatos-cartoes-mobile.test.ts`
-Expected: PASS (3 testes)
-
-- [ ] **Step 5: Rodar typecheck — o JSX ganhou uma div a mais e precisa fechar certo**
-
-Run: `pnpm typecheck`
-Expected: sem erro novo em `components/contacts/ContactsTable.tsx`
+Run: `pnpm typecheck` e `pnpm exec eslint components/contacts/ContactsTable.tsx tests/unit/contatos-cartoes-mobile.test.tsx tests/unit/cliente-pela-agenda-na-tela.test.tsx`
+Expected: sem erro novo.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add components/contacts/ContactsTable.tsx tests/unit/contatos-cartoes-mobile.test.ts
+git add components/contacts/ContactsTable.tsx tests/unit/contatos-cartoes-mobile.test.tsx tests/unit/cliente-pela-agenda-na-tela.test.tsx
 git commit -m "fix(mobile): Contatos vira lista de cartões abaixo de md
 
-A tabela HTML não tinha nenhuma classe responsiva — no celular rolava
-na horizontal e o nome podia sair da tela. Mesmo estilo de cartão que
-Tarefas já usa (rounded-xl border bg-card), tabela intocada a partir
-de md."
+A tabela HTML não tinha nenhuma classe responsiva — no celular rolava na
+horizontal e o nome podia sair da tela. Selos de estado e ações viram dois
+componentes usados pela tabela e pelo cartão (mesma regra nas duas vistas);
+o cartão usa o tamanho de toque padrão do Button. Tabela intocada a partir
+de md.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 ```
 
 ---
