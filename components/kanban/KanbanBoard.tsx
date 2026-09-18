@@ -57,7 +57,7 @@ function BoardSkeleton() {
       {[0, 1, 2].map((c) => (
         <div
           key={c}
-          className="flex w-[85vw] shrink-0 snap-center flex-col gap-2 rounded-lg border border-border bg-surface-muted/40 p-3 md:w-80 md:snap-none"
+          className="flex w-[85vw] shrink-0 snap-center flex-col gap-2 rounded-lg border border-border bg-surface-muted/40 p-3 md:w-80"
         >
           <Skeleton className="h-5 w-32" />
           {[0, 1, 2, 3].map((i) => (
@@ -126,6 +126,7 @@ export function KanbanBoard({
   // aberto, o estado local manda (fechar não reabre pela URL).
   const [dossieId, setDossieId] = useState<string | null>(leadInicial ?? null);
   const [internalSelected, setInternalSelected] = useState<Set<string>>(new Set());
+  const [arrastando, setArrastando] = useState(false);
   const selectedLeadIds = useMemo(
     () => (selectedIds ? new Set(selectedIds) : internalSelected),
     [selectedIds, internalSelected],
@@ -244,8 +245,19 @@ export function KanbanBoard({
   }
 
   return (
-    <DragDropContext onDragEnd={handleDragEnd}>
-      <div className="flex h-full snap-x snap-mandatory gap-3 overflow-x-auto p-4 md:snap-none">
+    <DragDropContext
+      onDragStart={() => setArrastando(true)}
+      onDragEnd={(resultado) => {
+        setArrastando(false);
+        handleDragEnd(resultado);
+      }}
+    >
+      {/* mandatory snap swallows @hello-pangea/dnd's small auto-scroll steps;
+          snap is switched off while a card is being dragged and re-centres on drop */}
+      <div
+        data-arrastando={arrastando}
+        className="flex h-full snap-x snap-mandatory gap-3 overflow-x-auto p-4 md:snap-none data-[arrastando=true]:snap-none"
+      >
         {data.stages.map((stage) => (
           <StageColumn
             key={stage.id}
