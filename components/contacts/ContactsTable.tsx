@@ -37,6 +37,7 @@ import type { ContactOrderBy } from "@/lib/schemas/contacts";
 import type { Contact } from "@/lib/types/contacts";
 import { rotuloDoContato } from "@/lib/contacts/rotulo-do-contato";
 import { phoneForDisplay } from "@/lib/channels/phone-variants";
+import { cn } from "@/lib/utils";
 
 interface Props {
   contacts: Contact[];
@@ -106,6 +107,93 @@ function SortableHead({
   );
 }
 
+/**
+ * Os selos de estado do contato. Uma definição só para a tabela e para o
+ * cartão do celular: as duas vistas mostram o MESMO registro e não podem
+ * divergir na regra.
+ */
+function SelosDoContato({ c, clientesLigado }: { c: Contact; clientesLigado: boolean }) {
+  const t = useT();
+  return (
+    <>
+      {c.is_anonymized && <Badge variant="destructive">{t("Anonimizado")}</Badge>}
+      {c.is_blocked && <Badge variant="warning">{t("Bloqueado")}</Badge>}
+      {/*
+        Lê a COLUNA, nunca a tag, e só com a regra ligada: a tag
+        `cliente` é removível à mão e pelo PATCH (que substitui `tags`
+        por inteiro), e um selo que some porque alguém editou
+        etiquetas mentiria sobre um fato. Desligada, a coluna está
+        congelada e o selo mentiria do outro lado.
+      */}
+      {clientesLigado && c.first_service_at && <Badge variant="secondary">{t("Cliente")}</Badge>}
+      {!c.is_anonymized && !c.is_blocked && <Badge variant="success">{t("Ativo")}</Badge>}
+    </>
+  );
+}
+
+/**
+ * As ações do contato (abrir/iniciar conversa e excluir). `compacta` é a
+ * tabela (botão de 32px, ícone de 16); o cartão do celular usa o tamanho
+ * `icon` padrão do `Button`, que abaixo de `lg` é de 44px — o alvo de toque.
+ */
+function AcoesDoContato({
+  c,
+  abrindo,
+  compacta = false,
+  onIniciarConversa,
+  onExcluir,
+}: {
+  c: Contact;
+  abrindo: string | null;
+  compacta?: boolean;
+  onIniciarConversa: (c: Contact) => void;
+  onExcluir: (c: Contact) => void;
+}) {
+  const t = useT();
+  const tamanho = compacta ? "h-8 w-8" : undefined;
+  const icone = compacta ? 16 : 18;
+  return (
+    <>
+      {c.conversa ? (
+        <Button variant="ghost" size="icon" className={tamanho} asChild>
+          <Link
+            href={`/app/inbox?id=${c.conversa.id}`}
+            title={t("Abrir conversa no Inbox")}
+            aria-label={`${t("Abrir conversa com")} ${displayName(c, t)} ${t("no Inbox")}`}
+          >
+            <ChatCircle size={icone} weight="regular" aria-hidden />
+            {c.conversa.unread > 0 && (
+              <span className="sr-only">{c.conversa.unread} {t("sem ler")}</span>
+            )}
+          </Link>
+        </Button>
+      ) : c.phone_number ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          className={tamanho}
+          title={t("Iniciar conversa no Inbox")}
+          aria-label={`${t("Iniciar conversa com")} ${displayName(c, t)} ${t("no Inbox")}`}
+          disabled={abrindo === c.id}
+          onClick={() => onIniciarConversa(c)}
+        >
+          <ChatCircle size={icone} weight="regular" aria-hidden />
+        </Button>
+      ) : null}
+      <Button
+        variant="ghost"
+        size="icon"
+        className={cn(tamanho, "text-muted-foreground hover:text-error-fg")}
+        title={t("Excluir contato")}
+        aria-label={`${t("Excluir contato")} ${displayName(c, t)}`}
+        onClick={() => onExcluir(c)}
+      >
+        <Trash size={icone} weight="regular" aria-hidden />
+      </Button>
+    </>
+  );
+}
+
 export function ContactsTable({ contacts, orderBy, orderDir, onSort }: Props) {
   const localeDaData = useLocaleDeData();
   const t = useT();
@@ -154,6 +242,42 @@ export function ContactsTable({ contacts, orderBy, orderDir, onSort }: Props) {
 
   return (
     <>
+    <div data-testid="lista-mobile-contatos" className="space-y-2 md:hidden">
+      {contacts.map((c) => (
+        <div key={c.id} className="rounded-xl border bg-card p-3">
+          <div className="flex items-start justify-between gap-2">
+            <Link
+              href={`/app/contacts/${c.id}`}
+              className="min-w-0 flex-1 truncate font-medium hover:underline"
+            >
+              {displayName(c)}
+            </Link>
+            <div className="flex shrink-0 items-center gap-0.5">
+              <AcoesDoContato
+                c={c}
+                abrindo={abrindo}
+                onIniciarConversa={(x) => void iniciarConversa(x)}
+                onExcluir={setAlvo}
+              />
+            </div>
+          </div>
+          <div className="mt-1 space-y-0.5 text-sm text-muted-foreground">
+            {c.phone_number && <p>{phoneForDisplay(c.phone_number)}</p>}
+            {c.email && <p className="truncate">{c.email}</p>}
+            {c.last_activity_at && (
+              <p className="text-xs">{formatUltimaAtividade(c.last_activity_at, localeDaData)}</p>
+            )}
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1">
+            <SelosDoContato c={c} clientesLigado={clientesLigado} />
+            {c.tags.map((tag) => (
+              <Badge key={tag} variant="neutral">{tag}</Badge>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+    <div data-testid="tabela-contatos-desktop" className="hidden md:block">
     <Table>
       <TableHeader>
         <TableRow>
@@ -222,67 +346,25 @@ export function ContactsTable({ contacts, orderBy, orderDir, onSort }: Props) {
             </TableCell>
             <TableCell>
               <div className="flex flex-wrap gap-1">
-                {c.is_anonymized && <Badge variant="destructive">{t("Anonimizado")}</Badge>}
-                {c.is_blocked && <Badge variant="warning">{t("Bloqueado")}</Badge>}
-                {/*
-                  Lê a COLUNA, nunca a tag, e só com a regra ligada: a tag
-                  `cliente` é removível à mão e pelo PATCH (que substitui `tags`
-                  por inteiro), e um selo que some porque alguém editou
-                  etiquetas mentiria sobre um fato. Desligada, a coluna está
-                  congelada e o selo mentiria do outro lado.
-                */}
-                {clientesLigado && c.first_service_at && (
-                  <Badge variant="secondary">{t("Cliente")}</Badge>
-                )}
-                {!c.is_anonymized && !c.is_blocked && (
-                  <Badge variant="success">{t("Ativo")}</Badge>
-                )}
+                <SelosDoContato c={c} clientesLigado={clientesLigado} />
               </div>
             </TableCell>
             <TableCell>
               <div className="flex items-center justify-end gap-0.5">
-                {c.conversa ? (
-                  <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                    <Link
-                      href={`/app/inbox?id=${c.conversa.id}`}
-                      title={t("Abrir conversa no Inbox")}
-                      aria-label={`${t("Abrir conversa com")} ${displayName(c, t)} ${t("no Inbox")}`}
-                    >
-                      <ChatCircle size={16} weight="regular" aria-hidden />
-                      {c.conversa.unread > 0 && (
-                        <span className="sr-only">{c.conversa.unread} {t("sem ler")}</span>
-                      )}
-                    </Link>
-                  </Button>
-                ) : c.phone_number ? (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    title={t("Iniciar conversa no Inbox")}
-                    aria-label={`${t("Iniciar conversa com")} ${displayName(c, t)} ${t("no Inbox")}`}
-                    disabled={abrindo === c.id}
-                    onClick={() => void iniciarConversa(c)}
-                  >
-                    <ChatCircle size={16} weight="regular" aria-hidden />
-                  </Button>
-                ) : null}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-error-fg"
-                  title={t("Excluir contato")}
-                  aria-label={`${t("Excluir contato")} ${displayName(c, t)}`}
-                  onClick={() => setAlvo(c)}
-                >
-                  <Trash size={16} weight="regular" aria-hidden />
-                </Button>
+                <AcoesDoContato
+                  c={c}
+                  abrindo={abrindo}
+                  compacta
+                  onIniciarConversa={(x) => void iniciarConversa(x)}
+                  onExcluir={setAlvo}
+                />
               </div>
             </TableCell>
           </TableRow>
         ))}
       </TableBody>
     </Table>
+    </div>
 
     <AlertDialog open={alvo !== null} onOpenChange={(open) => { if (!open) setAlvo(null); }}>
       <AlertDialogContent>

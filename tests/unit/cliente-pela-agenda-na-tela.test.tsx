@@ -9,7 +9,7 @@
  * o layout monta; esta suíte prova os dois estados em cada um.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -100,10 +100,14 @@ describe("selo 'Cliente' na lista de contatos", () => {
     expect(screen.queryByText("Cliente")).toBeNull();
   });
 
-  it("ligada: o mesmo contato ganha selo", () => {
+  it("ligada: o mesmo contato ganha selo — na tabela e no cartão do celular", () => {
     ligada = true;
     render(comQuery(<ContactsTable contacts={[CONTATO]} orderBy="last_activity_at" orderDir="desc" onSort={() => {}} />));
-    expect(screen.getByText("Cliente")).toBeInTheDocument();
+    // A lista tem duas vistas no DOM (cartões abaixo de md, tabela a partir de
+    // md; o CSS esconde uma em cada largura e o jsdom não aplica CSS), então o
+    // selo é procurado em cada uma — `getByText` solto acharia DOIS.
+    expect(within(screen.getByTestId("tabela-contatos-desktop")).getByText("Cliente")).toBeInTheDocument();
+    expect(within(screen.getByTestId("lista-mobile-contatos")).getByText("Cliente")).toBeInTheDocument();
   });
 });
 
