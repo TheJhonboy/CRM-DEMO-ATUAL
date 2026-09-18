@@ -433,6 +433,10 @@ export const NAV_DESTINATIONS: NavDestination[] = [
     description: "Funil e performance por atendente nos últimos 30 dias.",
     icon: ChartBar,
     group: "analise",
+    // A pessoa atendente continua vendo o próprio desempenho quando chega por
+    // um link de trabalho, mas a área de Análise não é uma porta do seu perfil
+    // de demonstração. Comparar a equipe é função de gerente+.
+    minRole: "manager",
     sidebar: true,
   },
   {
@@ -487,6 +491,9 @@ export const NAV_DESTINATIONS: NavDestination[] = [
     icon: UsersThree,
     group: "organizacao",
     section: "Sua empresa",
+    // O atendente não administra equipe. A tela preserva sua leitura direta
+    // atual; esta regra controla somente a porta de navegação do perfil.
+    minRole: "manager",
   },
   {
     // A porta que faltava (issue #144): rodízio de atendimento e restrição de
