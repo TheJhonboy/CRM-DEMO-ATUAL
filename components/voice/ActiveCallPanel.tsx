@@ -99,7 +99,7 @@ export function ActiveCallPanel() {
     <div
       role="region"
       aria-label={t("Chamada em andamento")}
-      className="fixed bottom-4 right-4 z-50 flex w-[min(320px,calc(100%-2rem))] items-center gap-3 rounded-xl border border-border bg-popover p-3 shadow-2xl animate-in fade-in slide-in-from-bottom-4"
+      className="fixed bottom-[calc(var(--bottom-nav-h)+1rem)] right-4 z-50 flex w-[min(320px,calc(100%-2rem))] items-center gap-3 rounded-xl border border-border bg-popover p-3 shadow-2xl animate-in fade-in slide-in-from-bottom-4 md:bottom-4"
     >
       <Avatar className="h-10 w-10 shrink-0">
         {contact?.id ? (
