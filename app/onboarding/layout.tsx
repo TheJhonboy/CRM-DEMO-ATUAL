@@ -24,8 +24,8 @@ export default async function OnboardingLayout({ children }: { children: React.R
 
   const { state, onboardedAt } = await loadOnboardingState(activeOrg.orgId);
 
-  // A PORTA — o desvio do `/app/*` sozinho deixaria o wizard alcançável por
-  // quem digitasse a URL. Mesma regra, mesma fonte: `podeAbrirOWizard` cobre
+  // A PORTA — o desvio de app/app/layout.tsx sozinho deixaria o wizard alcançável
+  // por quem digitasse a URL. Mesma regra, mesma fonte: `podeAbrirOWizard` cobre
   // tanto quem já concluiu quanto quem não é de plataforma.
   if (!podeAbrirOWizard({ onboardedAt, isPlatformAdmin: user.is_platform_admin })) {
     redirect("/app/inbox");

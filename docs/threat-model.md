@@ -10,9 +10,8 @@ audited_against: origin/main @ 789dfa6 (v1.0.0, 2026-07-27)
 
 # Threat model — DeskcommCRM self-host
 
-Complementa [`SECURITY.md`](../SECURITY.md), que é política de *reporte*. Este documento é
-o inventário da **superfície de ataque real**: o que fica exposto quando alguém sobe o
-DeskcommCRM numa VPS com IP público.
+Este documento é o inventário da **superfície de ataque real**: o que fica exposto
+quando alguém sobe o CRM numa VPS com IP público.
 
 **Modelo de implantação que muda tudo:** o produto é self-host open-source. O atacante
 tem o **código-fonte completo** — conhece cada rota, cada nome de env var, cada fallback.

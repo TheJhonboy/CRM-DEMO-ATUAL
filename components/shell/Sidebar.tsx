@@ -226,7 +226,7 @@ export function SidebarContent({
                     type="button"
                     onClick={() => toggleGrupo(group.id)}
                     aria-expanded={aberto}
-                    className="flex w-full items-center justify-between rounded-md px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-sidebar-muted/70 transition-colors hover:bg-accent/40 hover:text-foreground"
+                    className="flex w-full items-center justify-between rounded-md px-3 py-1 text-[10px] font-medium uppercase tracking-wider text-sidebar-muted transition-colors hover:bg-accent/40 hover:text-foreground"
                   >
                     {t(group.label)}
                     <CaretDown
@@ -363,12 +363,20 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
         // que é a assinatura de servidor e navegador terem pintado estados
         // diferentes — e `AppShell` e `Sidebar` são ambos `"use client"`.
         //
-        // `self-stretch` acompanha a altura da página. `h-screen` a cortava na
-        // primeira janela em telas longas, deixando um bloco branco na Agenda.
+        // `sticky top-0` dá o mesmo efeito visual (a barra não rola com a
+        // página) e ela VOLTA a ocupar lugar: sobra para o conteúdo exatamente
+        // o que ela não usou, e não há segunda medida para discordar.
+        //
+        // `self-stretch`, e não `h-screen`: `h-screen` trava a altura em
+        // 100vh, e numa página mais alta que a primeira janela (a Agenda, por
+        // exemplo) a barra parava de acompanhar o scroll ali — sobrava bloco
+        // branco abaixo dos 100vh. `self-stretch` acompanha a altura real do
+        // irmão de flex mais alto, então o "grude" dura a rolagem inteira, não
+        // só a primeira tela.
         //
         // `shrink-0` porque item de flex encolhe por padrão, e uma barra de 60
         // espremida para caber é o mesmo defeito por outro caminho.
-        "z-30 flex self-stretch shrink-0 flex-col border-r border-sidebar-muted/20 bg-sidebar text-sidebar-foreground transition-[width] duration-200",
+        "sticky top-0 z-30 flex self-stretch shrink-0 flex-col border-r border-sidebar-muted/20 bg-sidebar text-sidebar-foreground transition-[width] duration-200",
         collapsed ? "w-16" : "w-60",
       )}
     >

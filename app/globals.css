@@ -558,6 +558,18 @@
   --color-card: var(--color-surface);
   --color-card-foreground: var(--color-text);
 
+  /* Barra lateral (Sidebar.tsx) — azul fixo no claro, some no escuro (ver os
+     três blocos de token acima). Sem esta ponte os utilitários `bg-sidebar*`
+     e `text-sidebar*` não geram CSS nenhum no v4: a barra lateral inteira
+     ficaria sem cor. */
+  --color-sidebar: var(--color-sidebar);
+  --color-sidebar-foreground: var(--color-sidebar-foreground);
+  --color-sidebar-muted: var(--color-sidebar-muted);
+  --color-sidebar-active: var(--color-sidebar-active);
+  --color-sidebar-active-fg: var(--color-sidebar-active-fg);
+  --color-sidebar-hover: var(--color-sidebar-hover);
+  --color-sidebar-hover-fg: var(--color-sidebar-hover-fg);
+
   /* Tipografia */
   --font-sans: var(--font-atkinson), ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, sans-serif;

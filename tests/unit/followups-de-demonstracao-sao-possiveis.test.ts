@@ -25,6 +25,8 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { relativoEmBarraNormal } from "./helpers/caminho";
+
 import { runFollowupTick, type AdminClient, type FollowupJobRequest } from "@/lib/followup/engine";
 import { descreveEvento, resumoDoNo } from "@/lib/followup/eventos-legiveis";
 import { flowGraphSchema } from "@/lib/followup/graph-schema";
@@ -82,7 +84,7 @@ describe("vocabulário da trilha de demonstração", () => {
     // Sem isto, uma regex que deixasse de casar produziria zero escritores — e o
     // caso abaixo reprovaria por outro motivo, ou, com a checagem invertida,
     // passaria medindo nada.
-    const relativos = ESCRITORES.map((a) => path.relative(RAIZ, a));
+    const relativos = ESCRITORES.map((a) => relativoEmBarraNormal(RAIZ, a));
     expect(relativos).toEqual(
       expect.arrayContaining(["lib/followup/engine.ts", "lib/followup/turn-bridge.ts", "lib/followup/reactivity.ts"]),
     );

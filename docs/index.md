@@ -35,7 +35,6 @@ de menor precedência e registre.
 | [`ARCHITECTURE.md`](../ARCHITECTURE.md) | Arquitetura em 1 página |
 | [`AGENTS.md`](../AGENTS.md) | Contrato para agentes de código (qualquer ferramenta) |
 | [`CLAUDE.md`](../CLAUDE.md) | **Doutrina não-negociável.** Convenções, anti-patterns, Definition of Done |
-| [`CONTRIBUTING.md`](../CONTRIBUTING.md) | Como contribuir |
 | [`CHANGELOG.md`](../CHANGELOG.md) | Mudanças por versão (SemVer). **Quem roda VPS lê antes de `update.sh`** — mudança que exige ação manual aparece sob "⚠️ Requer atenção" |
 | [`docs/current-state.md`](current-state.md) | **O que está pronto, incompleto e quebrado hoje** |
 | [`.agents/skills/`](../.agents/skills/deskcomm-instalar/SKILL.md) | **Guias do assistente** — instalar, montar cliente por nicho, métricas, prompt, contribuir. Skills lidas por Claude Code, Codex, Cursor, OpenCode e Antigravity (não confundir com as *Skills* do agente de IA, na tela IA › Skills) |
@@ -135,7 +134,6 @@ acessibilidade).
 | [`runbooks/waha-hostgator.md`](runbooks/waha-hostgator.md) | Runbook do WAHA em produção |
 | [`runbooks/cloudpanel.md`](runbooks/cloudpanel.md) | **VPS que já tem CloudPanel/Nginx nas portas 80/443** — o modo proxy externo do kit, o endereço fixo para o Nginx do host e o 403 do webhook global |
 | [`runbooks/ai-credentials-rotation.md`](runbooks/ai-credentials-rotation.md) | Rotação de credenciais de IA |
-| [`../SECURITY.md`](../SECURITY.md) | Política de reporte de vulnerabilidade |
 
 ## 7. Testes e QA
 

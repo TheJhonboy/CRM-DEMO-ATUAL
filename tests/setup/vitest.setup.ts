@@ -71,6 +71,27 @@ for (const [chave, valor] of Object.entries(PLACEHOLDERS)) {
 
 import "@testing-library/jest-dom/vitest";
 
+// jsdom substitui `File` global pelo seu próprio, e o parser de multipart do
+// `undici` (usado por `NextRequest.formData()`) faz um webidl-brand-check que
+// só reconhece a classe `File` NATIVA do Node — o `File` do jsdom reprova a
+// checagem, com um erro que não nomeia a causa.
+//
+// `Blob`/`FormData`/`Headers` NÃO entram nesta troca, de propósito: código de
+// produção que monta `new FormData() + new Blob(...)` para uma chamada de
+// SAÍDA (ex.: `lib/messaging/media/transcription.ts`) usa os dois globais do
+// jsdom juntos, e são compatíveis ENTRE SI — só `File` isolado do jsdom é que
+// reprova o brand-check de quem lê uma requisição de ENTRADA. E o `FormData`
+// global precisa continuar sendo o do jsdom por outro motivo: é ele quem o
+// próprio jsdom usa por baixo do capô ao despachar o evento `submit` de um
+// `<form>` de verdade — o `FormData` do `undici` não sabe ler um elemento DOM
+// e derruba esse fluxo com "Argument 1 could not be converted to: undefined".
+// Testes que MONTAM a FormData à mão para bater com o brand-check do `undici`
+// (rota que faz `instanceof File`/`instanceof FormData` sobre uma requisição
+// de entrada) importam `FormData` do pacote `undici` localmente, só naquele
+// arquivo — não aqui.
+import { File } from "node:buffer";
+globalThis.File = File as unknown as typeof globalThis.File;
+
 // jsdom não implementa ResizeObserver; Radix (ex.: Switch) usa em layout effects.
 if (typeof globalThis.ResizeObserver === "undefined") {
   globalThis.ResizeObserver = class {

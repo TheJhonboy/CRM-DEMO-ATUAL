@@ -51,7 +51,7 @@
  *     explicitamente, com `?? null`.
  */
 import { readdirSync, readFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join } from "node:path";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -417,14 +417,17 @@ function fontesDe(raiz: string, dir: string, saida: string[] = []): string[] {
 
 describe("nenhum chamador de produção decide a publicada pelo palpite", () => {
   const raiz = process.cwd();
+  // `fontesDe` já devolve caminho relativo em barra normal (`${dir}/${e.name}`);
+  // um `relative(".", p)` aqui em cima só reformata para o separador do SO —
+  // no Windows, troca `/` por `\` e a lista deixa de bater com os literais
+  // abaixo, escritos (como todo caminho neste repo) em barra normal.
   const arquivos = ["app", "lib", "components", "hooks", "workers"]
     .flatMap((d) => fontesDe(raiz, d))
     .filter(
       (p) =>
         p !== "lib/ai/agents/versoes-da-tela.ts" &&
         readFileSync(join(raiz, p), "utf8").includes("escolherVersoesDaTela("),
-    )
-    .map((p) => relative(".", p));
+    );
 
   it("a sonda enxerga alguma coisa (controle positivo)", () => {
     // Sem isto, uma varredura que devolvesse zero arquivo — pasta renomeada,

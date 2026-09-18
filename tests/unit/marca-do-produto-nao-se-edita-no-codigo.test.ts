@@ -1,11 +1,18 @@
 /**
- * A marca padrão do produto é UM valor, e ele não se troca editando código.
+ * A marca padrão do produto é UM valor, e ele não se troca editando código
+ * SEM ATUALIZAR ESTE ARQUIVO JUNTO — é o que faz a troca ser DELIBERADA.
  *
- * POR QUE ESTE ARQUIVO EXISTE — medido no PR #465 (2026-09-01). Um contribuidor
- * que instalou o CRM para o próprio cliente personalizou a marca do jeito que
- * achou: trocou `DEFAULT_APP_NAME` em `lib/branding.ts`. Depois abriu um PR a
- * partir do `main` do fork dele, e a personalização veio junto — proposta como
- * mudança do produto, para todo mundo.
+ * ESTE FORK trocou o valor de propósito: é o produto "Calixto AI CRM"
+ * (`lib/branding.ts:DEFAULT_APP_NAME`, decisão registrada no commit
+ * `feat: personaliza o Calixto AI CRM`). A constante `MARCA_DO_PRODUTO` abaixo
+ * foi atualizada JUNTO, no mesmo diff que atualizou a atualização para v1.34.0
+ * — é exatamente o rastro que este arquivo existe para exigir.
+ *
+ * POR QUE ESTE ARQUIVO EXISTE — medido no PR #465 (2026-09-01) do upstream. Um
+ * contribuidor que instalou o CRM para o próprio cliente personalizou a marca
+ * do jeito que achou: trocou `DEFAULT_APP_NAME` em `lib/branding.ts`. Depois
+ * abriu um PR a partir do `main` do fork dele, e a personalização veio junto —
+ * proposta como mudança do produto, para todo mundo.
  *
  * O que torna essa classe cara não é a intenção (não havia nenhuma): é que ela
  * chega em SILÊNCIO. Medido na prévia do merge daquele PR (`git merge-tree
@@ -54,17 +61,17 @@ import { DEFAULT_APP_NAME, resolveBranding } from "@/lib/branding";
  * importado de `lib/branding`, de propósito: um teste que compara a constante
  * com ela mesma passa sempre.
  */
-const MARCA_DO_PRODUTO = "DeskcommCRM";
+const MARCA_DO_PRODUTO = "Calixto AI CRM";
 
 const COMO_PERSONALIZAR =
-  "Para personalizar a marca da SUA instalação, não edite esta constante: " +
-  "use APP_NAME no .env (o install.sh pergunta), a tela Configurações › Marca, " +
-  "ou platform_branding no banco. Ver docs/white-label.md. " +
-  "Editar lib/branding.ts troca o padrão do PRODUTO, para todas as instalações, " +
-  "e some com a sua marca no próximo `git pull`.";
+  "Para personalizar a marca de OUTRA instalação a partir deste fork, não " +
+  "edite esta constante: use APP_NAME no .env (o install.sh pergunta), a tela " +
+  "Configurações › Marca, ou platform_branding no banco. Ver docs/white-label.md. " +
+  "Editar lib/branding.ts troca o padrão do PRODUTO (Calixto AI CRM), para " +
+  "todas as instalações deste fork, e some no próximo `git pull` do upstream.";
 
 describe("a marca padrão do produto", () => {
-  it("é DeskcommCRM — e trocá-la aqui é mudar o produto, não a sua instalação", () => {
+  it("é Calixto AI CRM — e trocá-la aqui é mudar o produto, não a sua instalação", () => {
     expect(DEFAULT_APP_NAME, COMO_PERSONALIZAR).toBe(MARCA_DO_PRODUTO);
   });
 
@@ -76,7 +83,7 @@ describe("a marca padrão do produto", () => {
     expect(resolveBranding(undefined, undefined), COMO_PERSONALIZAR).toEqual({
       name: MARCA_DO_PRODUTO,
       logoUrl: null,
-      initial: "D",
+      initial: "C",
     });
   });
 });

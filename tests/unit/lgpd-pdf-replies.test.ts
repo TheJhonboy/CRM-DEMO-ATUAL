@@ -70,11 +70,15 @@ function payload(): ExportPayload {
 
 async function rendered(data: ExportPayload) {
   const bytes = await renderLgpdPdf(data);
+  // pdfjs-dist trata isto como URL, não caminho de SO: no Windows `sep` é `\`
+  // e a validação de "precisa terminar com barra" só aceita `/`.
   const fonts =
     join(
       dirname(createRequire(import.meta.url).resolve("pdfjs-dist/package.json")),
       "standard_fonts",
-    ) + sep;
+    )
+      .split(sep)
+      .join("/") + "/";
   const task = getDocument({ data: new Uint8Array(bytes), standardFontDataUrl: fonts });
   const document = await task.promise;
   try {

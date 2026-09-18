@@ -41,7 +41,7 @@ const org = {
 let contexto: { user: AuthUser; activeOrg: ActiveOrg | null } = { user: usuario, activeOrg: org };
 vi.mock("@/hooks/auth/AuthProvider", () => ({ useAuth: () => contexto }));
 
-const PADRAO: Branding = { name: DEFAULT_APP_NAME, logoUrl: null, initial: "D" };
+const PADRAO: Branding = { name: DEFAULT_APP_NAME, logoUrl: null, initial: "C" };
 
 function renderSidebar(marca: Branding, collapsed: boolean) {
   return render(
@@ -73,21 +73,26 @@ describe("marcaEhADoProduto", () => {
 });
 
 describe("o desenho na barra lateral", () => {
-  it("aberta e sem marca própria, mostra o logotipo do produto (SVG, não <img>)", () => {
+  // Este fork não usa o logotipo SVG do produto original (soletra "DeskcommCRM"
+  // em geometria fixa — ver `lib/branding/desenho.ts` — e não acompanha o nome
+  // via prop). Sem marca própria, a barra cai no mascote Calixto
+  // (`/calixto-assistant.png`), igual em qualquer instalação deste fork.
+  it("aberta e sem marca própria, mostra o mascote Calixto e o nome em texto", () => {
     renderSidebar(PADRAO, false);
-    const logotipo = screen.getByRole("img", { name: DEFAULT_APP_NAME });
-    expect(logotipo.tagName.toLowerCase()).toBe("svg");
-    // O e2e `marca-logo.spec.ts` lê "barra sem <img>" como "sem logo do
-    // revendedor"; um <img> do produto aqui faria a spec medir a coisa errada.
-    expect(document.querySelector("img")).toBeNull();
-    // Nem o nome em texto: o logotipo já o escreve.
-    expect(screen.queryByText(DEFAULT_APP_NAME)).toBeNull();
+    const mascote = screen.getByRole("img", { name: "Assistente virtual" });
+    expect(mascote.tagName.toLowerCase()).toBe("img");
+    expect((mascote as HTMLImageElement).src).toContain("/calixto-assistant.png");
+    expect(screen.getByText(DEFAULT_APP_NAME)).toBeTruthy();
+    expect(document.querySelector("svg[role=img]")).toBeNull();
   });
 
-  it("recolhida, mostra só o símbolo — e não a inicial em texto", () => {
+  it("recolhida, mostra só o mascote — sem nome nem inicial em texto", () => {
     renderSidebar(PADRAO, true);
-    expect(screen.getByRole("img", { name: DEFAULT_APP_NAME }).tagName.toLowerCase()).toBe("svg");
-    expect(screen.queryByText("D")).toBeNull();
+    const mascote = screen.getByRole("img", { name: "Assistente virtual" });
+    expect(mascote.tagName.toLowerCase()).toBe("img");
+    expect(screen.queryByText(DEFAULT_APP_NAME)).toBeNull();
+    expect(screen.queryByText("C")).toBeNull();
+    expect(document.querySelector("svg[role=img]")).toBeNull();
   });
 
   it("com nome da instalação, segue em texto — o desenho do produto não vaza", () => {
@@ -135,12 +140,16 @@ describe("as cores do desenho", () => {
   });
 });
 
-describe("o favicon segue a mesma regra", () => {
+describe("o favicon", () => {
   const icone = fs.readFileSync(path.join(process.cwd(), "app/icon.tsx"), "utf8");
 
-  it("desenha o símbolo quando a marca é a do produto, e a inicial quando não é", () => {
-    expect(icone).toMatch(/marcaEhADoProduto\(\{ name: marca\.nome, logoUrl: marca\.logoUrl \}\)/);
-    expect(icone).toMatch(/<path d=\{SIMBOLO\.d\}/);
+  // Este fork não desenha o símbolo do produto original no favicon (mesmo
+  // motivo da barra lateral: soletra "D", de DeskcommCRM, e um "D" na aba de
+  // "Calixto AI CRM" seria a marca errada). Sempre cor + inicial, mesmo na
+  // marca padrão — ver `app/icon.tsx`.
+  it("sempre desenha cor + inicial, mesmo quando a marca é a padrão do produto", () => {
+    expect(icone).not.toMatch(/marcaEhADoProduto/);
+    expect(icone).not.toMatch(/SIMBOLO/);
     expect(icone).toMatch(/letraDoIcone\(marca\.nome\)/);
   });
 });
