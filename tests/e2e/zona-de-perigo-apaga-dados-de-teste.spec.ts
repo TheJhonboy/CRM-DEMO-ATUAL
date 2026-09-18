@@ -143,7 +143,8 @@ test("o admin zera os dados da sua organização pela tela — e a vizinha não 
   // As duas metades do controle positivo. Sem elas, um "sumiu" depois não
   // distingue "foi apagado" de "esta tela nunca mostrou isto".
   await page.goto("/app/contacts");
-  await expect(page.getByText(z.org_a_contato)).toBeVisible({ timeout: 30_000 });
+  // A lista tem duas vistas no DOM (cartões abaixo de md, tabela a partir de md) e este spec roda em largura de desktop, então lê a tabela.
+  await expect(page.getByTestId("tabela-contatos-desktop").getByText(z.org_a_contato)).toBeVisible({ timeout: 30_000 });
   await page.goto(`/app/pipelines/${z.org_a_funil_id}`);
   await expect(page.getByText(z.org_a_lead)).toBeVisible({ timeout: 30_000 });
 
@@ -198,7 +199,7 @@ test("o admin zera os dados da sua organização pela tela — e a vizinha não 
   await trocarPara(page, z.org_b_id);
   await page.goto("/app/contacts");
   await expect(
-    page.getByText(z.org_b_contato),
+    page.getByTestId("tabela-contatos-desktop").getByText(z.org_b_contato),
     "o contato da organização VIZINHA sumiu — o DELETE atravessou o tenant",
   ).toBeVisible({ timeout: 30_000 });
 

@@ -241,7 +241,7 @@ export function ContactsListClient() {
         </Card>
       ) : (
         <>
-          <Card className="overflow-hidden">
+          <Card className="overflow-hidden max-md:border-0 max-md:bg-transparent max-md:shadow-none">
             <ContactsTable
               contacts={allContacts}
               orderBy={orderBy}

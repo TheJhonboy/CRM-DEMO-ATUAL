@@ -5563,6 +5563,10 @@ export const DICIONARIO: Traducoes = {
   "edição bloqueada.": { es: "edición bloqueada." },
   "Visão geral": { es: "Visión general" },
   "Última atividade": { es: "Última actividad" },
+  // Barra de ordenação da lista de contatos no celular (ContactsTable).
+  "Ordenar por": { es: "Ordenar por" },
+  "(crescente)": { es: "(ascendente)" },
+  "(decrescente)": { es: "(descendente)" },
   "Direito ao esquecimento (LGPD)": { es: "Derecho al olvido (LGPD)" },
   "A anonimização é irreversível. Use somente após confirmação formal do titular ou ordem judicial.": {
     es: "La anonimización es irreversible. Úsala solo después de confirmación formal del titular u orden judicial.",

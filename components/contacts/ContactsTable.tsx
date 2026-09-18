@@ -133,8 +133,10 @@ function SelosDoContato({ c, clientesLigado }: { c: Contact; clientesLigado: boo
 
 /**
  * As ações do contato (abrir/iniciar conversa e excluir). `compacta` é a
- * tabela (botão de 32px, ícone de 16); o cartão do celular usa o tamanho
- * `icon` padrão do `Button`, que abaixo de `lg` é de 44px — o alvo de toque.
+ * tabela (botão de 32px); o cartão do celular usa o tamanho `icon` padrão do
+ * `Button`, que abaixo de `lg` é de 44px — o alvo de toque. O ícone é de 16 nas
+ * duas vistas: o `Button` força `[&_svg]:size-4`, então outro `size` seria letra
+ * morta.
  */
 function AcoesDoContato({
   c,
@@ -151,7 +153,6 @@ function AcoesDoContato({
 }) {
   const t = useT();
   const tamanho = compacta ? "h-8 w-8" : undefined;
-  const icone = compacta ? 16 : 18;
   return (
     <>
       {c.conversa ? (
@@ -161,7 +162,7 @@ function AcoesDoContato({
             title={t("Abrir conversa no Inbox")}
             aria-label={`${t("Abrir conversa com")} ${displayName(c, t)} ${t("no Inbox")}`}
           >
-            <ChatCircle size={icone} weight="regular" aria-hidden />
+            <ChatCircle size={16} weight="regular" aria-hidden />
             {c.conversa.unread > 0 && (
               <span className="sr-only">{c.conversa.unread} {t("sem ler")}</span>
             )}
@@ -177,7 +178,7 @@ function AcoesDoContato({
           disabled={abrindo === c.id}
           onClick={() => onIniciarConversa(c)}
         >
-          <ChatCircle size={icone} weight="regular" aria-hidden />
+          <ChatCircle size={16} weight="regular" aria-hidden />
         </Button>
       ) : null}
       <Button
@@ -188,9 +189,66 @@ function AcoesDoContato({
         aria-label={`${t("Excluir contato")} ${displayName(c, t)}`}
         onClick={() => onExcluir(c)}
       >
-        <Trash size={icone} weight="regular" aria-hidden />
+        <Trash size={16} weight="regular" aria-hidden />
       </Button>
     </>
+  );
+}
+
+/**
+ * Abaixo de md a tabela some, e com ela os cabeçalhos ordenáveis — sem isto o
+ * celular ficaria preso na ordem padrão. Reusa o mesmo `onSort` da tabela, então
+ * a regra de alternar o sentido continua sendo uma só.
+ */
+function OrdenacaoDoCelular({
+  orderBy,
+  orderDir,
+  onSort,
+}: {
+  orderBy: ContactOrderBy;
+  orderDir: "asc" | "desc";
+  onSort: (column: ContactOrderBy) => void;
+}) {
+  const t = useT();
+  const colunas: Array<{ column: ContactOrderBy; label: string }> = [
+    { column: "display_name", label: t("Nome") },
+    { column: "email", label: t("Email") },
+    { column: "phone_number", label: t("Telefone") },
+    { column: "last_activity_at", label: t("Última atividade") },
+  ];
+  return (
+    <div
+      data-testid="ordenacao-mobile-contatos"
+      role="group"
+      aria-label={t("Ordenar por")}
+      className="flex gap-2 overflow-x-auto pb-1"
+    >
+      {colunas.map(({ column, label }) => {
+        const ativa = orderBy === column;
+        return (
+          <button
+            key={column}
+            type="button"
+            onClick={() => onSort(column)}
+            aria-pressed={ativa}
+            className={cn(
+              "inline-flex min-h-11 shrink-0 items-center gap-1 rounded-full border px-4 text-sm",
+              ativa ? "border-accent bg-accent-soft text-foreground" : "text-muted-foreground",
+            )}
+          >
+            {label}
+            {ativa && (
+              <>
+                <span aria-hidden>{orderDir === "asc" ? "↑" : "↓"}</span>
+                <span className="sr-only">
+                  {orderDir === "asc" ? t("(crescente)") : t("(decrescente)")}
+                </span>
+              </>
+            )}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -243,16 +301,17 @@ export function ContactsTable({ contacts, orderBy, orderDir, onSort }: Props) {
   return (
     <>
     <div data-testid="lista-mobile-contatos" className="space-y-2 md:hidden">
+      <OrdenacaoDoCelular orderBy={orderBy} orderDir={orderDir} onSort={onSort} />
       {contacts.map((c) => (
         <div key={c.id} className="rounded-xl border bg-card p-3">
           <div className="flex items-start justify-between gap-2">
             <Link
               href={`/app/contacts/${c.id}`}
-              className="min-w-0 flex-1 truncate font-medium hover:underline"
+              className="min-w-0 flex-1 truncate py-2.5 font-medium hover:underline"
             >
               {displayName(c)}
             </Link>
-            <div className="flex shrink-0 items-center gap-0.5">
+            <div className="flex shrink-0 items-center gap-2">
               <AcoesDoContato
                 c={c}
                 abrindo={abrindo}
