@@ -895,6 +895,9 @@ Emular 375×812 (iPhone SE), 390×844 (iPhone 13/14), 414×896 (Android grande) 
 6. Abrir Tarefas: os botões de editar/apagar aparecem SEM precisar de hover; tocar no checkbox de concluir funciona (alvo maior que antes).
 7. Abrir Inbox e Agenda (semana): confirmar que continuam funcionando como antes — este plano não mudou nada ali, mas é o teste de não-regressão do viewport do Task 1, que afeta a página inteira.
 8. Alternar tema claro/escuro: a barra inferior, os cartões de Contatos e as colunas do Kanban acompanham o tema (mesmos tokens de cor do resto do produto).
+9. Geometria da barra (emenda das Tasks 2 e 8): em 390×844 em `/app/inbox`, `document.documentElement.scrollHeight <= window.innerHeight` (sem rolagem de página) e o campo de mensagem do Inbox fica INTEIRO acima da barra; as abas medem ≥ 44px de altura; em `/app/kanban` selecionar um ou mais cards e conferir que a `BulkActionBar` (`components/kanban/BulkActionBar.tsx:170`, `sticky bottom-4 z-30`) NÃO fica coberta pela barra inferior — se ficar, corrigir com `bottom-[calc(var(--bottom-nav-h)+1rem)] md:bottom-4`.
+10. Rótulos das abas: "Respostas rápidas" trunca em ~67px de célula? Se sim, decidir e aplicar o ajuste mínimo (rótulo mais curto ou `leading-tight` com duas linhas) e conferir também em espanhol.
+11. Aba ativa: o destaque é legível nos dois temas? Se só o peso do ícone diferencia, acrescentar `font-semibold` no rótulo ativo.
 
 Qualquer passo que falhar: voltar ao arquivo da Task correspondente, corrigir, rodar os testes daquela Task de novo, e só então continuar o QA daqui.
 
@@ -913,6 +916,82 @@ Se o QA não exigiu nenhuma correção, não há commit nesta tarefa. Se algo fo
 ```bash
 git add -A
 git commit -m "fix(mobile): ajuste encontrado no QA manual da versão mobile"
+```
+
+---
+
+### Task 8: Painel de chamada acima da barra inferior (emenda — executa DEPOIS da Task 5 e ANTES da Task 6)
+
+Emenda registrada no ledger: a revisão da Task 2 e o implementador acharam que `components/voice/ActiveCallPanel.tsx:102` (`fixed bottom-4 right-4 z-50`) fica por cima da barra inferior no celular e cobre a aba "Mais" enquanto há uma chamada. `BulkActionBar.tsx:170` NÃO entra aqui: se ela fica coberta depende de o `sticky` ter mesmo o viewport como referência, o que só a Task 7 mede num navegador.
+
+**Files:**
+- Modify: `components/voice/ActiveCallPanel.tsx:102`
+- Test: `tests/unit/painel-de-chamada-acima-da-barra.test.ts` (novo)
+
+**Interfaces:**
+- Consumes: `--bottom-nav-h` (definida em `app/globals.css`, `@layer base`, regra `html`, pela Task 2).
+
+- [ ] **Step 1: Escrever o teste que falha**
+
+Criar `tests/unit/painel-de-chamada-acima-da-barra.test.ts`:
+
+```ts
+import fs from "node:fs";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
+
+const RAIZ = process.cwd();
+
+/**
+ * O painel de chamada é `fixed`, então a barra de navegação inferior do
+ * celular (também `fixed`, z-30) ficava ABAIXO dele: durante uma chamada o
+ * painel (z-50) cobria a aba "Mais". Abaixo de md ele sobe a altura da barra
+ * (`--bottom-nav-h`, a mesma variável que a barra e o `<main>` usam); a
+ * partir de md a barra some e o painel volta ao `bottom-4` de sempre.
+ */
+describe("painel de chamada acima da barra inferior", () => {
+  it("sobe a altura da barra no celular e volta a bottom-4 a partir de md", () => {
+    const src = fs.readFileSync(path.join(RAIZ, "components/voice/ActiveCallPanel.tsx"), "utf8");
+    expect(src).toContain(
+      'className="fixed bottom-[calc(var(--bottom-nav-h)+1rem)] right-4 z-50 flex w-[min(320px,calc(100%-2rem))] items-center gap-3 rounded-xl border border-border bg-popover p-3 shadow-2xl animate-in fade-in slide-in-from-bottom-4 md:bottom-4"',
+    );
+  });
+});
+```
+
+- [ ] **Step 2: Rodar e confirmar que falha**
+
+Run: `pnpm vitest run tests/unit/painel-de-chamada-acima-da-barra.test.ts`
+Expected: FAIL — a string nova não existe ainda.
+
+- [ ] **Step 3: Implementar**
+
+Em `components/voice/ActiveCallPanel.tsx`, trocar (linha 102):
+
+```tsx
+      className="fixed bottom-4 right-4 z-50 flex w-[min(320px,calc(100%-2rem))] items-center gap-3 rounded-xl border border-border bg-popover p-3 shadow-2xl animate-in fade-in slide-in-from-bottom-4"
+```
+
+por:
+
+```tsx
+      className="fixed bottom-[calc(var(--bottom-nav-h)+1rem)] right-4 z-50 flex w-[min(320px,calc(100%-2rem))] items-center gap-3 rounded-xl border border-border bg-popover p-3 shadow-2xl animate-in fade-in slide-in-from-bottom-4 md:bottom-4"
+```
+
+- [ ] **Step 4: Rodar e confirmar que passa**
+
+Run: `pnpm vitest run tests/unit/painel-de-chamada-acima-da-barra.test.ts`
+Expected: PASS. Rodar também os testes existentes que citam `ActiveCallPanel` (`grep -l ActiveCallPanel tests/unit`) — se algum assertir a classe antiga `bottom-4`, atualizá-lo minimamente e dizer qual.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add components/voice/ActiveCallPanel.tsx tests/unit/painel-de-chamada-acima-da-barra.test.ts
+git commit -m "fix(mobile): painel de chamada sobe acima da barra inferior
+
+fixed bottom-4 z-50 ficava por cima da barra no celular e cobria a aba
+Mais durante toda chamada. Abaixo de md sobe --bottom-nav-h; a partir de
+md volta ao bottom-4 de sempre."
 ```
 
 ---
