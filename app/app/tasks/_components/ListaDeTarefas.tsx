@@ -84,7 +84,7 @@ function Linha({
         disabled={ocupada || !podeEditar}
         onClick={() => comBloqueio(() => aoAlternarConcluida(tarefa))}
         className={cn(
-          "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-md border transition-colors",
+          "relative mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-colors after:absolute after:-inset-2.5 after:content-[''] md:h-4 md:w-4 md:after:inset-0",
           encerrada
             ? "border-primary bg-primary text-primary-foreground"
             : "border-muted-foreground/40 hover:border-primary",
@@ -129,11 +129,11 @@ function Linha({
       </div>
 
       {podeEditar ? (
-        <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+        <div className="flex shrink-0 items-center gap-1 opacity-100 transition-opacity md:opacity-0 md:focus-within:opacity-100 md:group-hover:opacity-100">
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
+            className="md:h-7 md:w-7"
             aria-label={t("Editar a tarefa")}
             onClick={() => aoEditar(tarefa)}
           >
@@ -149,7 +149,7 @@ function Linha({
             <Button
               variant="destructive"
               size="sm"
-              className="h-7 px-2 text-[11px]"
+              className="text-[11px] md:h-7 md:px-2"
               disabled={ocupada}
               onClick={() => comBloqueio(() => aoApagar(tarefa))}
             >
@@ -159,7 +159,7 @@ function Linha({
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7"
+              className="md:h-7 md:w-7"
               aria-label={t("Apagar a tarefa")}
               onClick={() => setConfirmando(true)}
               onBlur={() => setConfirmando(false)}
