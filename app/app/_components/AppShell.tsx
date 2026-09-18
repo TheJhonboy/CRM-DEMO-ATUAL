@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Sidebar } from "@/components/shell/Sidebar";
 import { TopBar } from "@/components/shell/TopBar";
 import { BarraDeProgressoNavegacao } from "@/components/shell/BarraDeProgressoNavegacao";
+import { MobileBottomNav } from "@/components/shell/MobileBottomNav";
 import { useSinalDePresenca } from "@/hooks/atendimento/useSinalDePresenca";
 import { useInboundMessageAlerts } from "@/hooks/notifications/useInboundMessageAlerts";
 import { useCrmAlerts } from "@/hooks/notifications/useCrmAlerts";
@@ -58,8 +59,12 @@ export function AppShell({ sidebarCollapsed, podeAtender, children }: AppShellPr
       */}
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
         <TopBar />
-        <main className="flex-1 overflow-auto p-6">{children}</main>
+        {/* pb-24: reserva os 64px da barra inferior (h-16) mais folga —
+            sem isto o fim de qualquer página fica atrás dela no celular.
+            md:pb-6 devolve o padding normal a partir de onde a barra some. */}
+        <main className="flex-1 overflow-auto p-6 pb-24 md:pb-6">{children}</main>
       </div>
+      <MobileBottomNav />
     </div>
   );
 }

@@ -128,6 +128,26 @@ export function sidebarGroups(
 }
 
 /**
+ * Projeção da barra de abas do celular: os quatro primeiros destinos do
+ * sidebar, na MESMA ordem de prioridade que `NAV_GROUPS` já declara (ver o
+ * comentário "Grupos por OBJETIVO, na ordem de uso" em `catalogo.ts`). O
+ * quinto slot da barra não vem daqui — é sempre "Mais", que abre o menu
+ * completo (`SidebarContent`) num Sheet.
+ *
+ * Não reimplementa a regra de papel: `sidebarGroups()` já filtra por
+ * `destinosDaInterface`/`canSee`, e este helper só achata e corta.
+ */
+export function bottomNavItems(
+  isPlatformAdmin: boolean,
+  role: Role | null,
+  settings?: InterfaceSettings,
+): NavDestination[] {
+  return sidebarGroups(isPlatformAdmin, role, settings)
+    .flatMap((g) => g.items)
+    .slice(0, 4);
+}
+
+/**
  * Projeção do hub: TODAS as telas do grupo — inclusive as que já estão no
  * sidebar. O hub é inventário, não sobra; é onde se descobre o que existe.
  *

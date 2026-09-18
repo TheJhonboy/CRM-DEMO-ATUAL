@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   NAV_DESTINATIONS,
   NAV_GROUPS,
+  bottomNavItems,
   canSee,
   hubSections,
   searchable,
@@ -192,5 +193,26 @@ describe("searchable", () => {
   it("respeita o papel", () => {
     const hrefs = searchable(AGENT.platform, AGENT.role).map((d) => d.href);
     expect(hrefs).not.toContain("/app/audit");
+  });
+});
+
+describe("bottomNavItems", () => {
+  it("devolve os quatro primeiros destinos do sidebar, na ordem do produto", () => {
+    const itens = bottomNavItems(true, null);
+    expect(itens.map((i) => i.href)).toEqual([
+      "/app/inbox",
+      "/app/radar",
+      "/app/agenda",
+      "/app/templates",
+    ]);
+  });
+
+  it("respeita o papel — nunca mostra o que o papel não vê", () => {
+    const itens = bottomNavItems(false, "viewer");
+    expect(itens.every((i) => canSee(i, false, "viewer"))).toBe(true);
+  });
+
+  it("nunca devolve mais de quatro — o quinto slot é sempre a aba Mais", () => {
+    expect(bottomNavItems(true, null).length).toBeLessThanOrEqual(4);
   });
 });

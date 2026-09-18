@@ -755,6 +755,9 @@ export const DICIONARIO: Traducoes = {
   "Nova versão": { es: "Nueva versión" },
   disponível: { es: "disponible" },
   "Abrir navegação": { es: "Abrir navegación" },
+  // MobileBottomNav.tsx — barra de abas do celular; a quinta aba abre o menu completo.
+  Mais: { es: "Más" },
+  "Mais opções": { es: "Más opciones" },
   "Buscar telas": { es: "Buscar pantallas" },
   "Buscar telas do sistema…": { es: "Buscar pantallas del sistema…" },
   Telas: { es: "Pantallas" },
