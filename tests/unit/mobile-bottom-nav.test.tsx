@@ -37,6 +37,16 @@ describe("barra de navegação inferior (mobile)", () => {
     expect(screen.getByRole("button", { name: "Mais opções" })).toBeTruthy();
   });
 
+  it("a altura vem da variável única e a área segura entra como padding — sem h-16 fixo", () => {
+    render(<MobileBottomNav />);
+    const nav = screen.getByRole("navigation", { name: "Navegação principal" });
+    // Com `h-16` + padding de área segura, o `border-box` do Tailwind v4 tirava o
+    // padding de DENTRO dos 64px e espremia as abas em aparelho com notch. A
+    // altura é `--bottom-nav-h` (4rem + inset), e o inset só entra como padding.
+    expect(nav).toHaveClass("h-[var(--bottom-nav-h)]", "pb-[env(safe-area-inset-bottom)]");
+    expect(nav).not.toHaveClass("h-16");
+  });
+
   it("marca a rota atual com aria-current", () => {
     render(<MobileBottomNav />);
     expect(screen.getByRole("link", { name: /Inbox/ })).toHaveAttribute("aria-current", "page");

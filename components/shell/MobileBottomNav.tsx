@@ -29,8 +29,7 @@ export function MobileBottomNav() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-30 flex h-16 items-stretch border-t border-sidebar-muted/20 bg-sidebar text-sidebar-foreground md:hidden"
-      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      className="fixed inset-x-0 bottom-0 z-30 flex h-[var(--bottom-nav-h)] items-stretch border-t border-sidebar-muted/20 bg-sidebar pb-[env(safe-area-inset-bottom)] text-sidebar-foreground md:hidden"
       aria-label={t("Navegação principal")}
     >
       {items.map((item) => {

@@ -59,10 +59,12 @@ export function AppShell({ sidebarCollapsed, podeAtender, children }: AppShellPr
       */}
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
         <TopBar />
-        {/* pb-24: reserva os 64px da barra inferior (h-16) mais folga —
-            sem isto o fim de qualquer página fica atrás dela no celular.
-            md:pb-6 devolve o padding normal a partir de onde a barra some. */}
-        <main className="flex-1 overflow-auto p-6 pb-24 md:pb-6">{children}</main>
+        {/* Padding de baixo no celular: o normal (--space-6) mais `--bottom-nav-h`,
+            a altura da barra inferior (definida em app/globals.css, com a folga
+            da área segura) — sem isto o fim de qualquer página fica atrás dela.
+            md:pb-6 devolve o padding normal a partir de onde a barra some. O
+            Inbox desconta a mesma variável da própria altura (InboxLayout). */}
+        <main className="flex-1 overflow-auto p-6 pb-[calc(var(--space-6)+var(--bottom-nav-h))] md:pb-6">{children}</main>
       </div>
       <MobileBottomNav />
     </div>
