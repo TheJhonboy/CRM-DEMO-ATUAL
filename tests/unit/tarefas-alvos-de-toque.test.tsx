@@ -14,7 +14,7 @@
  */
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ListaDeTarefas } from "@/app/app/tasks/_components/ListaDeTarefas";
 import type { Tarefa } from "@/lib/tarefas/tipos";
@@ -51,6 +51,10 @@ function montar(over: Partial<ComponentProps<typeof ListaDeTarefas>> = {}) {
 }
 
 describe("Tarefas — alvos de toque no celular", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("o checkbox tem desenho de 24px e área de toque de 44px no celular, 16px a partir de md", () => {
     montar();
     const caixa = screen.getByRole("checkbox", { name: "Marcar como concluída" });
@@ -87,11 +91,29 @@ describe("Tarefas — alvos de toque no celular", () => {
   });
 
   it("apagar continua em dois toques, e o botão de confirmar também herda o tamanho de toque", () => {
+    // Só o `Date` é falso: o `Confirmar` ignora cliques logo depois de armar (caso abaixo).
+    vi.useFakeTimers({ toFake: ["Date"] });
     const props = montar();
     fireEvent.click(screen.getByRole("button", { name: "Apagar a tarefa" }));
     const confirmar = screen.getByRole("button", { name: "Confirmar" });
     expect(confirmar).toHaveClass("md:h-7", "md:px-2");
     expect(confirmar).not.toHaveClass("h-7");
+    vi.advanceTimersByTime(600);
+    fireEvent.click(confirmar);
+    expect(props.aoApagar).toHaveBeenCalledWith(TAREFA);
+  });
+
+  it("um segundo toque no mesmo lugar, logo depois de armar, NÃO apaga", () => {
+    // No celular o lixo e o `Confirmar` têm 44px e ocupam o MESMO lugar: o toque duplo
+    // reflexo (quando o primeiro parece não ter pegado) cairia em `Confirmar` e apagaria
+    // sem confirmação nenhuma.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const props = montar();
+    fireEvent.click(screen.getByRole("button", { name: "Apagar a tarefa" }));
+    const confirmar = screen.getByRole("button", { name: "Confirmar" });
+    fireEvent.click(confirmar);
+    expect(props.aoApagar).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(600);
     fireEvent.click(confirmar);
     expect(props.aoApagar).toHaveBeenCalledWith(TAREFA);
   });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useTagDeIdioma } from "@/hooks/i18n/useLocaleDeData";
@@ -32,6 +32,9 @@ const COR_DA_PRIORIDADE: Record<PrioridadeDaTarefa, string> = {
   urgent: "bg-destructive/15 text-destructive",
 };
 
+/** O toque duplo reflexo cai em `Confirmar`, que nasce no lugar exato do lixo. */
+const ATRASO_DO_CONFIRMAR_MS = 500;
+
 function Linha({
   tarefa,
   podeEditar,
@@ -49,6 +52,7 @@ function Linha({
   const tag = useTagDeIdioma();
   const [ocupada, setOcupada] = useState(false);
   const [confirmando, setConfirmando] = useState(false);
+  const armadoEm = useRef(0);
 
   const encerrada = estaEncerrada(tarefa);
   const atrasada = estaAtrasada(tarefa);
@@ -151,7 +155,10 @@ function Linha({
               size="sm"
               className="text-[11px] md:h-7 md:px-2"
               disabled={ocupada}
-              onClick={() => comBloqueio(() => aoApagar(tarefa))}
+              onClick={() => {
+                if (Date.now() - armadoEm.current < ATRASO_DO_CONFIRMAR_MS) return;
+                return comBloqueio(() => aoApagar(tarefa));
+              }}
             >
               {t("Confirmar")}
             </Button>
@@ -161,7 +168,10 @@ function Linha({
               size="icon"
               className="md:h-7 md:w-7"
               aria-label={t("Apagar a tarefa")}
-              onClick={() => setConfirmando(true)}
+              onClick={() => {
+                armadoEm.current = Date.now();
+                setConfirmando(true);
+              }}
               onBlur={() => setConfirmando(false)}
             >
               <Trash size={14} aria-hidden />
