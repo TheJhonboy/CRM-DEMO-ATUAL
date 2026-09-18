@@ -84,7 +84,7 @@ function Linha({
         disabled={ocupada || !podeEditar}
         onClick={() => comBloqueio(() => aoAlternarConcluida(tarefa))}
         className={cn(
-          "relative mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-colors after:absolute after:-inset-2.5 after:content-[''] md:h-4 md:w-4 md:after:inset-0",
+          "relative mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-colors after:absolute after:-inset-[11px] after:content-[''] md:h-4 md:w-4 md:after:inset-0",
           encerrada
             ? "border-primary bg-primary text-primary-foreground"
             : "border-muted-foreground/40 hover:border-primary",

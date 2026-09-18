@@ -2,9 +2,10 @@
  * Dois defeitos de toque encontrados na auditoria:
  *
  *  1. O checkbox de concluir era 16px (h-4 w-4) — abaixo de qualquer alvo de
- *     toque confortável. Agora o desenho tem 24px e a ÁREA de toque 44px (um
- *     pseudo-elemento `after:` que se estende 10px para cada lado); a partir de
- *     md volta ao desenho de 16px e o pseudo-elemento coincide com o botão.
+ *     toque confortável. Agora o desenho tem 24px e a ÁREA de toque 44px: um
+ *     pseudo-elemento `after:` que se estende 11px a partir da caixa de
+ *     preenchimento (1px dentro da borda), 22px + 2×11px = 44px. A partir de md
+ *     volta ao desenho de 16px e o pseudo-elemento coincide com o botão.
  *  2. Editar/apagar só apareciam em `:hover` — em toque não existe hover, e em
  *     alguns navegadores móveis esses botões ficavam praticamente
  *     inalcançáveis. Abaixo de md ficam sempre visíveis, e com o tamanho padrão
@@ -54,7 +55,7 @@ describe("Tarefas — alvos de toque no celular", () => {
     montar();
     const caixa = screen.getByRole("checkbox", { name: "Marcar como concluída" });
     expect(caixa).toHaveClass("h-6", "w-6", "md:h-4", "md:w-4");
-    expect(caixa).toHaveClass("relative", "after:absolute", "after:-inset-2.5", "md:after:inset-0");
+    expect(caixa).toHaveClass("relative", "after:absolute", "after:-inset-[11px]", "md:after:inset-0");
   });
 
   it("tocar no checkbox conclui a tarefa", () => {
