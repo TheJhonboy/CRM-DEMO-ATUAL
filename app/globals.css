@@ -712,7 +712,8 @@
        comportamento segue exatamente o de hoje — protegido, sem sticky. */
     overflow-x: hidden;
     overflow-x: clip;
-    /* Fonte única da altura da barra inferior do celular (barra, folga do main e Inbox); o env() só é não-zero porque o viewport raiz declara viewportFit: "cover". */
+    /* Fonte única da altura da barra inferior e da folga sob ela (barra, main, Inbox, painel de chamada).
+       Hoje app/layout.tsx não declara viewport-fit=cover: env() é 0 e vale 4rem; já serve quando ligar. */
     --bottom-nav-h: calc(4rem + env(safe-area-inset-bottom));
   }
   [data-theme="dark"] {

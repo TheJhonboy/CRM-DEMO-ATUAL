@@ -117,7 +117,9 @@ export const viewport: Viewport = {
   themeColor: coresDaBarraDoNavegador(REGUA_DO_PRODUTO),
   width: "device-width",
   initialScale: 1,
-  viewportFit: "cover",
+  // `viewport-fit=cover` fica desligado de propósito: com ele só a inset inferior é compensada e os
+  // banners do topo (impersonação, conexão caída) e a TopBar iriam para trás da barra de status.
+  // Ligar exige as quatro insets nesses componentes e conferência em aparelho real.
 };
 
 // Inline FOUC-prevention. Conteúdo é string literal estática (zero input do usuário),

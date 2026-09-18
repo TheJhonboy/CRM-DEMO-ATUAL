@@ -19,9 +19,9 @@ describe("viewport mobile do layout raiz", () => {
     expect(src).toContain("initialScale: 1");
   });
 
-  it("declara viewportFit=cover — necessário para env(safe-area-inset-bottom) da barra inferior", () => {
+  it("não liga viewport-fit=cover — com ele só a inset inferior é compensada e os banners do topo (impersonação, conexão caída) iriam para trás da barra de status", () => {
     const src = fs.readFileSync(path.join(RAIZ, "app/layout.tsx"), "utf8");
-    expect(src).toContain('viewportFit: "cover"');
+    expect(src).not.toMatch(/viewportFit\s*:/);
   });
 
   it("não trava o zoom — maximumScale/userScalable travariam WCAG 2.1.4.4", () => {
