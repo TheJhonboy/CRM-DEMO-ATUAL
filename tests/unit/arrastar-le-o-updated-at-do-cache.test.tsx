@@ -14,7 +14,8 @@
  *
  * O arrasto entra pelo `onDragEnd` que o `DragDropContext` recebe (o dnd é
  * dublê aqui): é o mesmo `DropResult` que o gesto do mouse e o do teclado
- * produzem, sem depender de arrastar pixels no jsdom.
+ * produzem, sem depender de arrastar pixels no jsdom. O dublê captura também o
+ * `onDragStart`, que só o caso do snap (no fim do arquivo) usa.
  */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, render, renderHook, waitFor } from "@testing-library/react";
@@ -26,17 +27,21 @@ import type { BoardData } from "@/lib/kanban/types";
 const post = vi.hoisted(() => vi.fn());
 const patch = vi.hoisted(() => vi.fn());
 const capturado = vi.hoisted(() => ({
+  onDragStart: null as ((s: unknown) => void) | null,
   onDragEnd: null as ((r: unknown) => void) | null,
 }));
 
 vi.mock("@hello-pangea/dnd", () => ({
   DragDropContext: ({
+    onDragStart,
     onDragEnd,
     children,
   }: {
+    onDragStart?: (s: unknown) => void;
     onDragEnd: (r: unknown) => void;
     children: ReactNode;
   }) => {
+    capturado.onDragStart = onDragStart ?? null;
     capturado.onDragEnd = onDragEnd;
     return <div>{children}</div>;
   },
@@ -113,6 +118,7 @@ async function arrastar(): Promise<void> {
 beforeEach(() => {
   post.mockReset();
   patch.mockReset();
+  capturado.onDragStart = null;
   capturado.onDragEnd = null;
   qc = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -262,5 +268,43 @@ describe("mexer no negócio e arrastar em seguida", () => {
       `/api/v1/leads/${LEAD}/move`,
       expect.objectContaining({ expected_updated_at: DEPOIS_DA_EDICAO }),
     );
+  });
+});
+
+/**
+ * O SNAP DO QUADRO DESLIGA DURANTE O ARRASTO — o gesto central do quadro no celular.
+ *
+ * No celular o contêiner do board tem `snap-mandatory`, que engole os passos pequenos do
+ * auto-scroll do dnd e impediria arrastar um card até a próxima etapa. O contêiner leva
+ * `data-arrastando`, e a classe `data-[arrastando=true]:snap-none` desliga o snap enquanto
+ * o atributo for `"true"`. Os testes de classe (`kanban-colunas-mobile`) só provam que a
+ * classe existe; este prova que o ATRIBUTO que ela lê acompanha o gesto: liga quando o dnd
+ * chama `onDragStart` e desliga quando chama `onDragEnd`, inclusive quando o card é solto
+ * fora de qualquer coluna (o snap não pode ficar preso desligado).
+ */
+describe("o snap do quadro desliga durante o arrasto", () => {
+  function conteinerDoQuadro(): HTMLElement {
+    const el = document.querySelector<HTMLElement>("[data-arrastando]");
+    if (!el) throw new Error("o contêiner com data-arrastando não foi renderizado");
+    return el;
+  }
+
+  it("data-arrastando vai de false a true no início do arrasto e volta a false ao soltar", async () => {
+    await quadroMontado();
+    const conteiner = conteinerDoQuadro();
+    expect(conteiner).toHaveAttribute("data-arrastando", "false");
+    expect(capturado.onDragStart).not.toBeNull();
+
+    act(() => {
+      capturado.onDragStart?.({ draggableId: LEAD, type: "DEFAULT", source: soltarEmS2.source });
+    });
+    expect(conteiner).toHaveAttribute("data-arrastando", "true");
+
+    // Solta fora de qualquer coluna (destino nulo): o quadro não move nada, mas o snap volta.
+    await act(async () => {
+      capturado.onDragEnd?.({ ...soltarEmS2, destination: null, reason: "CANCEL" });
+    });
+    expect(conteiner).toHaveAttribute("data-arrastando", "false");
+    expect(post).not.toHaveBeenCalled();
   });
 });

@@ -252,13 +252,14 @@ export function KanbanBoard({
         handleDragEnd(resultado);
       }}
     >
-      {/* mandatory snap swallows @hello-pangea/dnd's small auto-scroll steps;
-          snap is switched off while a card is being dragged and re-centres on drop.
-          max-md:-mx-6 cancels the 24px side padding of the shell's `main` on phones (the
-          only parent, the funnel page, adds none): the 85vw columns are sized against the
-          screen, so without it the next column started ~8px past the container edge and
-          nothing hinted at swiping. The inner p-4 stays: 16px before the first column and
-          the next one peeks ~28px. */}
+      {/* O snap obrigatório engole os passos pequenos do auto-scroll do @hello-pangea/dnd;
+          por isso ele fica desligado enquanto um card é arrastado e volta ao soltar,
+          recentralizando a coluna mais próxima.
+          O max-md:-mx-6 tira os 24px de padding lateral da `main` do shell no celular (o
+          único pai, a página do funil, não põe nenhum): as colunas de 85vw são medidas
+          contra a tela, então sem ele a próxima coluna começava ~8px além da borda do
+          contêiner e nada sugeria arrastar. O p-4 interno fica: 16px antes da primeira
+          coluna e a próxima aparece ~28px. */}
       <div
         data-arrastando={arrastando}
         className="flex h-full snap-x snap-mandatory gap-3 overflow-x-auto p-4 max-md:-mx-6 md:snap-none data-[arrastando=true]:snap-none"

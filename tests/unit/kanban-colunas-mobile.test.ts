@@ -23,7 +23,7 @@ const RAIZ = process.cwd();
  * próxima aparece ~28px.
  */
 describe("Kanban — colunas no celular", () => {
-  it("a coluna real tem ~85vw com snap no celular, 320px a partir de md — sem snap-none (a container o controla)", () => {
+  it("a coluna real tem ~85vw com snap no celular, 320px a partir de md — sem snap-none (o contêiner o controla)", () => {
     const src = fs.readFileSync(path.join(RAIZ, "components/kanban/StageColumn.tsx"), "utf8");
     expect(src).toContain(
       'className="flex w-[85vw] shrink-0 snap-center flex-col rounded-lg border border-border bg-surface-muted/40 md:w-80"',
