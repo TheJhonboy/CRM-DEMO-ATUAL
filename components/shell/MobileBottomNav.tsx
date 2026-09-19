@@ -15,6 +15,18 @@ import { cn } from "@/lib/utils";
  * gaveta (`MobileSidebar`) sozinho não dava. Os quatro primeiros itens vêm de
  * `bottomNavItems` (mesma fonte de verdade do Sidebar); a quinta aba abre o
  * menu completo, reaproveitando `SidebarContent` em vez de duplicar a lista.
+ *
+ * Três decisões, todas medidas num Chromium real:
+ *  - `min-w-0` em cada aba e rótulo em até duas linhas: um item flex tem
+ *    `min-width:auto`, então "Respostas rápidas" alargava a sua aba (96,8px contra
+ *    69,5px) e `truncate` nunca chegava a cortar; a 320px as outras quatro caíam
+ *    abaixo de 60px.
+ *  - Pílula `bg-sidebar-active` atrás do ícone da aba ativa (o mesmo par do item
+ *    ativo do Sidebar de desktop): só a cor do rótulo separava ativa de inativa por
+ *    1,25:1 no tema claro.
+ *  - Anel de foco para DENTRO da aba (offset de foco negativo) e na cor do item ativo: a
+ *    aba da ponta encosta na borda da tela e o anel padrão saía inteiro fora dela,
+ *    a 2,1:1 contra a barra clara.
  */
 export function MobileBottomNav() {
   const t = useT();
@@ -41,12 +53,19 @@ export function MobileBottomNav() {
             href={item.href}
             aria-current={isActive ? "page" : undefined}
             className={cn(
-              "flex flex-1 flex-col items-center justify-center gap-0.5 text-[11px] transition-colors duration-200",
+              "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] transition-colors duration-200 focus-visible:-outline-offset-2 focus-visible:outline-sidebar-active-fg",
               isActive ? "text-sidebar-active-fg" : "text-sidebar-muted hover:text-sidebar-hover-fg",
             )}
           >
-            <Icon size={22} weight={isActive ? "fill" : "regular"} aria-hidden />
-            <span className="truncate px-1">{t(item.label)}</span>
+            <span
+              className={cn(
+                "flex h-8 w-14 items-center justify-center rounded-full transition-colors duration-200",
+                isActive && "bg-sidebar-active",
+              )}
+            >
+              <Icon size={22} weight={isActive ? "fill" : "regular"} aria-hidden />
+            </span>
+            <span className="line-clamp-2 px-1 text-center leading-tight">{t(item.label)}</span>
           </Link>
         );
       })}
@@ -55,10 +74,12 @@ export function MobileBottomNav() {
           <button
             type="button"
             aria-label={t("Mais opções")}
-            className="flex flex-1 flex-col items-center justify-center gap-0.5 text-[11px] text-sidebar-muted transition-colors duration-200 hover:text-sidebar-hover-fg"
+            className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] text-sidebar-muted transition-colors duration-200 hover:text-sidebar-hover-fg focus-visible:-outline-offset-2 focus-visible:outline-sidebar-active-fg"
           >
-            <DotsThree size={22} weight="bold" aria-hidden />
-            <span className="truncate px-1">{t("Mais")}</span>
+            <span className="flex h-8 w-14 items-center justify-center rounded-full">
+              <DotsThree size={22} weight="bold" aria-hidden />
+            </span>
+            <span className="line-clamp-2 px-1 text-center leading-tight">{t("Mais")}</span>
           </button>
         </SheetTrigger>
         <SheetContent
