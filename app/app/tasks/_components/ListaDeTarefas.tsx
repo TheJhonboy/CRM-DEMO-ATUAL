@@ -35,6 +35,19 @@ const COR_DA_PRIORIDADE: Record<PrioridadeDaTarefa, string> = {
 /** O toque duplo reflexo cai em `Confirmar`, que nasce no lugar exato do lixo. */
 const ATRASO_DO_CONFIRMAR_MS = 500;
 
+/*
+ * Os `md:pointer-fine:` desta linha (checkbox, ações, botões) são o comportamento de MOUSE: 16px
+ * e ações reveladas no hover. O critério é o ponteiro e não só a largura porque, medido num Chromium
+ * real, num tablet ≥768px o Tailwind v4 embrulha o hover de grupo em `@media (hover:hover)` — falso
+ * em tela de toque — e a opacidade zero só sob `md` deixava as ações invisíveis para sempre (e ainda
+ * tocáveis), com botões de 28px e checkbox de 16px sem área de toque. Sem mouse (celular OU tablet)
+ * os controles ficam sempre visíveis e do tamanho de toque, em qualquer largura; de `lg` para cima o
+ * tamanho continua vindo das variantes do `Button`. É por isso que a ALTURA dos botões é limitada com
+ * `max-lg:`: o Tailwind emite a variante empilhada DEPOIS do `lg:h-9` do Button, então sem o limite o
+ * 28px passava por cima do 36px com mouse a partir de 1024px (medido: 28×28 em vez de 36×36; o
+ * Confirmar, 28 em vez de 32).
+ */
+
 function Linha({
   tarefa,
   podeEditar,
@@ -88,7 +101,7 @@ function Linha({
         disabled={ocupada || !podeEditar}
         onClick={() => comBloqueio(() => aoAlternarConcluida(tarefa))}
         className={cn(
-          "relative mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-colors after:absolute after:-inset-[11px] after:content-[''] md:h-4 md:w-4 md:after:inset-0",
+          "relative mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-colors after:absolute after:-inset-[11px] after:content-[''] md:pointer-fine:h-4 md:pointer-fine:w-4 md:pointer-fine:after:inset-0",
           encerrada
             ? "border-primary bg-primary text-primary-foreground"
             : "border-muted-foreground/40 hover:border-primary",
@@ -133,11 +146,11 @@ function Linha({
       </div>
 
       {podeEditar ? (
-        <div className="flex shrink-0 items-center gap-1 opacity-100 transition-opacity md:opacity-0 md:focus-within:opacity-100 md:group-hover:opacity-100">
+        <div className="flex shrink-0 items-center gap-1 opacity-100 transition-opacity md:pointer-fine:opacity-0 md:pointer-fine:focus-within:opacity-100 md:pointer-fine:group-hover:opacity-100">
           <Button
             variant="ghost"
             size="icon"
-            className="md:h-7 md:w-7"
+            className="md:max-lg:pointer-fine:h-7 md:max-lg:pointer-fine:w-7"
             aria-label={t("Editar a tarefa")}
             onClick={() => aoEditar(tarefa)}
           >
@@ -153,7 +166,7 @@ function Linha({
             <Button
               variant="destructive"
               size="sm"
-              className="text-[11px] md:h-7 md:px-2"
+              className="text-[11px] md:max-lg:pointer-fine:h-7 md:pointer-fine:px-2"
               disabled={ocupada}
               onClick={() => {
                 if (Date.now() - armadoEm.current < ATRASO_DO_CONFIRMAR_MS) return;
@@ -166,7 +179,7 @@ function Linha({
             <Button
               variant="ghost"
               size="icon"
-              className="md:h-7 md:w-7"
+              className="md:max-lg:pointer-fine:h-7 md:max-lg:pointer-fine:w-7"
               aria-label={t("Apagar a tarefa")}
               onClick={() => {
                 armadoEm.current = Date.now();

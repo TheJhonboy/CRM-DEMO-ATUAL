@@ -4,13 +4,27 @@
  *  1. O checkbox de concluir era 16px (h-4 w-4) — abaixo de qualquer alvo de
  *     toque confortável. Agora o desenho tem 24px e a ÁREA de toque 44px: um
  *     pseudo-elemento `after:` que se estende 11px a partir da caixa de
- *     preenchimento (1px dentro da borda), 22px + 2×11px = 44px. A partir de md
- *     volta ao desenho de 16px e o pseudo-elemento coincide com o botão.
+ *     preenchimento (1px dentro da borda), 22px + 2×11px = 44px. Só com MOUSE
+ *     (`md:pointer-fine:`) volta ao desenho de 16px e o pseudo-elemento coincide
+ *     com o botão.
  *  2. Editar/apagar só apareciam em `:hover` — em toque não existe hover, e em
  *     alguns navegadores móveis esses botões ficavam praticamente
- *     inalcançáveis. Abaixo de md ficam sempre visíveis, e com o tamanho padrão
- *     do `Button` (44px); a partir de md voltam ao comportamento de mouse de
+ *     inalcançáveis. Sem mouse ficam sempre visíveis, e com o tamanho padrão do
+ *     `Button` (44px); com mouse (`md:pointer-fine:`) voltam ao comportamento de
  *     hoje (28px, revelados no hover).
+ *
+ * Por que o critério é o PONTEIRO e não só a largura (medido num Chromium real,
+ * 768px com toque): o Tailwind v4 embrulha `group-hover:` em `@media (hover:hover)`,
+ * que é falso em tela de toque. Com `md:opacity-0` sozinho, num tablet ≥768px o
+ * grupo de ações ficava com `opacity:0` para sempre — invisível e ainda tocável
+ * (`pointer-events:auto`), com botões de 28px e o checkbox de 16px sem área de
+ * toque. Com `md:pointer-fine:`, ponteiro grosso (celular OU tablet) mantém
+ * controles visíveis e do tamanho de toque em qualquer largura. O tamanho de
+ * `lg` para cima continua vindo das variantes do `Button` — e é por isso que a
+ * altura dos botões usa `md:max-lg:pointer-fine:`: uma variante empilhada é
+ * emitida DEPOIS do `lg:h-9` do Button, então `md:pointer-fine:h-7` puro
+ * passaria por cima dele com mouse a partir de 1024px (medido: 28×28 em vez de
+ * 36×36; o Confirmar, 28 em vez de 32).
  */
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
@@ -55,11 +69,20 @@ describe("Tarefas — alvos de toque no celular", () => {
     vi.useRealTimers();
   });
 
-  it("o checkbox tem desenho de 24px e área de toque de 44px no celular, 16px a partir de md", () => {
+  it("o checkbox tem desenho de 24px e área de toque de 44px em ponteiro grosso, 16px só com mouse a partir de md", () => {
     montar();
     const caixa = screen.getByRole("checkbox", { name: "Marcar como concluída" });
-    expect(caixa).toHaveClass("h-6", "w-6", "md:h-4", "md:w-4");
-    expect(caixa).toHaveClass("relative", "after:absolute", "after:-inset-[11px]", "md:after:inset-0");
+    expect(caixa).toHaveClass("h-6", "w-6", "md:pointer-fine:h-4", "md:pointer-fine:w-4");
+    expect(caixa).toHaveClass(
+      "relative",
+      "after:absolute",
+      "after:-inset-[11px]",
+      "md:pointer-fine:after:inset-0",
+    );
+    // Sem o `pointer-fine:`, um tablet ≥768px voltaria ao checkbox de 16px sem área de toque.
+    for (const semPonteiro of ["md:h-4", "md:w-4", "md:after:inset-0"]) {
+      expect(caixa).not.toHaveClass(semPonteiro);
+    }
   });
 
   it("tocar no checkbox conclui a tarefa", () => {
@@ -68,23 +91,39 @@ describe("Tarefas — alvos de toque no celular", () => {
     expect(props.aoAlternarConcluida).toHaveBeenCalledWith(TAREFA);
   });
 
-  it("editar/apagar ficam sempre visíveis no celular — o hover só existe a partir de md", () => {
+  it("editar/apagar ficam sempre visíveis em ponteiro grosso — o esconde-e-revela só vale com mouse, a partir de md", () => {
     montar();
     const acoes = screen.getByRole("button", { name: "Editar a tarefa" }).parentElement!;
     expect(acoes).toHaveClass(
       "opacity-100",
+      "md:pointer-fine:opacity-0",
+      "md:pointer-fine:focus-within:opacity-100",
+      "md:pointer-fine:group-hover:opacity-100",
+    );
+    expect(acoes).not.toHaveClass("opacity-0");
+    // Sem o `pointer-fine:`, o tablet ≥768px (onde `group-hover:` nunca dispara) escondia as ações para sempre.
+    for (const semPonteiro of [
       "md:opacity-0",
       "md:focus-within:opacity-100",
       "md:group-hover:opacity-100",
-    );
-    expect(acoes).not.toHaveClass("opacity-0");
+    ]) {
+      expect(acoes).not.toHaveClass(semPonteiro);
+    }
   });
 
-  it("os botões não carregam tamanho fixo abaixo de md — herdam os 44px do Button", () => {
+  it("os botões não carregam tamanho fixo em ponteiro grosso — herdam os 44px do Button", () => {
     montar();
     for (const nome of ["Editar a tarefa", "Apagar a tarefa"]) {
       const botao = screen.getByRole("button", { name: nome });
-      expect(botao).toHaveClass("md:h-7", "md:w-7");
+      // `max-lg:` e não `md:pointer-fine:h-7` puro: o Tailwind emite a variante empilhada DEPOIS do
+      // `lg:h-9` do Button, e com mouse a partir de 1024px o 28px passaria por cima do 36px que
+      // sempre valeu ali (medido: 28×28 em 1024 e 1280 em vez de 36×36). Limitado a md..lg, o
+      // tamanho de lg para cima segue vindo do Button.
+      expect(botao).toHaveClass("md:max-lg:pointer-fine:h-7", "md:max-lg:pointer-fine:w-7");
+      expect(botao).not.toHaveClass("md:pointer-fine:h-7");
+      expect(botao).not.toHaveClass("md:pointer-fine:w-7");
+      expect(botao).not.toHaveClass("md:h-7");
+      expect(botao).not.toHaveClass("md:w-7");
       expect(botao).not.toHaveClass("h-7");
       expect(botao).not.toHaveClass("w-7");
     }
@@ -96,7 +135,11 @@ describe("Tarefas — alvos de toque no celular", () => {
     const props = montar();
     fireEvent.click(screen.getByRole("button", { name: "Apagar a tarefa" }));
     const confirmar = screen.getByRole("button", { name: "Confirmar" });
-    expect(confirmar).toHaveClass("md:h-7", "md:px-2");
+    // Mesma regra da altura dos botões acima: `max-lg:` mantém o `lg:h-8` do Button valendo de 1024 para cima.
+    expect(confirmar).toHaveClass("md:max-lg:pointer-fine:h-7", "md:pointer-fine:px-2");
+    expect(confirmar).not.toHaveClass("md:pointer-fine:h-7");
+    expect(confirmar).not.toHaveClass("md:h-7");
+    expect(confirmar).not.toHaveClass("md:px-2");
     expect(confirmar).not.toHaveClass("h-7");
     vi.advanceTimersByTime(600);
     fireEvent.click(confirmar);
