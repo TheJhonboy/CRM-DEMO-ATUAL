@@ -41,11 +41,16 @@ const ATRASO_DO_CONFIRMAR_MS = 500;
  * real, num tablet ≥768px o Tailwind v4 embrulha o hover de grupo em `@media (hover:hover)` — falso
  * em tela de toque — e a opacidade zero só sob `md` deixava as ações invisíveis para sempre (e ainda
  * tocáveis), com botões de 28px e checkbox de 16px sem área de toque. Sem mouse (celular OU tablet)
- * os controles ficam sempre visíveis e do tamanho de toque, em qualquer largura; de `lg` para cima o
- * tamanho continua vindo das variantes do `Button`. É por isso que a ALTURA dos botões é limitada com
- * `max-lg:`: o Tailwind emite a variante empilhada DEPOIS do `lg:h-9` do Button, então sem o limite o
- * 28px passava por cima do 36px com mouse a partir de 1024px (medido: 28×28 em vez de 36×36; o
- * Confirmar, 28 em vez de 32).
+ * os controles ficam sempre visíveis e do tamanho de toque, em qualquer largura; de `lg` para cima
+ * com MOUSE o tamanho continua vindo das variantes do `Button`. É por isso que a ALTURA dos botões é
+ * limitada com `max-lg:`: o Tailwind emite a variante empilhada DEPOIS do `lg:h-9` do Button, então
+ * sem o limite o 28px passava por cima do 36px com mouse a partir de 1024px (medido: 28×28 em vez de
+ * 36×36; o Confirmar, 28 em vez de 32).
+ *
+ * Com TOQUE a partir de 1024px (iPad em paisagem) o `lg:h-9 lg:w-9` do Button encolheria o alvo para
+ * 36px (o Confirmar, 32px). `pointer-coarse:lg:h-11 pointer-coarse:lg:w-11` o devolve aos 44px, como nos
+ * cartões de Contatos: a variante composta é emitida DEPOIS do `lg:` puro (é isso que a faz vencer) e só
+ * vale sob `(pointer: coarse)`, então o mouse segue com 36px/32px.
  */
 
 function Linha({
@@ -150,7 +155,7 @@ function Linha({
           <Button
             variant="ghost"
             size="icon"
-            className="md:max-lg:pointer-fine:h-7 md:max-lg:pointer-fine:w-7"
+            className="md:max-lg:pointer-fine:h-7 md:max-lg:pointer-fine:w-7 pointer-coarse:lg:h-11 pointer-coarse:lg:w-11"
             aria-label={t("Editar a tarefa")}
             onClick={() => aoEditar(tarefa)}
           >
@@ -166,7 +171,7 @@ function Linha({
             <Button
               variant="destructive"
               size="sm"
-              className="text-[11px] md:max-lg:pointer-fine:h-7 md:pointer-fine:px-2"
+              className="text-[11px] md:max-lg:pointer-fine:h-7 md:pointer-fine:px-2 pointer-coarse:lg:h-11"
               disabled={ocupada}
               onClick={() => {
                 if (Date.now() - armadoEm.current < ATRASO_DO_CONFIRMAR_MS) return;
@@ -179,7 +184,7 @@ function Linha({
             <Button
               variant="ghost"
               size="icon"
-              className="md:max-lg:pointer-fine:h-7 md:max-lg:pointer-fine:w-7"
+              className="md:max-lg:pointer-fine:h-7 md:max-lg:pointer-fine:w-7 pointer-coarse:lg:h-11 pointer-coarse:lg:w-11"
               aria-label={t("Apagar a tarefa")}
               onClick={() => {
                 armadoEm.current = Date.now();

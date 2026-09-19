@@ -19,12 +19,18 @@
  * grupo de ações ficava com `opacity:0` para sempre — invisível e ainda tocável
  * (`pointer-events:auto`), com botões de 28px e o checkbox de 16px sem área de
  * toque. Com `md:pointer-fine:`, ponteiro grosso (celular OU tablet) mantém
- * controles visíveis e do tamanho de toque em qualquer largura. O tamanho de
- * `lg` para cima continua vindo das variantes do `Button` — e é por isso que a
- * altura dos botões usa `md:max-lg:pointer-fine:`: uma variante empilhada é
- * emitida DEPOIS do `lg:h-9` do Button, então `md:pointer-fine:h-7` puro
- * passaria por cima dele com mouse a partir de 1024px (medido: 28×28 em vez de
- * 36×36; o Confirmar, 28 em vez de 32).
+ * controles visíveis e do tamanho de toque em qualquer largura. Com MOUSE, o
+ * tamanho de `lg` para cima continua vindo das variantes do `Button` — e é por
+ * isso que a altura dos botões usa `md:max-lg:pointer-fine:`: uma variante
+ * empilhada é emitida DEPOIS do `lg:h-9` do Button, então `md:pointer-fine:h-7`
+ * puro passaria por cima dele com mouse a partir de 1024px (medido: 28×28 em
+ * vez de 36×36; o Confirmar, 28 em vez de 32).
+ *
+ * Com TOQUE a partir de 1024px (iPad em paisagem) o `lg:h-9 lg:w-9` do Button
+ * encolheria o alvo para 36px (o Confirmar, 32px). `pointer-coarse:lg:h-11
+ * pointer-coarse:lg:w-11` o devolve aos 44px, como nos cartões de Contatos: a
+ * variante composta é emitida DEPOIS do `lg:` puro e só vale sob
+ * `(pointer: coarse)`, então o mouse não muda.
  */
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
@@ -125,6 +131,10 @@ describe("Tarefas — alvos de toque no celular", () => {
       // sempre valeu ali (medido: 28×28 em 1024 e 1280 em vez de 36×36). Limitado a md..lg, o
       // tamanho de lg para cima segue vindo do Button.
       expect(botao).toHaveClass("md:max-lg:pointer-fine:h-7", "md:max-lg:pointer-fine:w-7");
+      // E em tablet de toque a partir de 1024px (iPad em paisagem) o `lg:h-9 lg:w-9` do Button
+      // encolheria o alvo para 36px; `pointer-coarse:lg:` (composta, emitida DEPOIS do `lg:` puro)
+      // o devolve aos 44px, igual aos cartões de Contatos.
+      expect(botao).toHaveClass("pointer-coarse:lg:h-11", "pointer-coarse:lg:w-11");
       expect(botao).not.toHaveClass("md:pointer-fine:h-7");
       expect(botao).not.toHaveClass("md:pointer-fine:w-7");
       expect(botao).not.toHaveClass("md:h-7");
@@ -132,8 +142,9 @@ describe("Tarefas — alvos de toque no celular", () => {
       expect(botao).not.toHaveClass("h-7");
       expect(botao).not.toHaveClass("w-7");
       // E o que vale de fato vem do `size="icon"` do Button: 44px de toque, 36px de `lg` para
-      // cima. Estes tamanhos só valiam POR AUSÊNCIA de um `h-7`; afirmá-los pega quem trocar o
-      // `size` do botão sem perceber.
+      // cima com mouse (com toque, o `pointer-coarse:lg:` acima o mantém em 44px). Estes tamanhos
+      // só valiam POR AUSÊNCIA de um `h-7`; afirmá-los pega quem trocar o `size` do botão sem
+      // perceber.
       expect(botao).toHaveClass("h-11", "w-11", "lg:h-9", "lg:w-9");
     }
   });
@@ -146,11 +157,14 @@ describe("Tarefas — alvos de toque no celular", () => {
     const confirmar = screen.getByRole("button", { name: "Confirmar" });
     // Mesma regra da altura dos botões acima: `max-lg:` mantém o `lg:h-8` do Button valendo de 1024 para cima.
     expect(confirmar).toHaveClass("md:max-lg:pointer-fine:h-7", "md:pointer-fine:px-2");
+    // E o `lg:h-8` (32px) do Button não pode encolher o alvo em tablet de toque a partir de 1024px.
+    expect(confirmar).toHaveClass("pointer-coarse:lg:h-11");
     expect(confirmar).not.toHaveClass("md:pointer-fine:h-7");
     expect(confirmar).not.toHaveClass("md:h-7");
     expect(confirmar).not.toHaveClass("md:px-2");
     expect(confirmar).not.toHaveClass("h-7");
-    // O tamanho herdado do `size="sm"` do Button: 44px de toque, 32px de `lg` para cima, `px-3`.
+    // O tamanho herdado do `size="sm"` do Button: 44px de toque, 32px de `lg` para cima com mouse
+    // (com toque, o `pointer-coarse:lg:h-11` acima o mantém em 44px), `px-3`.
     expect(confirmar).toHaveClass("h-11", "px-3", "lg:h-8");
     vi.advanceTimersByTime(600);
     fireEvent.click(confirmar);
