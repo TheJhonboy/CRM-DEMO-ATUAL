@@ -5,13 +5,7 @@
 O CRM é usável no celular hoje (o Tailwind já colapsa várias telas abaixo de
 `md`), mas duas coisas o deixam pior do que devia:
 
-1. **`app/layout.tsx` não declara `width`/`initialScale` no `viewport`.** Sem
-   isso, navegador mobile assume um viewport de layout ~980px e desenha a
-   página inteira zerada — todo o trabalho responsivo que já existe
-   (`Sidebar` escondida abaixo de `md`, `InboxLayout` de uma coluna, a semana
-   da Agenda colapsando para um dia) nunca dispara de verdade num aparelho
-   físico, porque a media query nunca vê a largura real da tela. Este é o
-   "avaria" mais severo encontrado: um defeito de plataforma, não de tela.
+1. ~~`app/layout.tsx` não declara `width`/`initialScale` no `viewport`~~ — **premissa FALSA, corrigida em 2026-09-19.** A primeira versão deste spec dizia que, sem isso, o navegador mobile assumia um viewport de ~980px e todo o CSS responsivo nunca disparava num aparelho físico. Não é verdade: o Next.js parte de `createDefaultViewport()` (`width: 'device-width', initialScale: 1`, `node_modules/next/dist/lib/metadata/default-metadata.js:23`) e mescla o `viewport` do app POR CIMA (`resolve-metadata.js:835`), então a página já emitia `<meta name="viewport" content="width=device-width, initial-scale=1">` antes desta branch (confirmado no HTML servido). A conclusão foi tirada de uma leitura do código sem conferir o HTML emitido. O commit que "corrigia" isso foi desfeito na prática pelo commit `b7ddf0b8`; o que sobra é um teste que fixa o padrão do Next e proíbe `maximumScale`/`userScalable` (zoom) e `viewport-fit=cover` (ver Errata no plano).
 2. **Não existe navegação em formato de app** — só um menu-gaveta acionado
    por um ícone de hambúrguer no topo. A referência que o usuário enviou
    (health app com barra de abas fixa no rodapé) pede exatamente esse
@@ -49,15 +43,19 @@ neste plano.
   tocável), não a paleta.
 - Deploy de preview na Vercel autorizado sem confirmação adicional (projeto
   já linkado: `calixto-ai-crm`, `.vercel/project.json`).
-- Teste manual no navegador embutido (viewports 375/390/414/768) + preview
-  Vercel. Sem Playwright/e2e novo: a suíte e2e existente exige Supabase local
-  configurado (`pnpm e2e:env`) e todo o ambiente de teste; criar um projeto
-  Playwright novo só para isto é desproporcional ao escopo.
+- QA em navegador real, sem login: (a) a tela pública de login no navegador
+  embutido em 375/768, claro e escuro; (b) um harness que renderiza os componentes
+  REAIS com o CSS de PRODUÇÃO (`pnpm build`) e mede geometria no Chromium
+  (708 medições em 375/390/414/768/1280 × claro/escuro, 114 capturas); (c) preview
+  na Vercel a partir de uma exportação limpa do commit final. **Não foi possível
+  clicar no app autenticado**: o `.env.local` aponta para um Supabase hospedado
+  (o banco real), não há Docker/Supabase local nem `.env.e2e` (a suíte e2e do
+  repo não roda), e digitar senha ou criar conta não é algo que o agente faça —
+  isso fica para o usuário fazer uma vez no painel do navegador ou no celular.
 
 ## Escopo
 
-1. Corrigir o `viewport` do layout raiz (base de tudo — sem isso o resto não
-   se comprova em aparelho real).
+1. ~~Corrigir o `viewport` do layout raiz~~ — retirado: o Next já emite o meta certo (ver Problema 1).
 2. Barra de navegação inferior mobile (bottom nav), reaproveitando
    `sidebarGroups()`/`canSee` — os mesmos 4 primeiros destinos que já
    aparecem no topo do menu lateral, na ordem que o produto já usa
@@ -68,12 +66,17 @@ neste plano.
 3. Kanban: colunas com `scroll-snap` e largura de ~85vw no celular (`md:`
    preserva os 320px de hoje) — sensação de "arrastar para o próximo
    estágio" em vez de scroll cru.
-4. Contatos: lista de cartões abaixo de `md`, tabela preservada a partir de
-   `md` — mesmo receio visual (`rounded-xl border bg-card`) que a tela de
-   Tarefas já usa, para manter a identidade visual coerente entre telas.
-5. Tarefas: alvo de toque do checkbox maior no celular; botões de
-   editar/apagar sempre visíveis no celular (hover preservado só a partir de
-   `md`, onde hover existe de verdade).
+4. Contatos: lista de cartões abaixo de `xl` (1280px) e tabela a partir de `xl` —
+   medido em navegador: a tabela precisa de ~968px mais os 240px do menu lateral,
+   então de 768 a 1279 ela era inutilizável (só a coluna Nome cabia). O cartão usa o
+   mesmo desenho (`rounded-xl border bg-card`) que a tela de Tarefas, e o celular
+   ganha uma fileira de chips de ordenação (a tabela escondida levava os cabeçalhos
+   ordenáveis embora).
+5. Tarefas: alvo de toque de 44px no checkbox e nos botões e ações sempre visíveis
+   em ponteiros grosseiros (toque) em QUALQUER largura — `pointer-fine:` reserva o
+   comportamento de mouse (hover) para quem tem mouse; medido: em tablets de toque
+   a partir de 768 as ações ficavam invisíveis e ainda assim tocáveis. O apagar em
+   dois toques ganhou uma guarda de 500 ms contra o toque duplo reflexo.
 6. Revisão de segurança do que foi tocado (visibilidade por papel na nova
    navegação, nenhuma chamada nova ao backend, nenhum dado sensível exposto)
    + `pnpm gov:verify` limpo.

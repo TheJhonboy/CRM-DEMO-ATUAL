@@ -2,13 +2,27 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Tornar o CRM (Calixto AI CRM, Next.js 16 / React 19 / Tailwind v4) genuinely usável e bonito no celular — corrigindo o viewport que hoje impede toda a responsividade já existente de funcionar, somando uma barra de navegação inferior no padrão de app, e fechando três buracos de toque encontrados em auditoria (Kanban, Contatos, Tarefas) — sem tocar em Inbox nem Agenda (semana), que já são mobile-friendly e testados.
+**Goal:** Tornar o CRM (Calixto AI CRM, Next.js 16 / React 19 / Tailwind v4) genuinely usável e bonito no celular — somando uma barra de navegação inferior no padrão de app, e fechando três buracos de toque encontrados em auditoria (Kanban, Contatos, Tarefas) — sem tocar em Inbox nem Agenda (semana), que já são mobile-friendly e testados.
 
 **Architecture:** Mudanças cirúrgicas, arquivo por arquivo, todas com classes Tailwind responsivas (`md:` = 768px, o breakpoint que o produto já usa em todo lugar) — nenhum hook novo de `matchMedia`/`useIsMobile` (o produto não usa esse padrão em lugar nenhum; segue CSS puro, evitando flash de hidratação). A navegação inferior reaproveita `sidebarGroups()`/`canSee` (única fonte de verdade de navegação, `lib/navigation/registry.ts`) — não duplica a lista de destinos nem a regra de papel.
 
 **Tech Stack:** Next.js 16 App Router, React 19, TypeScript, Tailwind CSS v4, Radix UI (`@radix-ui/react-dialog` via `components/ui/sheet.tsx`), Vitest + Testing Library, `@hello-pangea/dnd` (Kanban).
 
 **Spec:** [docs/superpowers/specs/2026-09-18-versao-mobile-crm.md](../specs/2026-09-18-versao-mobile-crm.md)
+
+## Errata — o que a execução mudou em relação a este plano (2026-09-19)
+
+O plano abaixo é o texto ORIGINAL; a execução (subagent-driven, com revisão de cada task e QA em navegador real) o corrigiu em vários pontos. O registro de cada decisão e do seu custo está nas mensagens de commit e no relatório final da execução. Resumo do que NÃO vale mais:
+
+- **Task 1 (viewport) estava baseada numa premissa falsa.** O Next já emite `width=device-width, initial-scale=1` por padrão (`resolve-metadata.js:835` mescla o export do app sobre `createDefaultViewport()`). Os campos foram removidos (`b7ddf0b8`); `viewport-fit=cover` ficou DESLIGADO de propósito (`d638abd9`): só a inset inferior é compensada, e os banners de impersonação/conexão caída e a TopBar, fixados no topo, poderiam ir para trás da barra de status.
+- **Task 2 (barra inferior):** a altura vem de UMA variável, `--bottom-nav-h` (regra `html` em `@layer base`), usada pela barra, pelo `<main>` e pelo Inbox (o plano quebrava a invariante de altura do Inbox e espremia as abas com a safe-area); a chave `es` de "Mais"/"Mais opções" entrou em `lib/i18n/dicionario.ts`; depois do QA: abas iguais (`min-w-0`, rótulo em até 2 linhas com altura reservada), pílula na aba ativa com o glifo recortado na cor da barra (3,42:1 claro / 5,89:1 escuro), foco visível.
+- **Task 3 (Kanban):** o `snap-mandatory` engolia o auto-scroll do dnd; o snap é desligado enquanto se arrasta (`data-arrastando`); `max-md:-mx-6` faz a próxima coluna aparecer.
+- **Task 4 (Contatos):** selos e ações viram componentes compartilhados (`SelosDoContato`, `AcoesDoContato`) em vez de duas cópias; teste comportamental; o teste `cliente-pela-agenda-na-tela` e um spec e2e (`zona-de-perigo-apaga-dados-de-teste`) precisaram olhar cada vista; chips de ordenação no celular; a quebra cartões/tabela é `xl` (não `md`), medida; o Card da página perde a borda até `xl`.
+- **Task 5 (Tarefas):** a área de toque do checkbox mede 44px de verdade (`after:-inset-[11px]`; o plano dava 42), botões herdam os 44px do `Button`; a partir de `md` só ponteiros finos escondem as ações (`md:pointer-fine:*`, com `md:max-lg:pointer-fine:h-7` para não sobrepor as variantes `lg:` do `Button`).
+- **Task 6:** o review de segurança achou dois Low: `viewport-fit=cover` (acima) e o toque duplo no apagar de Tarefas (guarda de 500 ms em `Confirmar`).
+- **Task 7 (QA):** sem login (ver o spec). Feito: build de produção + checagem das 18 classes no CSS emitido; login no navegador embutido; harness Chromium com os componentes reais e o CSS de produção; e correção de 8 defeitos medidos (D1-D8) mais o painel de chamada.
+- **Task 8 (nova):** o painel de chamada sobe acima da barra (`--bottom-nav-h`).
+- **Regra aprendida:** teste de classe não prova que o CSS existe; todo token novo foi compilado com o Tailwind real e medido no navegador (o plano errou 42px vs 44px e a ordem de emissão de `md:pointer-fine:h-7` contra `lg:h-9`).
 
 ## Global Constraints
 
