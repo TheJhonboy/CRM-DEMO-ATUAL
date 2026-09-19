@@ -35,6 +35,11 @@ import { cn } from "@/lib/utils";
  *  - Anel de foco para DENTRO da aba (offset de foco negativo) e na cor do item ativo: a
  *    aba da ponta encosta na borda da tela e o anel padrão saía inteiro fora dela,
  *    a 2,1:1 contra a barra clara.
+ *
+ * Os rótulos também levam `break-words`: a 320px cada aba tem 64px (um quinto da
+ * barra) e, tirado o `px-1` do rótulo, 56px de conteúdo, e o `overflow:hidden` do
+ * `line-clamp-2` CORTARIA uma palavra sem ponto de quebra que não coubesse ("Respuestas",
+ * de "Respuestas rápidas" em espanhol, tem 10 letras) em vez de quebrá-la.
  */
 export function MobileBottomNav() {
   const t = useT();
@@ -73,7 +78,7 @@ export function MobileBottomNav() {
             >
               <Icon size={22} weight={isActive ? "fill" : "regular"} aria-hidden />
             </span>
-            <span className="line-clamp-2 min-h-[2.5em] px-1 text-center leading-tight">
+            <span className="line-clamp-2 min-h-[2.5em] break-words px-1 text-center leading-tight">
               {t(item.label)}
             </span>
           </Link>
@@ -89,7 +94,7 @@ export function MobileBottomNav() {
             <span className="flex h-7 w-14 items-center justify-center rounded-full transition-colors duration-200">
               <DotsThree size={22} weight="bold" aria-hidden />
             </span>
-            <span className="line-clamp-2 min-h-[2.5em] px-1 text-center leading-tight">
+            <span className="line-clamp-2 min-h-[2.5em] break-words px-1 text-center leading-tight">
               {t("Mais")}
             </span>
           </button>

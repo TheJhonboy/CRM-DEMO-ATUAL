@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 import { MobileBottomNav } from "@/components/shell/MobileBottomNav";
 import type { ActiveOrg, AuthUser } from "@/lib/auth/types";
@@ -9,15 +9,26 @@ const authRef: { user: Pick<AuthUser, "is_platform_admin">; activeOrg: ActiveOrg
   activeOrg: { orgId: "org-1", name: "Org", role: "admin" },
 };
 
-// Mesma receita de tests/unit/sidebar-grupos.test.tsx — o Sheet "Mais" só
-// monta SidebarContent quando aberto (Radix Dialog não monta fechado), então
-// não precisamos mockar ConnectionHealthDot/VersionFooter/toggleSidebar aqui.
+// Mesma receita de tests/unit/sidebar-grupos.test.tsx. O Sheet "Mais" só monta o
+// `SidebarContent` quando aberto (o Radix Dialog não monta fechado); os casos da folha
+// abaixo a abrem, então o `SidebarContent` precisa dos mesmos três mocks do teste do Sidebar.
 vi.mock("@/hooks/auth/AuthProvider", () => ({
   useAuth: () => authRef,
   usePermission: () => false,
 }));
 vi.mock("next/navigation", () => ({
   usePathname: () => "/app/inbox",
+}));
+vi.mock("@/components/connections/ConnectionHealthDot", () => ({
+  ConnectionHealthDot: () => null,
+}));
+vi.mock("@/app/actions/shell/toggleSidebar", () => ({
+  toggleSidebar: vi.fn(),
+}));
+// Busca a versão via react-query; sem QueryClientProvider ele lança, e o rodapé de versão
+// não é o que estes testes examinam.
+vi.mock("@/components/shell/VersionFooter", () => ({
+  VersionFooter: () => null,
 }));
 
 afterEach(cleanup);
@@ -74,6 +85,12 @@ describe("barra de navegação inferior (mobile)", () => {
       expect(aba).toHaveClass("flex-1", "min-w-0");
       const rotulo = aba.lastElementChild as HTMLElement;
       expect(rotulo).toHaveClass("line-clamp-2", "px-1", "text-center", "leading-tight");
+      // A 320px cada aba tem 64px (um quinto da barra) e, tirado o `px-1` do rótulo, 56px de
+      // conteúdo. "Respuestas rápidas" (espanhol) começa por uma palavra de 10 letras sem ponto de
+      // quebra, que a 11px ocupa quase toda essa largura. O `line-clamp-2` põe `overflow:hidden` no
+      // rótulo: sem `break-words` (`overflow-wrap:break-word`) uma palavra que não cabe seria
+      // CORTADA em vez de quebrada. Vale para as cinco abas, inclusive o Mais.
+      expect(rotulo).toHaveClass("break-words");
       // `truncate` era o que deixava o rótulo largo alargar a aba.
       expect(rotulo).not.toHaveClass("truncate");
     }
@@ -144,5 +161,46 @@ describe("barra de navegação inferior (mobile)", () => {
         "focus-visible:outline-sidebar-active-fg",
       );
     }
+  });
+});
+
+// A quinta aba existia só como botão: nenhum caso a ABRIA, então a folha, o `SidebarContent` dentro
+// dela e o `onNavigate` que a fecha podiam quebrar sem que um único teste reprovasse.
+describe("folha da aba Mais (menu completo no celular)", () => {
+  // Sem o roteador do App Router, o `next/link` deixa o clique seguir e o jsdom tenta navegar de
+  // verdade ("Not implemented: navigation to another Document"). Este ouvinte no `document` roda
+  // DEPOIS dos handlers do React e só cancela essa navegação: o `Link` real e o `onNavigate` real
+  // continuam sob teste, sem mock do `next/link`.
+  const impedirNavegacaoDoJsdom = (e: Event) => e.preventDefault();
+  beforeEach(() => document.addEventListener("click", impedirNavegacaoDoJsdom));
+  afterEach(() => document.removeEventListener("click", impedirNavegacaoDoJsdom));
+
+  it("o botão Mais opções abre a folha com a navegação completa do Sidebar", async () => {
+    render(<MobileBottomNav />);
+    // Fechada, a folha não está no DOM (o Radix Dialog não monta o conteúdo fechado).
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Mais opções" }));
+
+    const folha = await screen.findByRole("dialog");
+    expect(folha).toHaveAccessibleName("Navegação principal");
+    // O `SidebarContent`, e não uma lista paralela: o link do Inbox vem dele...
+    expect(within(folha).getByRole("link", { name: "Inbox" })).toHaveAttribute("href", "/app/inbox");
+    // ...e há destinos que a barra de quatro abas não tem, só o menu completo.
+    expect(within(folha).getByRole("link", { name: /Ver tudo em CRM/ })).toHaveAttribute(
+      "href",
+      "/app/crm",
+    );
+  });
+
+  it("tocar num link da folha a fecha (onNavigate → setMaisAberto(false))", async () => {
+    render(<MobileBottomNav />);
+    fireEvent.click(screen.getByRole("button", { name: "Mais opções" }));
+    const folha = await screen.findByRole("dialog");
+
+    fireEvent.click(within(folha).getByRole("link", { name: "Inbox" }));
+
+    // `waitFor`: o Radix Presence desmonta a folha depois do estado mudar.
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 });
