@@ -134,9 +134,11 @@ function SelosDoContato({ c, clientesLigado }: { c: Contact; clientesLigado: boo
 /**
  * As ações do contato (abrir/iniciar conversa e excluir). `compacta` é a
  * tabela (botão de 32px); o cartão do celular usa o tamanho `icon` padrão do
- * `Button`, que abaixo de `lg` é de 44px — o alvo de toque. O ícone é de 16 nas
- * duas vistas: o `Button` força `[&_svg]:size-4`, então outro `size` seria letra
- * morta.
+ * `Button`, que abaixo de `lg` é de 44px — o alvo de toque. Os cartões valem até
+ * `xl` (ver o corte no `return`), então também cobrem o iPad em paisagem (1024px,
+ * touch): `lg:h-11 lg:w-11` segura os 44px onde o `icon` cairia para 36px. O ícone
+ * é de 16 nas duas vistas: o `Button` força `[&_svg]:size-4`, então outro `size`
+ * seria letra morta.
  */
 function AcoesDoContato({
   c,
@@ -152,7 +154,7 @@ function AcoesDoContato({
   onExcluir: (c: Contact) => void;
 }) {
   const t = useT();
-  const tamanho = compacta ? "h-8 w-8" : undefined;
+  const tamanho = compacta ? "h-8 w-8" : "lg:h-11 lg:w-11";
   return (
     <>
       {c.conversa ? (
@@ -196,7 +198,7 @@ function AcoesDoContato({
 }
 
 /**
- * Abaixo de md a tabela some, e com ela os cabeçalhos ordenáveis — sem isto o
+ * Abaixo de xl a tabela some, e com ela os cabeçalhos ordenáveis — sem isto o
  * celular ficaria preso na ordem padrão. Reusa o mesmo `onSort` da tabela, então
  * a regra de alternar o sentido continua sendo uma só.
  */
@@ -231,8 +233,11 @@ function OrdenacaoDoCelular({
             type="button"
             onClick={() => onSort(column)}
             aria-pressed={ativa}
+            // A barra é `overflow-x-auto` e recorta o anel de foco padrão (2px + offset de
+            // 2px): medido, saía cortado 4px em cima e à esquerda. O offset negativo o
+            // desenha para dentro do chip.
             className={cn(
-              "inline-flex min-h-11 shrink-0 items-center gap-1 rounded-full border px-4 text-sm",
+              "inline-flex min-h-11 shrink-0 items-center gap-1 rounded-full border px-4 text-sm focus-visible:-outline-offset-2",
               ativa ? "border-accent bg-accent-soft text-foreground" : "text-muted-foreground",
             )}
           >
@@ -298,9 +303,13 @@ export function ContactsTable({ contacts, orderBy, orderDir, onSort }: Props) {
     }
   }
 
+  // O corte entre cartões e tabela é `xl`, não `md`: medido num Chromium real, a
+  // tabela precisa de ~968px e a barra lateral de 240px já aparece a partir de
+  // `md`, então de 768 a 1279 ela não cabia (só "Nome" à vista, ações fora da
+  // tela). A partir de 1280 ela cabe.
   return (
     <>
-    <div data-testid="lista-mobile-contatos" className="space-y-2 md:hidden">
+    <div data-testid="lista-mobile-contatos" className="space-y-2 xl:hidden">
       <OrdenacaoDoCelular orderBy={orderBy} orderDir={orderDir} onSort={onSort} />
       {contacts.map((c) => (
         <div key={c.id} className="rounded-xl border bg-card p-3">
@@ -336,7 +345,7 @@ export function ContactsTable({ contacts, orderBy, orderDir, onSort }: Props) {
         </div>
       ))}
     </div>
-    <div data-testid="tabela-contatos-desktop" className="hidden md:block">
+    <div data-testid="tabela-contatos-desktop" className="hidden xl:block">
     <Table>
       <TableHeader>
         <TableRow>

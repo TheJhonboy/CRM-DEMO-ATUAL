@@ -143,7 +143,7 @@ test("o admin zera os dados da sua organização pela tela — e a vizinha não 
   // As duas metades do controle positivo. Sem elas, um "sumiu" depois não
   // distingue "foi apagado" de "esta tela nunca mostrou isto".
   await page.goto("/app/contacts");
-  // A lista tem duas vistas no DOM (cartões abaixo de md, tabela a partir de md) e este spec roda em largura de desktop, então lê a tabela.
+  // A lista tem duas vistas no DOM: cartões abaixo de xl (< 1280px) e a tabela a partir de xl. O viewport padrão do Playwright é exatamente 1280×720, então este spec lê a tabela.
   await expect(page.getByTestId("tabela-contatos-desktop").getByText(z.org_a_contato)).toBeVisible({ timeout: 30_000 });
   await page.goto(`/app/pipelines/${z.org_a_funil_id}`);
   await expect(page.getByText(z.org_a_lead)).toBeVisible({ timeout: 30_000 });

@@ -1,10 +1,15 @@
 /**
- * A lista de Contatos existe em DUAS vistas no DOM: cartões abaixo de md
- * (`md:hidden`) e a tabela a partir de md (`hidden md:block`) — o CSS esconde
+ * A lista de Contatos existe em DUAS vistas no DOM: cartões abaixo de xl
+ * (`xl:hidden`) e a tabela a partir de xl (`hidden xl:block`) — o CSS esconde
  * uma em cada largura; o jsdom não aplica CSS, então aqui as duas estão
  * presentes e cada uma é consultada pelo seu próprio contêiner. A tabela HTML
  * não tinha nenhuma classe responsiva: no celular rolava na horizontal e o
  * nome do contato podia sair da tela.
+ *
+ * O corte é em `xl` e não em `md` porque foi MEDIDO num Chromium real: a tabela
+ * precisa de ~968px e a barra lateral de 240px aparece já a partir de `md`, então
+ * de 768 a 1279 ela não cabia (em 768: 968px de tabela numa caixa de 430px, só
+ * "Nome" visível e as ações fora da tela). A partir de 1280 ela cabe.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -88,10 +93,10 @@ function vistas() {
 }
 
 describe("Contatos — lista de cartões no celular", () => {
-  it("cada vista fica no seu breakpoint: cartões abaixo de md, tabela a partir de md", () => {
+  it("cada vista fica no seu breakpoint: cartões abaixo de xl, tabela a partir de xl", () => {
     montar([CONTATO]);
-    expect(screen.getByTestId("lista-mobile-contatos")).toHaveClass("md:hidden");
-    expect(screen.getByTestId("tabela-contatos-desktop")).toHaveClass("hidden", "md:block");
+    expect(screen.getByTestId("lista-mobile-contatos")).toHaveClass("xl:hidden");
+    expect(screen.getByTestId("tabela-contatos-desktop")).toHaveClass("hidden", "xl:block");
   });
 
   it("a mesma pessoa, com os mesmos dados e os mesmos selos, aparece nas duas vistas", () => {
@@ -172,7 +177,7 @@ describe("Contatos — lista de cartões no celular", () => {
     }
   });
 
-  it("a tabela mantém o botão compacto de 32px; o cartão usa o tamanho de toque e afasta os botões", () => {
+  it("a tabela mantém o botão compacto de 32px; o cartão usa o tamanho de toque até o corte em xl e afasta os botões", () => {
     montar([CONTATO]);
     const cartoes = screen.getByTestId("lista-mobile-contatos");
     const tabela = screen.getByTestId("tabela-contatos-desktop");
@@ -185,18 +190,22 @@ describe("Contatos — lista de cartões no celular", () => {
 
     // Cartão: não herda o compacto. `h-11 w-11` é o tamanho `icon` do Button
     // abaixo de `lg` (o alvo de toque); sem essa metade, "não tem h-8" passaria
-    // também para um botão quebrado. E dois alvos de 44px lado a lado (conversa
-    // e lixeira) não podem ficar a 2px um do outro.
+    // também para um botão quebrado. Os cartões aparecem até xl, e o `icon` cai
+    // para 36px em `lg` (iPad em paisagem, 1024px, é touch): `lg:h-11 lg:w-11`
+    // devolve os 44px até o corte. E dois alvos de 44px lado a lado (conversa e
+    // lixeira) não podem ficar a 2px um do outro.
     expect(excluirNoCartao).not.toHaveClass("h-8");
-    expect(excluirNoCartao).toHaveClass("h-11", "w-11");
+    expect(excluirNoCartao).toHaveClass("h-11", "w-11", "lg:h-11", "lg:w-11");
     expect(excluirNoCartao.parentElement).toHaveClass("gap-2");
+    // A tabela (só a partir de xl, com mouse) continua no 36px do `icon` em `lg`.
+    expect(excluirNaTabela).not.toHaveClass("lg:h-11");
 
     // O nome é o alvo principal do cartão: 44px de altura, não os ~24px do texto.
     expect(within(cartoes).getByRole("link", { name: "Joana Prado" })).toHaveClass("py-2.5");
   });
 
   describe("ordenação no celular", () => {
-    // Abaixo de md a tabela some e com ela os cabeçalhos ordenáveis; a barra de
+    // Abaixo de xl a tabela some e com ela os cabeçalhos ordenáveis; a barra de
     // chips devolve a ordenação ao celular reusando o MESMO `onSort`.
     it("a barra tem os quatro critérios, marca só o atual e chama o onSort da tabela", () => {
       const onSort = vi.fn();
@@ -237,12 +246,25 @@ describe("Contatos — lista de cartões no celular", () => {
       expect(within(barra).getByRole("button", { name: /^Nome/ })).toHaveTextContent("(decrescente)");
       expect(within(barra).queryByText("(crescente)")).toBeNull();
     });
+
+    // A barra é `overflow-x-auto` e recorta o que passa da sua caixa: o anel de foco
+    // padrão (2px + offset de 2px) saía cortado 4px em cima e à esquerda, medido num
+    // Chromium real. O offset negativo desenha o anel para DENTRO do chip.
+    it("cada chip desenha o anel de foco para dentro, senão a barra rolável o recorta", () => {
+      montar([CONTATO]);
+      const chips = within(screen.getByTestId("ordenacao-mobile-contatos")).getAllByRole("button");
+      expect(chips).toHaveLength(4);
+      for (const chip of chips) {
+        expect(chip).toHaveClass("focus-visible:-outline-offset-2");
+      }
+    });
   });
 
   // É TEXTO e não render de propósito: `_client.tsx` precisa de uma página
   // inteira de providers (organização, auth, query, filtros) para montar. O que
   // se prende aqui é só a classe do Card que envolve a lista — sem ela, abaixo
-  // de md os cartões ficariam dentro de outro cartão, com a borda dobrada.
+  // de md os cartões ficariam dentro de outro cartão, com a borda dobrada — e a
+  // raiz da página, que dobrava a margem lateral.
   it("o Card da página perde borda, fundo e sombra abaixo de md (senão: cartão dentro de cartão)", () => {
     const fonte = readFileSync(
       join(__dirname, "..", "..", "app", "app", "contacts", "_client.tsx"),
@@ -251,5 +273,16 @@ describe("Contatos — lista de cartões no celular", () => {
     expect(fonte).toContain(
       '<Card className="overflow-hidden max-md:border-0 max-md:bg-transparent max-md:shadow-none">',
     );
+  });
+
+  // Medido no celular (375px): `main p-6` + a raiz `p-6` deixavam os cartões com
+  // 279px de largura; sem o padding da raiz, 327px. Só abaixo de md — a partir dali
+  // a barra lateral ocupa a coluna e a página volta ao respiro de desktop.
+  it("a raiz da página não repete o padding da main no celular (senão: margem lateral dobrada)", () => {
+    const fonte = readFileSync(
+      join(__dirname, "..", "..", "app", "app", "contacts", "_client.tsx"),
+      "utf8",
+    );
+    expect(fonte).toContain('<div className="space-y-4 p-6 max-md:p-0">');
   });
 });

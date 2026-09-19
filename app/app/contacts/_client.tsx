@@ -100,7 +100,10 @@ export function ContactsListClient() {
   );
 
   return (
-    <div className="space-y-4 p-6">
+    // `max-md:p-0`: a `main` do shell já dá `p-6`; sem isto o celular ganhava o padding
+    // duas vezes (cartões de 279px a 375px de largura; 327px depois). Do md em diante
+    // a barra lateral ocupa a coluna e o respiro de desktop volta.
+    <div className="space-y-4 p-6 max-md:p-0">
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight">{t("Contatos")}</h1>
