@@ -53,7 +53,7 @@ function groupLeadsByStage(stages: Stage[], leads: Lead[]): Map<string, Lead[]> 
 
 function BoardSkeleton() {
   return (
-    <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto p-4 md:snap-none">
+    <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto p-4 max-md:-mx-6 md:snap-none">
       {[0, 1, 2].map((c) => (
         <div
           key={c}
@@ -253,10 +253,15 @@ export function KanbanBoard({
       }}
     >
       {/* mandatory snap swallows @hello-pangea/dnd's small auto-scroll steps;
-          snap is switched off while a card is being dragged and re-centres on drop */}
+          snap is switched off while a card is being dragged and re-centres on drop.
+          max-md:-mx-6 cancels the 24px side padding of the shell's `main` on phones (the
+          only parent, the funnel page, adds none): the 85vw columns are sized against the
+          screen, so without it the next column started ~8px past the container edge and
+          nothing hinted at swiping. The inner p-4 stays: 16px before the first column and
+          the next one peeks ~28px. */}
       <div
         data-arrastando={arrastando}
-        className="flex h-full snap-x snap-mandatory gap-3 overflow-x-auto p-4 md:snap-none data-[arrastando=true]:snap-none"
+        className="flex h-full snap-x snap-mandatory gap-3 overflow-x-auto p-4 max-md:-mx-6 md:snap-none data-[arrastando=true]:snap-none"
       >
         {data.stages.map((stage) => (
           <StageColumn
