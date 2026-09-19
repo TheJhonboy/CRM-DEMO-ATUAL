@@ -87,6 +87,9 @@ describe("barra de navegação inferior (mobile)", () => {
   // pílulas se alinham. Para caber com folga na caixa de 63px a pílula é de 28px (`h-7`).
   it("todo rótulo reserva duas linhas (min-h-[2.5em]), inclusive o do Mais — senão os ícones desalinham entre as abas", () => {
     render(<MobileBottomNav />);
+    // Sem isto, uma aba a menos (item que sumiu do registro, "Mais" removido) faria o loop
+    // abaixo passar sobre menos abas sem ninguém notar.
+    expect(abas()).toHaveLength(5);
     for (const aba of abas()) {
       const rotulo = aba.lastElementChild as HTMLElement;
       expect(rotulo).toHaveClass("min-h-[2.5em]", "line-clamp-2", "leading-tight");
@@ -134,6 +137,7 @@ describe("barra de navegação inferior (mobile)", () => {
   // desenha para dentro da aba, e a cor é a do item ativo do Sidebar (9,1:1 no claro).
   it("todas as abas desenham o anel de foco para dentro e na cor do item ativo", () => {
     render(<MobileBottomNav />);
+    expect(abas()).toHaveLength(5);
     for (const aba of abas()) {
       expect(aba).toHaveClass(
         "focus-visible:-outline-offset-2",

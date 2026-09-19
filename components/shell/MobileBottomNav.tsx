@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
  * `bottomNavItems` (mesma fonte de verdade do Sidebar); a quinta aba abre o
  * menu completo, reaproveitando `SidebarContent` em vez de duplicar a lista.
  *
- * Três decisões, todas medidas num Chromium real:
+ * Quatro decisões, todas medidas num Chromium real:
  *  - `min-w-0` em cada aba e rótulo em até duas linhas: um item flex tem
  *    `min-width:auto`, então "Respostas rápidas" alargava a sua aba (96,8px contra
  *    69,5px) e `truncate` nunca chegava a cortar; a 320px as outras quatro caíam
