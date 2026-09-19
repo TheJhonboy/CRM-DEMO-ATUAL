@@ -122,9 +122,12 @@ export function ActiveCallPanel() {
           {rotuloEstado}
         </p>
         {avisoDeMidia ? (
+          // A frase pode ter 235px e a coluna, ~120px: `flex-wrap` deixa o botão descer e a frase
+          // (`min-w-0 flex-1 basis-24`) quebra em linhas em vez de virar "Não c…" com `truncate`.
+          // O botão tem 16,5px de altura; o pseudo-elemento dá a ele ~44px de área de toque.
           <p
             role="status"
-            className={`flex items-center gap-1 text-[11px] ${
+            className={`flex flex-wrap items-center gap-1 text-[11px] ${
               avisoDeMidia.grave ? "font-medium text-destructive" : "text-muted-foreground"
             }`}
           >
@@ -133,12 +136,12 @@ export function ActiveCallPanel() {
             ) : (
               <CircleNotch size={11} weight="bold" className="shrink-0 animate-spin" aria-hidden />
             )}
-            <span className="truncate">{avisoDeMidia.texto}</span>
+            <span className="min-w-0 flex-1 basis-24">{avisoDeMidia.texto}</span>
             {avisoDeMidia.ouvirAqui ? (
               <button
                 type="button"
                 onClick={ouvirAqui}
-                className="ml-1 shrink-0 font-semibold text-foreground underline underline-offset-2"
+                className="relative ml-1 shrink-0 font-semibold text-foreground underline underline-offset-2 after:absolute after:-inset-x-2 after:-inset-y-3.5 after:content-['']"
               >
                 {avisoDeMidia.ouvirAqui}
               </button>
