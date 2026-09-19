@@ -263,16 +263,22 @@ describe("Contatos — lista de cartões no celular", () => {
   // É TEXTO e não render de propósito: `_client.tsx` precisa de uma página
   // inteira de providers (organização, auth, query, filtros) para montar. O que
   // se prende aqui é só a classe do Card que envolve a lista — sem ela, abaixo
-  // de md os cartões ficariam dentro de outro cartão, com a borda dobrada — e a
-  // raiz da página, que dobrava a margem lateral.
-  it("o Card da página perde borda, fundo e sombra abaixo de md (senão: cartão dentro de cartão)", () => {
+  // de xl (onde os cartões aparecem) eles ficariam dentro de outro cartão, com a
+  // borda dobrada e sem respiro — e a raiz da página, que dobrava a margem lateral.
+  //
+  // O Card acompanha o MESMO corte do `xl:hidden` / `hidden xl:block` da lista: com
+  // o switch em `xl`, de 768 a 1279 os cartões continuam à vista e o Card com borda,
+  // fundo e sombra e sem padding os envolveria.
+  it("o Card da página perde borda, fundo e sombra abaixo de xl (senão: cartão dentro de cartão)", () => {
     const fonte = readFileSync(
       join(__dirname, "..", "..", "app", "app", "contacts", "_client.tsx"),
       "utf8",
     );
     expect(fonte).toContain(
-      '<Card className="overflow-hidden max-md:border-0 max-md:bg-transparent max-md:shadow-none">',
+      '<Card className="overflow-hidden max-xl:border-0 max-xl:bg-transparent max-xl:shadow-none">',
     );
+    // O literal antigo não pode sobrar: `max-md:` deixaria o Card com borda de 768 a 1279.
+    expect(fonte).not.toContain("max-md:border-0");
   });
 
   // Medido no celular (375px): `main p-6` + a raiz `p-6` deixavam os cartões com

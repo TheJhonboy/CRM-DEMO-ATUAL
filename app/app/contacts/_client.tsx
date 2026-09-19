@@ -244,7 +244,9 @@ export function ContactsListClient() {
         </Card>
       ) : (
         <>
-          <Card className="overflow-hidden max-md:border-0 max-md:bg-transparent max-md:shadow-none">
+          {/* O Card segue o mesmo corte cartões/tabela da lista (xl): onde os cartões aparecem ele
+              perde borda, fundo e sombra, senão eles ficariam dentro de outro cartão sem respiro. */}
+          <Card className="overflow-hidden max-xl:border-0 max-xl:bg-transparent max-xl:shadow-none">
             <ContactsTable
               contacts={allContacts}
               orderBy={orderBy}
