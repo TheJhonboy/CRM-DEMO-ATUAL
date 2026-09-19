@@ -93,3 +93,19 @@ describe("aviso de falha de mídia do painel de chamada — ação tocável", ()
     expect(botao).toHaveClass("ml-1", "shrink-0", "font-semibold", "text-foreground", "underline");
   });
 });
+
+/**
+ * A POSIÇÃO do painel, ancorada ao elemento renderizado (`role="region"`) e não ao texto do
+ * fonte: `painel-de-chamada-acima-da-barra.test.ts` confere o literal inteiro no arquivo; este
+ * confere que as classes que fazem o painel subir acima da barra chegam ao elemento certo.
+ */
+describe("posição do painel de chamada", () => {
+  it("o painel sobe a altura da barra inferior no celular e volta a bottom-4 a partir de md", () => {
+    emLigacao();
+    const painel = screen.getByRole("region");
+
+    // `--bottom-nav-h` é a mesma variável da barra e do <main>; `+1rem` é o respiro de 16px
+    // acima dela. A partir de md a barra some e o painel volta ao `bottom-4` de sempre.
+    expect(painel).toHaveClass("fixed", "bottom-[calc(var(--bottom-nav-h)+1rem)]", "md:bottom-4");
+  });
+});

@@ -237,6 +237,9 @@ describe("Contatos — lista de cartões no celular", () => {
       expect(within(barra).queryByText("(decrescente)")).toBeNull();
       // Os outros três não carregam sentido nenhum.
       expect(within(barra).getAllByText(/\((de)?crescente\)/)).toHaveLength(1);
+      // A seta é só para os olhos: o leitor de tela já fala o sentido pelo texto `sr-only`,
+      // então o glifo tem de ficar fora da árvore de acessibilidade — senão ele o leria duas vezes.
+      expect(within(barra).getByText("↑")).toHaveAttribute("aria-hidden", "true");
     });
 
     it("o sentido invertido troca o texto do leitor de tela", () => {
@@ -245,6 +248,8 @@ describe("Contatos — lista de cartões no celular", () => {
 
       expect(within(barra).getByRole("button", { name: /^Nome/ })).toHaveTextContent("(decrescente)");
       expect(within(barra).queryByText("(crescente)")).toBeNull();
+      // Idem no sentido invertido: a seta ↓ também fica fora da árvore de acessibilidade.
+      expect(within(barra).getByText("↓")).toHaveAttribute("aria-hidden", "true");
     });
 
     // A barra é `overflow-x-auto` e recorta o que passa da sua caixa: o anel de foco

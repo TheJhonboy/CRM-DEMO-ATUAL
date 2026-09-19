@@ -93,7 +93,12 @@ describe("Tarefas — alvos de toque no celular", () => {
 
   it("editar/apagar ficam sempre visíveis em ponteiro grosso — o esconde-e-revela só vale com mouse, a partir de md", () => {
     montar();
-    const acoes = screen.getByRole("button", { name: "Editar a tarefa" }).parentElement!;
+    // A âncora é a LINHA (`.group`): é ela que faz o `group-hover:` funcionar, e a barra de
+    // ações é o filho direto dela que contém os botões. `closest` acha a barra mesmo que um dia
+    // o botão ganhe um invólucro, o que `parentElement` não pega.
+    const acoes = screen.getByRole("button", { name: "Editar a tarefa" }).closest<HTMLElement>(".group > div");
+    expect(acoes).not.toBeNull();
+    if (!acoes) return;
     expect(acoes).toHaveClass(
       "opacity-100",
       "md:pointer-fine:opacity-0",
@@ -126,6 +131,10 @@ describe("Tarefas — alvos de toque no celular", () => {
       expect(botao).not.toHaveClass("md:w-7");
       expect(botao).not.toHaveClass("h-7");
       expect(botao).not.toHaveClass("w-7");
+      // E o que vale de fato vem do `size="icon"` do Button: 44px de toque, 36px de `lg` para
+      // cima. Estes tamanhos só valiam POR AUSÊNCIA de um `h-7`; afirmá-los pega quem trocar o
+      // `size` do botão sem perceber.
+      expect(botao).toHaveClass("h-11", "w-11", "lg:h-9", "lg:w-9");
     }
   });
 
@@ -141,6 +150,8 @@ describe("Tarefas — alvos de toque no celular", () => {
     expect(confirmar).not.toHaveClass("md:h-7");
     expect(confirmar).not.toHaveClass("md:px-2");
     expect(confirmar).not.toHaveClass("h-7");
+    // O tamanho herdado do `size="sm"` do Button: 44px de toque, 32px de `lg` para cima, `px-3`.
+    expect(confirmar).toHaveClass("h-11", "px-3", "lg:h-8");
     vi.advanceTimersByTime(600);
     fireEvent.click(confirmar);
     expect(props.aoApagar).toHaveBeenCalledWith(TAREFA);
@@ -161,9 +172,16 @@ describe("Tarefas — alvos de toque no celular", () => {
     expect(props.aoApagar).toHaveBeenCalledWith(TAREFA);
   });
 
-  it("quem não pode editar não vê editar nem apagar", () => {
-    montar({ podeEditar: false });
+  it("quem não pode editar não vê editar nem apagar, e o checkbox fica desabilitado sem concluir nada", () => {
+    const props = montar({ podeEditar: false });
     expect(screen.queryByRole("button", { name: "Editar a tarefa" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Apagar a tarefa" })).toBeNull();
+
+    // O checkbox continua na linha (a tarefa é visível), mas a área de toque de 44px não pode
+    // deixar quem não edita concluir a tarefa: desabilitado, e o toque não chama nada.
+    const caixa = screen.getByRole("checkbox", { name: "Marcar como concluída" });
+    expect(caixa).toBeDisabled();
+    fireEvent.click(caixa);
+    expect(props.aoAlternarConcluida).not.toHaveBeenCalled();
   });
 });
