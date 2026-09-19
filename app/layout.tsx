@@ -115,11 +115,10 @@ export async function generateMetadata(): Promise<Metadata> {
  */
 export const viewport: Viewport = {
   themeColor: coresDaBarraDoNavegador(REGUA_DO_PRODUTO),
-  width: "device-width",
-  initialScale: 1,
-  // `viewport-fit=cover` fica desligado de propósito: com ele só a inset inferior é compensada e os
-  // banners do topo (impersonação, conexão caída) e a TopBar iriam para trás da barra de status.
-  // Ligar exige as quatro insets nesses componentes e conferência em aparelho real.
+  // O Next já parte de `width=device-width, initial-scale=1` e mescla este objeto por cima, então não
+  // se repete aqui. `viewport-fit=cover` fica de fora de propósito: com ele só a inset inferior é
+  // compensada e os banners do topo (impersonação, conexão caída) e a TopBar poderiam ir para trás da
+  // barra de status; ligar exige compensar as quatro insets e testar em aparelho.
 };
 
 // Inline FOUC-prevention. Conteúdo é string literal estática (zero input do usuário),
