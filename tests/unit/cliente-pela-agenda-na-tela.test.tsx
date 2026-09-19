@@ -103,8 +103,8 @@ describe("selo 'Cliente' na lista de contatos", () => {
   it("ligada: o mesmo contato ganha selo — na tabela e no cartão do celular", () => {
     ligada = true;
     render(comQuery(<ContactsTable contacts={[CONTATO]} orderBy="last_activity_at" orderDir="desc" onSort={() => {}} />));
-    // A lista tem duas vistas no DOM (cartões abaixo de md, tabela a partir de
-    // md; o CSS esconde uma em cada largura e o jsdom não aplica CSS), então o
+    // A lista tem duas vistas no DOM (cartões abaixo de xl, tabela a partir de
+    // xl; o CSS esconde uma em cada largura e o jsdom não aplica CSS), então o
     // selo é procurado em cada uma — `getByText` solto acharia DOIS.
     expect(within(screen.getByTestId("tabela-contatos-desktop")).getByText("Cliente")).toBeInTheDocument();
     expect(within(screen.getByTestId("lista-mobile-contatos")).getByText("Cliente")).toBeInTheDocument();
