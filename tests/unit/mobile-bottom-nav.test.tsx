@@ -79,14 +79,41 @@ describe("barra de navegação inferior (mobile)", () => {
     }
   });
 
+  // Quando UM rótulo quebra em duas linhas ("Respostas rápidas") e os outros ficam em uma, o
+  // grupo [pílula + rótulo] de cada aba é centrado na sua caixa: o dessa aba tinha ~61,5px e os
+  // das outras quatro ~47,75px, então a pílula da aba larga ficava a ~0,75px do topo e as
+  // outras a ~7,6px — ícones em alturas diferentes. Cada rótulo reserva SEMPRE duas linhas
+  // (`min-h-[2.5em]` = 2 × `leading-tight` de 1,25), todos os grupos têm a mesma altura e as
+  // pílulas se alinham. Para caber com folga na caixa de 63px a pílula é de 28px (`h-7`).
+  it("todo rótulo reserva duas linhas (min-h-[2.5em]), inclusive o do Mais — senão os ícones desalinham entre as abas", () => {
+    render(<MobileBottomNav />);
+    for (const aba of abas()) {
+      const rotulo = aba.lastElementChild as HTMLElement;
+      expect(rotulo).toHaveClass("min-h-[2.5em]", "line-clamp-2", "leading-tight");
+    }
+  });
+
   // A cor do rótulo sozinha separava a aba ativa da inativa por 1,25:1 no tema claro
-  // (medido); o ícone preenchido era a única pista. A pílula é o MESMO par do item
-  // ativo do Sidebar de desktop (`bg-sidebar-active` com `text-sidebar-active-fg`).
-  it("só a aba ativa tem a pílula bg-sidebar-active atrás do ícone; as inativas e o Mais têm o mesmo invólucro sem ela", () => {
+  // (medido); o ícone preenchido era a única pista. A pílula é o MESMO fundo do item ativo
+  // do Sidebar de desktop (`bg-sidebar-active`), mas o glifo NÃO fica branco sobre ele:
+  // branco sobre a pílula verde dava 2,66:1 no claro e 2,90:1 no escuro (WCAG 1.4.11 pede
+  // 3:1 para um gráfico que carrega significado). O glifo é "recortado" na pílula com a
+  // cor da própria barra (`text-sidebar`; o <Icon> herda `currentColor` do span). O rótulo
+  // continua fora da pílula, com a cor da aba.
+  it("só a aba ativa tem a pílula bg-sidebar-active com o glifo na cor da barra; as inativas e o Mais têm o mesmo invólucro (h-7 w-14) sem ela", () => {
     render(<MobileBottomNav />);
     const ativa = screen.getByRole("link", { name: /Inbox/ });
     expect(ativa).toHaveClass("text-sidebar-active-fg");
-    expect(ativa.firstElementChild).toHaveClass("h-8", "w-14", "rounded-full", "bg-sidebar-active");
+    expect(ativa.firstElementChild).toHaveClass(
+      "h-7",
+      "w-14",
+      "rounded-full",
+      "bg-sidebar-active",
+      "text-sidebar",
+    );
+    expect(ativa.firstElementChild).not.toHaveClass("h-8");
+    // O rótulo da aba ativa NÃO ganha a cor da barra: ele fica fora da pílula.
+    expect(ativa.lastElementChild).not.toHaveClass("text-sidebar");
 
     for (const inativa of [
       screen.getByRole("link", { name: /Radar/ }),
@@ -94,8 +121,10 @@ describe("barra de navegação inferior (mobile)", () => {
       screen.getByRole("link", { name: /Respostas rápidas/ }),
       screen.getByRole("button", { name: "Mais opções" }),
     ]) {
-      expect(inativa.firstElementChild).toHaveClass("h-8", "w-14", "rounded-full");
+      expect(inativa.firstElementChild).toHaveClass("h-7", "w-14", "rounded-full");
+      expect(inativa.firstElementChild).not.toHaveClass("h-8");
       expect(inativa.firstElementChild).not.toHaveClass("bg-sidebar-active");
+      expect(inativa.firstElementChild).not.toHaveClass("text-sidebar");
       expect(inativa).not.toHaveClass("text-sidebar-active-fg");
     }
   });

@@ -21,9 +21,17 @@ import { cn } from "@/lib/utils";
  *    `min-width:auto`, então "Respostas rápidas" alargava a sua aba (96,8px contra
  *    69,5px) e `truncate` nunca chegava a cortar; a 320px as outras quatro caíam
  *    abaixo de 60px.
- *  - Pílula `bg-sidebar-active` atrás do ícone da aba ativa (o mesmo par do item
+ *  - Pílula `bg-sidebar-active` atrás do ícone da aba ativa (o mesmo fundo do item
  *    ativo do Sidebar de desktop): só a cor do rótulo separava ativa de inativa por
- *    1,25:1 no tema claro.
+ *    1,25:1 no tema claro. O glifo não fica branco sobre ela (2,66:1 no claro e
+ *    2,90:1 no escuro, abaixo dos 3:1 do WCAG 1.4.11): é "recortado" na pílula com a
+ *    cor da própria barra (`text-sidebar`; o ícone herda `currentColor` do span). O
+ *    rótulo fica fora da pílula e mantém a cor da aba.
+ *  - Todo rótulo reserva SEMPRE duas linhas (`min-h-[2.5em]` = 2 × o `leading-tight`
+ *    de 1,25) e a pílula tem 28px: sem isso o grupo [pílula + rótulo] de "Respostas
+ *    rápidas" media ~61,5px e o das outras quatro ~47,75px, e como cada grupo é
+ *    centrado na caixa da aba os ícones ficavam em alturas diferentes (~0,75px do
+ *    topo numa aba, ~7,6px nas outras). Com grupos iguais as pílulas se alinham.
  *  - Anel de foco para DENTRO da aba (offset de foco negativo) e na cor do item ativo: a
  *    aba da ponta encosta na borda da tela e o anel padrão saía inteiro fora dela,
  *    a 2,1:1 contra a barra clara.
@@ -59,13 +67,15 @@ export function MobileBottomNav() {
           >
             <span
               className={cn(
-                "flex h-8 w-14 items-center justify-center rounded-full transition-colors duration-200",
-                isActive && "bg-sidebar-active",
+                "flex h-7 w-14 items-center justify-center rounded-full transition-colors duration-200",
+                isActive && "bg-sidebar-active text-sidebar",
               )}
             >
               <Icon size={22} weight={isActive ? "fill" : "regular"} aria-hidden />
             </span>
-            <span className="line-clamp-2 px-1 text-center leading-tight">{t(item.label)}</span>
+            <span className="line-clamp-2 min-h-[2.5em] px-1 text-center leading-tight">
+              {t(item.label)}
+            </span>
           </Link>
         );
       })}
@@ -76,10 +86,12 @@ export function MobileBottomNav() {
             aria-label={t("Mais opções")}
             className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] text-sidebar-muted transition-colors duration-200 hover:text-sidebar-hover-fg focus-visible:-outline-offset-2 focus-visible:outline-sidebar-active-fg"
           >
-            <span className="flex h-8 w-14 items-center justify-center rounded-full">
+            <span className="flex h-7 w-14 items-center justify-center rounded-full transition-colors duration-200">
               <DotsThree size={22} weight="bold" aria-hidden />
             </span>
-            <span className="line-clamp-2 px-1 text-center leading-tight">{t("Mais")}</span>
+            <span className="line-clamp-2 min-h-[2.5em] px-1 text-center leading-tight">
+              {t("Mais")}
+            </span>
           </button>
         </SheetTrigger>
         <SheetContent
