@@ -223,7 +223,7 @@ function OrdenacaoDoCelular({
       data-testid="ordenacao-mobile-contatos"
       role="group"
       aria-label={t("Ordenar por")}
-      className="flex gap-2 overflow-x-auto pb-1"
+      className="flex gap-2 overflow-x-auto p-1"
     >
       {colunas.map(({ column, label }) => {
         const ativa = orderBy === column;
@@ -235,7 +235,9 @@ function OrdenacaoDoCelular({
             aria-pressed={ativa}
             // A barra é `overflow-x-auto` e recorta o anel de foco padrão (2px + offset de
             // 2px): medido, saía cortado 4px em cima e à esquerda. O offset negativo o
-            // desenha para dentro do chip.
+            // desenha para dentro do chip. No contraste forçado do Windows o `outline-offset:
+            // 2px !important` global vence esse offset e o anel volta a sair do chip: o `p-1`
+            // da barra (4px = 2px de anel + 2px de offset) dá folga nos quatro lados.
             className={cn(
               "inline-flex min-h-11 shrink-0 items-center gap-1 rounded-full border px-4 text-sm focus-visible:-outline-offset-2",
               ativa ? "border-accent bg-accent-soft text-foreground" : "text-muted-foreground",

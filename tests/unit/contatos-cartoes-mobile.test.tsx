@@ -257,11 +257,18 @@ describe("Contatos — lista de cartões no celular", () => {
     // Chromium real. O offset negativo desenha o anel para DENTRO do chip.
     it("cada chip desenha o anel de foco para dentro, senão a barra rolável o recorta", () => {
       montar([CONTATO]);
-      const chips = within(screen.getByTestId("ordenacao-mobile-contatos")).getAllByRole("button");
+      const barra = screen.getByTestId("ordenacao-mobile-contatos");
+      const chips = within(barra).getAllByRole("button");
       expect(chips).toHaveLength(4);
       for (const chip of chips) {
         expect(chip).toHaveClass("focus-visible:-outline-offset-2");
       }
+      // No modo de contraste forçado do Windows o `outline-offset: 2px !important` global vence o
+      // offset negativo dos chips: o anel (2px + 2px de offset) volta a sair da caixa do chip, e a
+      // barra `overflow-x-auto` o recortaria em cima e embaixo com só `pb-1`. `p-1` dá folga nos
+      // quatro lados.
+      expect(barra).toHaveClass("overflow-x-auto", "p-1");
+      expect(barra).not.toHaveClass("pb-1");
     });
   });
 
@@ -287,13 +294,17 @@ describe("Contatos — lista de cartões no celular", () => {
   });
 
   // Medido no celular (375px): `main p-6` + a raiz `p-6` deixavam os cartões com
-  // 279px de largura; sem o padding da raiz, 327px. Só abaixo de md — a partir dali
-  // a barra lateral ocupa a coluna e a página volta ao respiro de desktop.
-  it("a raiz da página não repete o padding da main no celular (senão: margem lateral dobrada)", () => {
+  // 279px de largura; sem o padding da raiz, 327px. O corte é o MESMO do Card e da
+  // lista — `xl` —, porque o respiro dobrado pesa enquanto os cartões estão à vista
+  // (até 1279px); só a partir de xl, onde a tabela volta, a página retoma o respiro
+  // de desktop.
+  it("a raiz da página não repete o padding da main enquanto a lista é de cartões (senão: margem lateral dobrada)", () => {
     const fonte = readFileSync(
       join(__dirname, "..", "..", "app", "app", "contacts", "_client.tsx"),
       "utf8",
     );
-    expect(fonte).toContain('<div className="space-y-4 p-6 max-md:p-0">');
+    expect(fonte).toContain('<div className="space-y-4 p-6 max-xl:p-0">');
+    // O literal antigo não pode sobrar: `max-md:` devolveria o padding dobrado de 768 a 1279.
+    expect(fonte).not.toContain("max-md:p-0");
   });
 });
