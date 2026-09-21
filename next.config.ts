@@ -90,6 +90,21 @@ const nextConfig: NextConfig = {
     ],
   },
   async headers() {
+    // HSTS só quando a URL pública é https (auditoria 21/09/2026, achado 3).
+    // Self-host por HTTP em porta alta não pode receber o cabeçalho — mesma
+    // razão de `lib/supabase/cookie-secure.ts`: o PROTOCOLO da URL pública
+    // decide, não o NODE_ENV. Sem `preload`: entrar na lista de preload dos
+    // navegadores é irreversível na prática, e não é decisão do código.
+    //
+    // ATENÇÃO — quando isto é lido: `headers()` roda no `next build` e o
+    // resultado vai para o `routes-manifest.json`; não é reavaliado em runtime.
+    // Na imagem genérica do Dockerfile o build vê `NEXT_PUBLIC_APP_URL` como o
+    // placeholder `https://placeholder.invalid`, então o cabeçalho sai LIGADO
+    // nessa imagem, seja qual for o `.env` de runtime. Isso é inofensivo em
+    // http: o navegador ignora HSTS recebido por transporte não seguro
+    // (RFC 6797 §8.1), e em https o cabeçalho é o desejado. Só um build com
+    // `NEXT_PUBLIC_APP_URL=http://…` (docker-compose.build.yml) o omite.
+    const urlPublicaEhHttps = (process.env.NEXT_PUBLIC_APP_URL ?? "").startsWith("https://");
     return [
       {
         source: "/notify-sw.js",
@@ -103,6 +118,21 @@ const nextConfig: NextConfig = {
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },
+          // CSP mínima, ENFORCED, de propósito SEM `script-src`/`style-src`/
+          // `default-src` (auditoria 21/09/2026, achado 1): o script inline de
+          // tema, o script do `window.__PUBLIC_ENV__` e o `<style>` da marca
+          // precisam de nonce por requisição, e esse refactor está fora deste
+          // escopo — uma `default-src 'self'` deixaria a tela em branco. Este
+          // subconjunto fecha injeção de `<base>`, plugin (`<object>`/`<embed>`)
+          // e clickjacking sem tocar em nenhum script. O `X-Frame-Options`
+          // acima fica: cobre navegador sem suporte a `frame-ancestors`.
+          {
+            key: "Content-Security-Policy",
+            value: "base-uri 'self'; object-src 'none'; frame-ancestors 'none'",
+          },
+          ...(urlPublicaEhHttps
+            ? [{ key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" }]
+            : []),
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           // microphone=(self): o gravador de voz do composer (PTT estilo WhatsApp)
           // usa getUserMedia({audio}); microphone=() bloquearia em TODA origem,

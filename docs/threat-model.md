@@ -209,7 +209,20 @@ Não avaliado por falta de execução/instância:
 - Postura do container WAHA — `docker-compose.prod.yml` comenta "Core por default, dashboard
   off", mas exposição de porta e rede não foram verificadas contra instância viva.
 - Config do Caddy (`Caddyfile`) — TLS, headers de segurança, HSTS.
-- Se `next.config.ts` define CSP / security headers.
+- Cabeçalhos de segurança do `next.config.ts` — antes "não avaliado"; lido e corrigido na
+  auditoria de 21/09/2026 (`tests/unit/next-config-cabecalhos-de-seguranca.test.ts`). Sai em
+  toda resposta: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
+  `Referrer-Policy`, `Permissions-Policy` e uma CSP **mínima e enforced**:
+  `base-uri 'self'; object-src 'none'; frame-ancestors 'none'` (fecha injeção de `<base>`,
+  plugin e clickjacking). Sai também `Strict-Transport-Security: max-age=63072000;
+  includeSubDomains` (sem `preload`) **só quando** `NEXT_PUBLIC_APP_URL` é `https://`. Essa
+  condição é avaliada no `next build`, não em runtime: a imagem genérica do Dockerfile builda
+  com o placeholder `https://placeholder.invalid`, então o HSTS sai ligado nela — inofensivo
+  em http, porque o navegador ignora HSTS recebido por transporte não seguro (RFC 6797 §8.1).
+  **O que continua faltando:** a CSP NÃO tem `script-src`/`style-src`/`default-src`. O script
+  inline de tema, o do `window.__PUBLIC_ENV__` e o `<style>` da marca precisam de **nonce por
+  requisição**, e esse refactor não foi feito — enquanto isso, um XSS futuro não é contido
+  pela CSP. Não verificado: os cabeçalhos reais com `curl -I` numa instância viva.
 - Storage: se o bucket `whatsapp-media` está privado de fato e se a expiração das signed
   URLs é adequada.
 - Storage, e este é MEDIDO e DECLARADO em vez de "não avaliado": `brand-logos` (migration
@@ -224,8 +237,8 @@ Não avaliado por falta de execução/instância:
   continuam só no `service_role`), caminho **não-enumerável** (`<prefixo>/<uuid v4>.<ext>`)
   e teto de 512 KB. O que entra é decidido pelos **bytes** (`lib/branding/logo-arquivo.ts`),
   nunca pelo `Content-Type` — `allowed_mime_types` do bucket e `file.type` na rota leem a
-  mesma string que quem sobe escolhe. **SVG é banido**: este repo não define CSP (ver o item
-  acima sobre `next.config.ts`), e SVG navegado direto do endereço da imagem executa script.
+  mesma string que quem sobe escolhe. **SVG é banido**: a CSP deste repo não tem `script-src` (ver o
+  item acima sobre `next.config.ts`), e SVG navegado direto do endereço da imagem executa script.
   O que NÃO está coberto: um logo subido é **público para sempre até ser trocado** — quem
   subir por engano uma arte confidencial precisa removê-la pela tela, e a URL antiga deixa
   de existir junto com o arquivo (a rota apaga o anterior na troca).
