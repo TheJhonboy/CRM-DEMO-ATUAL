@@ -58,9 +58,17 @@ describe("tema claro escopável em subárvore", () => {
     // obrigação da linguagem. O conjunto certo é o que o escuro sobrescreve: o
     // que só existe no `:root` é herdado sem problema.
     //
-    // A rampa fica de fora de propósito: as 11 paradas são idênticas nos dois
-    // blocos do produto (omiti-las não muda pixel), e assim uma subárvore clara
-    // herda a rampa do <html> — a do revendedor — em vez de fixar a Sage.
+    // A rampa fica de fora de propósito: assim uma subárvore clara herda a rampa
+    // do <html> — a do revendedor, quando a instalação trocou a cor — em vez de
+    // fixar a Sage.
+    //
+    // ⚠️ Já NÃO é verdade que as 11 paradas sejam idênticas nos dois blocos do
+    // produto e que omiti-las "não mude pixel": o tema Calixto separou as rampas
+    // (claro `:root` = verde-floresta #f4faf6…#0d3115, escuro = menta
+    // #ecf9f0…#002411). Numa instalação SEM marca própria, um `<div
+    // data-theme="light">` dentro de página escura herda a rampa menta do <html>.
+    // Este caso compara CONJUNTOS de propriedade e não vê isso; o buraco está
+    // declarado no aviso do bloco `[data-theme="light"]` em app/globals.css.
     const esperado = [...escuro.keys()].filter((k) => !RAMPA.has(k)).sort();
     expect([...claro.keys()].sort()).toEqual(esperado);
     for (const k of claro.keys()) expect(RAMPA.has(k), k).toBe(false);
