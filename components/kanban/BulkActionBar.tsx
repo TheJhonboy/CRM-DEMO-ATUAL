@@ -164,10 +164,20 @@ export function BulkActionBar({
           barra `sticky` virava scroll horizontal da PÁGINA inteira — a barra
           é `mx-auto`, então o excesso ficava invisível dos dois lados, não só
           cortado. `max-w-[calc(100vw-2rem)]` + `flex-wrap` deixam a barra
-          quebrar em linhas em vez de vazar. */}
+          quebrar em linhas em vez de vazar.
+
+          ⚠️ `sticky` nunca grudou aqui: o ancestral rolável dela é o `<main>` do
+          AppShell (`overflow-auto`), e o `<main>` não rola — quem rola é o
+          documento. Sem rolagem para acompanhar, `bottom-4` só põe a barra no
+          FIM do quadro, e num funil comprido ela ficava com 0px na tela. No
+          celular a barra de abas fixa ainda cobria parte dela. Por isso, abaixo
+          de `md` a barra é `fixed`, 16px acima da barra de abas
+          (`--bottom-nav-h`, a mesma variável que a própria barra de abas, o
+          `<main>` e o painel de chamada leem); de `md` para cima segue
+          `sticky bottom-4`, como sempre foi. */}
       <div
         data-lote-selecionados={selectedIds.length}
-        className="sticky bottom-4 z-30 mx-auto flex w-fit max-w-[calc(100vw-2rem)] flex-wrap items-center justify-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 shadow-md"
+        className="sticky bottom-4 z-30 mx-auto flex w-fit max-w-[calc(100vw-2rem)] flex-wrap items-center justify-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 shadow-md max-md:fixed max-md:inset-x-0 max-md:bottom-[calc(var(--bottom-nav-h)+1rem)]"
       >
         <span className="text-sm font-medium">{rotuloDaContagem}</span>
 
@@ -288,6 +298,19 @@ export function BulkActionBar({
           {t("Cancelar")}
         </Button>
       </div>
+
+      {/* Fixa, a barra sai do fluxo e não empurra mais nada: sem folga no fim da
+          página, os últimos cards ficariam para sempre sob ela. Este bloco só
+          existe abaixo de `md` (onde a barra é fixa) e só com seleção (o
+          componente já devolve `null` sem ela). `h-32` (128px) é o menor degrau
+          que, medido ao fim da rolagem, deixa ≥ 8px entre o último card e a
+          barra em todas as larguras de celular testadas: a barra tem 114px de
+          altura a partir de 375 e 166px em 320 e 360, onde quebra em três linhas.
+          `shrink-0`: a raiz da página é `flex h-full flex-col` e o quadro tem
+          `h-full`; sem ele o espaçador cedia parte dos 128px ao quadro (59px no
+          funil curto, 106px no longo, medido em 375) e as colunas esticavam com
+          espaço vazio a cada seleção. */}
+      <div aria-hidden="true" data-lote-reserva="" className="h-32 shrink-0 md:hidden" />
 
       <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <DialogContent>
