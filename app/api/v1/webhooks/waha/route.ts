@@ -93,7 +93,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   );
 
   if (sessErr) {
-    return fail("internal_error", sessErr.message, 500, { requestId });
+    // Esta consulta roda ANTES de qualquer assinatura — é a única forma de achar o
+    // segredo de quem chama —, então quem lê a resposta ainda não provou nada. O
+    // texto do Postgres (tabela, coluna, constraint, SQLSTATE) fica no log, ligado
+    // à resposta pelo `request_id` que ela leva em `X-Request-Id`; o corpo leva só
+    // um rótulo estável. Status e código de máquina seguem os mesmos: o provider
+    // continua retentando como antes.
+    logger.error("[waha.webhook] consulta da sessão falhou", {
+      request_id: requestId,
+      estagio: "sessao",
+      detalhe: sessErr.message,
+      codigo: sessErr.code,
+    });
+    return fail("internal_error", "session_lookup_failed", 500, { requestId });
   }
   if (!session) {
     // Sessão ainda não registrada no nosso DB — aceita e ignora (200 p/ WAHA
