@@ -40,9 +40,37 @@ export const changeRoleSchema = z.object({
 });
 export type ChangeRoleInput = z.infer<typeof changeRoleSchema>;
 
+/**
+ * Prefixos de escopo que SÓ o sistema emite. `deriveActor` (`lib/mcp/auth.ts`)
+ * lê `actor:ai_agent` e `agent_run:<uuid>` para decidir quem aparece como autor
+ * — coluna com FK e trilha de auditoria. Quem cria token por este schema é um
+ * admin do tenant; deixá-lo gravar esses escopos é deixar um token comum se
+ * passar por agente de IA. Quem os emite de verdade é
+ * `lib/ai/runtime/mcp_token.ts`, direto no banco, sem passar por aqui.
+ *
+ * Gate por PREFIXO, e não por lista de permitidos: a tela manda `mcp:*`,
+ * `role:manager`, `contacts:*`, `leads:*`, `messages:*` e `audit:read`, e um
+ * escopo de integração que ninguém catalogou continua válido. Comparação sem
+ * caixa e sem espaço em volta, para o gate não depender de como o leitor
+ * (`deriveActor`) normalize amanhã.
+ */
+const PREFIXOS_DE_ESCOPO_RESERVADOS = ["actor:", "agent_run:"] as const;
+
+const escopoReservadoAoSistema = (escopo: string): boolean => {
+  const normalizado = escopo.trim().toLowerCase();
+  return PREFIXOS_DE_ESCOPO_RESERVADOS.some((prefixo) => normalizado.startsWith(prefixo));
+};
+
 export const createApiTokenSchema = z.object({
   name: z.string().min(2).max(100),
-  scopes: z.array(z.string()).min(1),
+  scopes: z
+    .array(
+      z.string().refine((escopo) => !escopoReservadoAoSistema(escopo), {
+        message:
+          "Escopo reservado ao sistema: `actor:` e `agent_run:` só são emitidos pelo runtime de agentes.",
+      }),
+    )
+    .min(1),
   expires_in_days: z.coerce.number().int().min(1).max(365).optional(),
 });
 export type CreateApiTokenInput = z.infer<typeof createApiTokenSchema>;
