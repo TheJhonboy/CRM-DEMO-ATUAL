@@ -12,11 +12,12 @@ function classesLiterais(src: string): string[] {
 
 /**
  * A altura da barra inferior do celular é reservada UMA vez, em
- * `--bottom-nav-h`, e lida por três consumidores: a própria barra, o padding de
- * baixo do <main> e a altura da grade do Inbox. Se um deles voltar a um número
- * solto (`h-16`, `pb-24`), as contas deixam de fechar: a página ganha rolagem e
- * o composer do Inbox fica embaixo da barra. jsdom não calcula layout, então o
- * que se prende aqui é o texto — a medida real, no navegador, é da Task 7.
+ * `--bottom-nav-h`, e lida por cinco consumidores: a própria barra, o padding de
+ * baixo do <main>, a altura da grade do Inbox, o painel de chamada e a barra de
+ * ações em lote. Se um deles voltar a um número solto (`h-16`, `pb-24`), as
+ * contas deixam de fechar: a página ganha rolagem e o composer do Inbox fica
+ * embaixo da barra. jsdom não calcula layout, então o que se prende aqui é o
+ * texto — a medida real, no navegador, é da Task 7.
  */
 describe("geometria da barra inferior do celular", () => {
   it("app/globals.css declara --bottom-nav-h com a área segura", () => {

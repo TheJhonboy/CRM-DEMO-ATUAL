@@ -172,9 +172,15 @@ export function BulkActionBar({
           FIM do quadro, e num funil comprido ela ficava com 0px na tela. No
           celular a barra de abas fixa ainda cobria parte dela. Por isso, abaixo
           de `md` a barra é `fixed`, 16px acima da barra de abas
-          (`--bottom-nav-h`, a mesma variável que a própria barra de abas, o
-          `<main>` e o painel de chamada leem); de `md` para cima segue
-          `sticky bottom-4`, como sempre foi. */}
+          (`--bottom-nav-h`, a variável que a barra de abas, o `<main>`, a grade
+          do Inbox e o painel de chamada leem); de `md` para cima segue
+          `sticky bottom-4`, como sempre foi — e portanto ainda no FIM da página
+          (medido a 1280): isso ficou de fora de propósito.
+
+          Sabido e aceito: o `ActiveCallPanel` (fixed, mesmo `bottom`, `right-4`,
+          z-50) cobre a parte direita desta barra durante uma chamada de voz com
+          seleção ativa. Num teste com o painel injetado, em 375 e 414 o Tag…, o
+          Excluir e o Cancelar ficam sob ele; em 320 e 360, o Cancelar. */}
       <div
         data-lote-selecionados={selectedIds.length}
         className="sticky bottom-4 z-30 mx-auto flex w-fit max-w-[calc(100vw-2rem)] flex-wrap items-center justify-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 shadow-md max-md:fixed max-md:inset-x-0 max-md:bottom-[calc(var(--bottom-nav-h)+1rem)]"
@@ -301,16 +307,24 @@ export function BulkActionBar({
 
       {/* Fixa, a barra sai do fluxo e não empurra mais nada: sem folga no fim da
           página, os últimos cards ficariam para sempre sob ela. Este bloco só
-          existe abaixo de `md` (onde a barra é fixa) e só com seleção (o
-          componente já devolve `null` sem ela). `h-32` (128px) é o menor degrau
-          que, medido ao fim da rolagem, deixa ≥ 8px entre o último card e a
-          barra em todas as larguras de celular testadas: a barra tem 114px de
-          altura a partir de 375 e 166px em 320 e 360, onde quebra em três linhas.
+          ocupa espaço abaixo de `md` (`md:hidden`) e só existe com seleção (o
+          componente já devolve `null` sem ela).
+
+          Ao fim da rolagem, a folga entre o último card e a barra é
+          `altura do bloco + 49px − altura da barra`, onde 49px = 25px (do último
+          card ao fim do quadro) + 16px (`gap-4` da raiz da página) + 88px
+          (padding de baixo do `<main>`: 24px + a barra de abas) − 80px (a barra
+          de abas + os 16px entre ela e esta barra). Medido em Chromium, a barra
+          tem 114px de altura a partir de 375 e 166px em 320 e 360 (três
+          linhas); com `h-44` (176px) sobram 111px e 59px. O texto ampliado
+          engorda a barra (182px a 112,5% e 199px a 125%, medido em 375) e o
+          `h-32` (128px) já não bastava: por isso `h-44`, que segura até uns 125%.
+
           `shrink-0`: a raiz da página é `flex h-full flex-col` e o quadro tem
-          `h-full`; sem ele o espaçador cedia parte dos 128px ao quadro (59px no
-          funil curto, 106px no longo, medido em 375) e as colunas esticavam com
-          espaço vazio a cada seleção. */}
-      <div aria-hidden="true" data-lote-reserva="" className="h-32 shrink-0 md:hidden" />
+          `h-full`; sem ele o espaçador cedia parte da altura ao quadro (com
+          `h-32`, 59px no funil curto e 106px no longo, medido em 375) e as
+          colunas esticavam com espaço vazio a cada seleção. */}
+      <div aria-hidden="true" data-lote-reserva="" className="h-44 shrink-0 md:hidden" />
 
       <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <DialogContent>
