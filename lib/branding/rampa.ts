@@ -31,7 +31,17 @@ export type Oklab = { readonly L: number; readonly a: number; readonly b: number
  * `noUncheckedIndexedAccess` isso é o que permite indexar sem `!` em toda linha.
  */
 export type Rampa = readonly [
-  string, string, string, string, string, string, string, string, string, string, string,
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
+  string,
 ];
 
 /** Os rótulos dos graus, na mesma ordem da `Rampa`. */
@@ -207,7 +217,7 @@ export function compor(cor: string, alfa: number, sobre: string): string {
  * É a FORMA da escada — a curva de luminosidade que o design system desenhou à mão.
  */
 export const ESCADA_L = [
-  0.9695, 0.9317, 0.8597, 0.7634, 0.6718, 0.5899, 0.5015, 0.4303, 0.3772, 0.339, 0.2278,
+  0.9695, 0.9317, 0.8911, 0.7611, 0.6718, 0.5899, 0.5015, 0.4303, 0.3772, 0.339, 0.2278,
 ] as const;
 
 /**
@@ -216,8 +226,15 @@ export const ESCADA_L = [
  * dentro do sRGB, e insistir só produz clamp.
  */
 export const CURVA_C = [
-  0.11, 0.247, 0.486, 0.765, 1.021, 1.111, 1.0, 0.789, 0.63, 0.508, 0.334,
+  0.11, 0.247, 0.468, 0.78, 1.021, 1.111, 1.0, 0.789, 0.63, 0.508, 0.334,
 ] as const;
+
+/**
+ * Microcorreção de matiz medida na rampa do produto. Ela permanece abaixo de
+ * 2° para conservar a identidade da marca, mas evita que o menta claro derive
+ * para um verde frio quando o croma diminui.
+ */
+const CURVA_H = [0, 0, 0, -1.16, 0, 0, 0, 0, 0, 0, 0] as const;
 
 /**
  * O índice da SEMENTE: stop 600, o `--color-accent` do tema claro.
@@ -263,7 +280,11 @@ export function rampaDeSemente(semente: string): Rampa {
   const { L: Ls, C: Cs, h } = hexParaOklch(semente);
   const C0 = Cs / CK;
   const stops = ESCADA_L.map((_, i) =>
-    oklchParaHex({ L: lightnessDoStop(i, Ls), C: C0 * (CURVA_C[i] ?? 1), h }),
+    oklchParaHex({
+      L: lightnessDoStop(i, Ls),
+      C: C0 * (CURVA_C[i] ?? 1),
+      h: h + (CURVA_H[i] ?? 0),
+    }),
   );
   stops[K] = normalizarHex(semente);
   return stops as unknown as Rampa;

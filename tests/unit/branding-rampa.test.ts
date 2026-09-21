@@ -32,27 +32,27 @@ const CSS = fs.readFileSync(path.join(RAIZ, "app/globals.css"), "utf8");
  * este teste — que é exatamente o aviso que se quer.
  */
 /**
- * O bloco `:root` sai por casamento de chaves, e não por `slice` entre duas
- * `indexOf`. A versão anterior cortava de `indexOf(":root")` até
+ * O bloco sai por casamento de chaves, e não por `slice` entre duas `indexOf`.
+ * A versão anterior cortava de `indexOf(":root")` até
  * `indexOf('[data-theme="dark"]')` e quebrou na migração para o Tailwind 4: o
  * `@custom-variant dark (&:where([data-theme="dark"], …))` pôs essa string no
  * TOPO do arquivo, antes do `:root`, e a fatia virou vazia. O sintoma foi
  * "não achei --color-accent-50 no :root", que aponta para o lugar errado —
  * o `:root` estava intacto; quem tinha se mexido era o delimitador.
  */
-function blocoRoot(css: string): string {
-  const i = css.search(/^:root\s*\{/m);
-  if (i < 0) throw new Error("não achei o bloco `:root` em globals.css");
+function blocoDe(css: string, seletor: string): string {
+  const i = css.search(new RegExp(`^${seletor.replace(/[[\]"$]/g, "\\$&")}\\s*\\{`, "m"));
+  if (i < 0) throw new Error(`não achei o bloco \`${seletor}\` em globals.css`);
   const fim = css.indexOf("\n}", i);
-  if (fim < 0) throw new Error("bloco `:root` sem fechamento em globals.css");
+  if (fim < 0) throw new Error(`bloco \`${seletor}\` sem fechamento em globals.css`);
   return css.slice(i, fim);
 }
 
-function stopsSageDoCss(): string[] {
-  const raiz = blocoRoot(CSS);
+function stopsDe(seletor: string): string[] {
+  const bloco = blocoDe(CSS, seletor);
   return GRAUS.map((g) => {
-    const m = new RegExp(`--color-accent-${g}:\\s*(#[0-9a-f]{6})`, "i").exec(raiz);
-    if (!m?.[1]) throw new Error(`não achei --color-accent-${g} no :root do globals.css`);
+    const m = new RegExp(`--color-accent-${g}:\\s*(#[0-9a-f]{6})`, "i").exec(bloco);
+    if (!m?.[1]) throw new Error(`não achei --color-accent-${g} em \`${seletor}\``);
     return m[1].toLowerCase();
   });
 }
@@ -102,8 +102,33 @@ describe("conversões de cor", () => {
   });
 });
 
+/**
+ * ⚠️ A ÂNCORA DA CATRACA MUDOU DE BLOCO NO TEMA CALIXTO — leia antes de "consertar".
+ *
+ * Até aqui o produto tinha UMA rampa desenhada à mão: `:root` e
+ * `[data-theme="dark"]` declaravam os MESMOS 11 stops, e tanto fazia de onde ler.
+ * O tema Calixto separou as duas:
+ *
+ *   `:root` (claro)  #f4faf6 #e9f5ed #c7e6d1 #8bc8a3 #57a477 #389869 #00b66b …
+ *   `[data-theme="dark"]`  #ecf9f0 #d8f6e2 #bdf5ce #83e6a3 #41d98a #00ca77 #00b66b …
+ *
+ * e recalibrou `ESCADA_L`/`CURVA_C`/`CURVA_H` (lib/branding/rampa.ts) para
+ * reproduzir a ESCURA — é dela que saem os 2/255 de folga deste caso. A clara
+ * passou a ser verde-floresta dessaturado, escolhido a olho, e NÃO é derivável
+ * da semente #00b66b com essas curvas (Δ medido: 56/255 no stop 400).
+ *
+ * Por que a âncora é a escura e não a clara: as curvas são a forma que TODA marca
+ * de revendedor herda (`derivarMarca` → `rampaDeSemente`), e os testes de
+ * contraste e de pares pintados já estão baseados nelas. Recalibrar para a clara
+ * mexeria na rampa de todo revendedor — decisão de design, não de port.
+ *
+ * O que fica EM ABERTO, e deve ser decidido por quem desenhou o tema: o produto
+ * hoje tem duas rampas de accent e o white-label emite só uma (ver
+ * `lib/branding/css.ts`), então a marca do revendedor não consegue seguir as
+ * duas. Ou a clara volta a ser derivável, ou a derivação passa a ter duas formas.
+ */
 describe("rampaDeSemente — catraca de calibração contra o design system", () => {
-  const esperados = stopsSageDoCss();
+  const esperados = stopsDe('[data-theme="dark"]');
 
   it("lê 11 stops distintos do globals.css (guarda de vacuidade)", () => {
     // Sem isto, um regex quebrado devolveria lista vazia e a comparação abaixo passaria
@@ -111,6 +136,16 @@ describe("rampaDeSemente — catraca de calibração contra o design system", ()
     expect(esperados).toHaveLength(11);
     expect(new Set(esperados).size).toBe(11);
     expect(esperados[K]).toBe("#00b66b");
+  });
+
+  it("a rampa clara é OUTRA, desenhada à mão — registrado para não parecer engano", () => {
+    // Este caso não protege comportamento: ele impede que a divergência acima
+    // vire folclore. Se um dia as duas voltarem a ser iguais, ele reprova e quem
+    // passar por aqui apaga o bloco de comentário junto — que é o ponto.
+    const claros = stopsDe(":root");
+    expect(claros).toHaveLength(11);
+    expect(claros[K]).toBe("#00b66b"); // a semente é a mesma nos dois temas
+    expect(claros).not.toEqual(esperados);
   });
 
   it("reproduz os 11 stops da paleta padrão a partir de #00b66b com Δ ≤ 2/255 por canal", () => {

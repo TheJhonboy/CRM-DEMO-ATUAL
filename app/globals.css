@@ -32,32 +32,34 @@
 
 :root {
   /* Surfaces (light) */
-  --color-bg: #f7fafc;
+  --color-bg: #f3f4f3;
   --color-surface: #ffffff;
-  --color-surface-elevated: #eff6fb;
-  --color-overlay: rgba(15, 76, 117, 0.32);
+  --color-surface-elevated: #fafaf9;
+  --color-surface-tertiary: #f5f6f4;
+  --color-surface-hover: #f1f3f1;
+  --color-overlay: rgba(14, 25, 18, 0.2);
 
   /* Text (light) */
-  --color-text: #13212d;
-  --color-text-muted: #526574;
-  --color-text-subtle: #718394;
+  --color-text: #121714;
+  --color-text-muted: #606863;
+  --color-text-subtle: #929a95;
 
   /* Borders (light) */
-  --color-border: #dbe7ef;
-  --color-border-strong: #bfd2df;
+  --color-border: #e3e6e3;
+  --color-border-strong: #d7dcd8;
 
   /* Accent — verde das ações (11 stops) */
-  --color-accent-50:  #ecf9f0;
-  --color-accent-100: #d8f6e2;
-  --color-accent-200: #b4efc8;
-  --color-accent-300: #81e4a8;
-  --color-accent-400: #41d98a;
-  --color-accent-500: #00ca77;
+  --color-accent-50: #f4faf6;
+  --color-accent-100: #e9f5ed;
+  --color-accent-200: #c7e6d1;
+  --color-accent-300: #8bc8a3;
+  --color-accent-400: #57a477;
+  --color-accent-500: #389869;
   --color-accent-600: #00b66b;
-  --color-accent-700: #158c53;
-  --color-accent-800: #196d42;
-  --color-accent-900: #1b5837;
-  --color-accent-950: #002411;
+  --color-accent-700: #21744b;
+  --color-accent-800: #17623e;
+  --color-accent-900: #143f29;
+  --color-accent-950: #0d3115;
   /* O verde-base Calixto fica visível na identidade; ações precisam do 700 para
    * conservar contraste mínimo de 3:1 sobre as superfícies claras. */
   --color-accent: var(--color-accent-700);
@@ -65,41 +67,42 @@
   --color-accent-soft: var(--color-accent-100);
   --color-accent-hover: var(--color-accent-800);
 
-  /* Neutrals — azulados (11 stops, light) */
-  --color-neutral-50:  #f7fafc;
-  --color-neutral-100: #eff6fb;
-  --color-neutral-200: #dbe7ef;
-  --color-neutral-300: #bfd2df;
-  --color-neutral-400: #91a9b8;
-  --color-neutral-500: #718394;
-  --color-neutral-600: #526574;
-  --color-neutral-700: #384b59;
-  --color-neutral-800: #263744;
-  --color-neutral-900: #13212d;
-  --color-neutral-950: #09131b;
+  /* Neutros claros — cinza com um leve viés verde, sem azulado dominante. */
+  --color-neutral-50: #fafbfa;
+  --color-neutral-100: #f5f6f4;
+  --color-neutral-200: #eceeec;
+  --color-neutral-300: #d7dcd8;
+  --color-neutral-400: #b7bdb9;
+  --color-neutral-500: #929a95;
+  --color-neutral-600: #606863;
+  --color-neutral-700: #49514c;
+  --color-neutral-800: #26342c;
+  --color-neutral-900: #121714;
+  --color-neutral-950: #0d3115;
 
   /* States (light) */
-  --color-success: #00b66b;
-  --color-success-bg: rgba(0, 182, 107, 0.12);
-  --color-success-fg: #158c53;
-  --color-warning: #c98a15;
-  --color-warning-bg: rgba(201, 138, 21, 0.12);
-  --color-warning-fg: #8a5a09;
-  --color-error: #c2413a;
-  --color-error-bg: rgba(194, 65, 58, 0.12);
-  --color-error-fg: #9f332e;
-  --color-info: #1976b9;
-  --color-info-bg: rgba(25, 118, 185, 0.12);
-  --color-info-fg: #125a91;
+  --color-success: #247047;
+  --color-success-bg: #e5f5ea;
+  --color-success-fg: #247047;
+  --color-warning: #896315;
+  --color-warning-bg: #fff5dc;
+  --color-warning-fg: #896315;
+  --color-error: #a84343;
+  --color-error-bg: #fcecec;
+  --color-error-fg: #a84343;
+  --color-info: #466473;
+  --color-info-bg: #eef4f8;
+  --color-info-fg: #466473;
 
-  /* Navegação (claro) — azul da referência, verde-menta para seleção. */
-  --color-sidebar: #0f4c75;
-  --color-sidebar-foreground: #ffffff;
-  --color-sidebar-muted: #d7e9f5;
-  --color-sidebar-active: #00b66b;
-  --color-sidebar-active-fg: #ffffff;
-  --color-sidebar-hover: rgba(0, 182, 107, 0.32);
-  --color-sidebar-hover-fg: #ffffff;
+  /* Navegação (claro) — integrada ao workspace, com seleção verde suave. */
+  --color-sidebar: #fafbfa;
+  --color-sidebar-foreground: #26342c;
+  --color-sidebar-muted: #606863;
+  --color-sidebar-active: #e9f5ed;
+  --color-sidebar-active-fg: #17623e;
+  --color-sidebar-hover: #f1f3f1;
+  --color-sidebar-hover-fg: #1c6240;
+  --color-sidebar-border: #eceeec;
 
   /* Spacing (4-base) */
   --space-0: 0px;
@@ -119,18 +122,18 @@
 
   /* Radius */
   --radius-none: 0px;
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
   --radius-full: 9999px;
 
   /* Shadows — desaturated, neutral-based */
-  --shadow-xs: 0 1px 2px 0 rgba(19, 33, 45, 0.04);
-  --shadow-sm: 0 1px 2px 0 rgba(19, 33, 45, 0.05), 0 1px 1px 0 rgba(19, 33, 45, 0.03);
-  --shadow-md: 0 4px 12px -2px rgba(19, 33, 45, 0.06), 0 2px 4px -1px rgba(19, 33, 45, 0.04);
-  --shadow-lg: 0 12px 32px -6px rgba(19, 33, 45, 0.10), 0 4px 12px -2px rgba(19, 33, 45, 0.06);
-  --shadow-xl: 0 24px 48px -12px rgba(19, 33, 45, 0.16), 0 8px 16px -4px rgba(19, 33, 45, 0.08);
+  --shadow-xs: 0 1px 2px rgba(15, 30, 20, 0.04);
+  --shadow-sm: 0 1px 2px rgba(15, 30, 20, 0.03), 0 4px 16px rgba(15, 30, 20, 0.035);
+  --shadow-md: 0 12px 30px rgba(15, 30, 20, 0.08);
+  --shadow-lg: 0 24px 60px rgba(15, 30, 20, 0.12);
+  --shadow-xl: 0 30px 72px rgba(15, 30, 20, 0.14);
 
   /* Density — Aerada */
   --density-row: 56px;
@@ -217,14 +220,14 @@
    * não duplicado aqui — assim a relação entre a faixa e o fundo é uma só,
    * e não dois hex que envelhecem separados.
    */
-  --agenda-pessoa-1: #ac4d40;   /* telha */
-  --agenda-pessoa-2: #bd7c20;   /* âmbar */
-  --agenda-pessoa-3: #7e6f01;   /* oliva */
-  --agenda-pessoa-4: #11a19b;   /* turquesa */
-  --agenda-pessoa-5: #0b7a9a;   /* azul */
-  --agenda-pessoa-6: #608bda;   /* índigo */
-  --agenda-pessoa-7: #7b5bad;   /* violeta */
-  --agenda-pessoa-8: #cc77b1;   /* framboesa */
+  --agenda-pessoa-1: #ac4d40; /* telha */
+  --agenda-pessoa-2: #bd7c20; /* âmbar */
+  --agenda-pessoa-3: #7e6f01; /* oliva */
+  --agenda-pessoa-4: #11a19b; /* turquesa */
+  --agenda-pessoa-5: #0b7a9a; /* azul */
+  --agenda-pessoa-6: #608bda; /* índigo */
+  --agenda-pessoa-7: #7b5bad; /* violeta */
+  --agenda-pessoa-8: #cc77b1; /* framboesa */
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -249,11 +252,25 @@
    — a régua inteira, e com ela os 37 testes de contraste, deixariam de ser
    extraídos.
 
-   As 11 paradas `--color-accent-NNN` ficam DE FORA de propósito. Elas são
-   idênticas nos dois blocos do produto, então omiti-las não muda pixel algum
-   aqui; e, na instalação que trocou a cor, a subárvore clara passa a herdar a
-   rampa do `<html>` (a do revendedor) em vez de fixar a Sage. Pelo mesmo
-   motivo os papéis abaixo mantêm a forma `var(--color-accent-NNN)`.
+   As 11 paradas `--color-accent-NNN` ficam DE FORA de propósito: na instalação
+   que trocou a cor, a subárvore clara passa a herdar a rampa do `<html>` (a do
+   revendedor) em vez de fixar a Sage. Pelo mesmo motivo os papéis abaixo
+   mantêm a forma `var(--color-accent-NNN)`.
+
+   ⚠️ O ARGUMENTO ERA MAIS FORTE DO QUE É HOJE, e a diferença está medida. Este
+   parágrafo dizia também "elas são idênticas nos dois blocos do produto, então
+   omiti-las não muda pixel algum aqui" — era verdade até o tema Calixto, que
+   separou as duas rampas: o claro (`:root`) virou verde-floresta dessaturado
+   (#f4faf6 … #0d3115) e o escuro ficou menta (#ecf9f0 … #002411). Com isso, um
+   `<div data-theme="light">` dentro de página ESCURA, numa instalação SEM marca
+   própria, herda a rampa menta do `<html>` — é o preview lado a lado da marca
+   que paga essa conta, mostrando o accent errado no painel claro.
+   `tests/unit/branding-tema-claro-escopavel.test.ts` não pega: ele compara os
+   CONJUNTOS de propriedade dos dois blocos, e as 11 paradas estão fora dos dois.
+   A saída não é óbvia (repor as paradas aqui prenderia a subárvore clara do
+   revendedor à Sage, que é exatamente o que a omissão evita), então fica
+   declarada em vez de consertada de véspera — ver o bloco de aviso em
+   `tests/unit/branding-rampa.test.ts`.
 
    Buraco conhecido: `--color-accent-fg` é literal `#ffffff` e, numa subárvore
    clara sob página escura, ficaria preso ao branco mesmo quando a marca exige
@@ -261,54 +278,61 @@
    (lib/branding/css.ts), que só ganha consumidor com a tela de marca.
    ───────────────────────────────────────────────────────────────────────── */
 [data-theme="light"] {
-  --color-bg: #f7fafc;
+  --color-bg: #f3f4f3;
   --color-surface: #ffffff;
-  --color-surface-elevated: #eff6fb;
-  --color-overlay: rgba(15, 76, 117, 0.32);
-  --color-text: #13212d;
-  --color-text-muted: #526574;
-  --color-text-subtle: #718394;
-  --color-border: #dbe7ef;
-  --color-border-strong: #bfd2df;
+  --color-surface-elevated: #fafaf9;
+  --color-surface-tertiary: #f5f6f4;
+  --color-surface-hover: #f1f3f1;
+  --color-overlay: rgba(14, 25, 18, 0.2);
+  --color-text: #121714;
+  --color-text-muted: #606863;
+  --color-text-subtle: #929a95;
+  --color-border: #e3e6e3;
+  --color-border-strong: #d7dcd8;
   --color-accent: var(--color-accent-700);
   --color-accent-fg: #ffffff;
   --color-accent-soft: var(--color-accent-100);
   --color-accent-hover: var(--color-accent-800);
-  --color-neutral-50: #f7fafc;
-  --color-neutral-100: #eff6fb;
-  --color-neutral-200: #dbe7ef;
-  --color-neutral-300: #bfd2df;
-  --color-neutral-400: #91a9b8;
-  --color-neutral-500: #718394;
-  --color-neutral-600: #526574;
-  --color-neutral-700: #384b59;
-  --color-neutral-800: #263744;
-  --color-neutral-900: #13212d;
-  --color-neutral-950: #09131b;
-  --color-success: #00b66b;
-  --color-success-bg: rgba(0, 182, 107, 0.12);
-  --color-success-fg: #158c53;
-  --color-warning: #c98a15;
-  --color-warning-bg: rgba(201, 138, 21, 0.12);
-  --color-warning-fg: #8a5a09;
-  --color-error: #c2413a;
-  --color-error-bg: rgba(194, 65, 58, 0.12);
-  --color-error-fg: #9f332e;
-  --color-info: #1976b9;
-  --color-info-bg: rgba(25, 118, 185, 0.12);
-  --color-info-fg: #125a91;
-  --color-sidebar: #0f4c75;
-  --color-sidebar-foreground: #ffffff;
-  --color-sidebar-muted: #d7e9f5;
-  --color-sidebar-active: #00b66b;
-  --color-sidebar-active-fg: #ffffff;
-  --color-sidebar-hover: rgba(0, 182, 107, 0.32);
-  --color-sidebar-hover-fg: #ffffff;
-  --shadow-xs: 0 1px 2px 0 rgba(19, 33, 45, 0.04);
-  --shadow-sm: 0 1px 2px 0 rgba(19, 33, 45, 0.05), 0 1px 1px 0 rgba(19, 33, 45, 0.03);
-  --shadow-md: 0 4px 12px -2px rgba(19, 33, 45, 0.06), 0 2px 4px -1px rgba(19, 33, 45, 0.04);
-  --shadow-lg: 0 12px 32px -6px rgba(19, 33, 45, 0.10), 0 4px 12px -2px rgba(19, 33, 45, 0.06);
-  --shadow-xl: 0 24px 48px -12px rgba(19, 33, 45, 0.16), 0 8px 16px -4px rgba(19, 33, 45, 0.08);
+  --color-neutral-50: #fafbfa;
+  --color-neutral-100: #f5f6f4;
+  --color-neutral-200: #eceeec;
+  --color-neutral-300: #d7dcd8;
+  --color-neutral-400: #b7bdb9;
+  --color-neutral-500: #929a95;
+  --color-neutral-600: #606863;
+  --color-neutral-700: #49514c;
+  --color-neutral-800: #26342c;
+  --color-neutral-900: #121714;
+  --color-neutral-950: #0d3115;
+  --color-success: #247047;
+  --color-success-bg: #e5f5ea;
+  --color-success-fg: #247047;
+  --color-warning: #896315;
+  --color-warning-bg: #fff5dc;
+  --color-warning-fg: #896315;
+  --color-error: #a84343;
+  --color-error-bg: #fcecec;
+  --color-error-fg: #a84343;
+  --color-info: #466473;
+  --color-info-bg: #eef4f8;
+  --color-info-fg: #466473;
+  --color-sidebar: #fafbfa;
+  --color-sidebar-foreground: #26342c;
+  --color-sidebar-muted: #606863;
+  --color-sidebar-active: #e9f5ed;
+  --color-sidebar-active-fg: #17623e;
+  --color-sidebar-hover: #f1f3f1;
+  --color-sidebar-hover-fg: #1c6240;
+  --color-sidebar-border: #eceeec;
+  --shadow-xs: 0 1px 2px rgba(15, 30, 20, 0.04);
+  --shadow-sm: 0 1px 2px rgba(15, 30, 20, 0.03), 0 4px 16px rgba(15, 30, 20, 0.035);
+  --shadow-md: 0 12px 30px rgba(15, 30, 20, 0.08);
+  --shadow-lg: 0 24px 60px rgba(15, 30, 20, 0.12);
+  --shadow-xl: 0 30px 72px rgba(15, 30, 20, 0.14);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
   --background: var(--color-bg);
   --foreground: var(--color-text);
   --card: var(--color-surface);
@@ -334,37 +358,39 @@
    * dentro de página escura herdaria os valores escuros, e a amostra de cor
    * mentiria sobre a cor que a pessoa tem.
    */
-  --agenda-pessoa-1: #ac4d40;   /* telha */
-  --agenda-pessoa-2: #bd7c20;   /* âmbar */
-  --agenda-pessoa-3: #7e6f01;   /* oliva */
-  --agenda-pessoa-4: #11a19b;   /* turquesa */
-  --agenda-pessoa-5: #0b7a9a;   /* azul */
-  --agenda-pessoa-6: #608bda;   /* índigo */
-  --agenda-pessoa-7: #7b5bad;   /* violeta */
-  --agenda-pessoa-8: #cc77b1;   /* framboesa */
+  --agenda-pessoa-1: #ac4d40; /* telha */
+  --agenda-pessoa-2: #bd7c20; /* âmbar */
+  --agenda-pessoa-3: #7e6f01; /* oliva */
+  --agenda-pessoa-4: #11a19b; /* turquesa */
+  --agenda-pessoa-5: #0b7a9a; /* azul */
+  --agenda-pessoa-6: #608bda; /* índigo */
+  --agenda-pessoa-7: #7b5bad; /* violeta */
+  --agenda-pessoa-8: #cc77b1; /* framboesa */
 }
 
 [data-theme="dark"] {
-  /* Surfaces (dark — drawn) */
-  --color-bg: #161510;
-  --color-surface: #1d1c17;
-  --color-surface-elevated: #272620;
-  --color-overlay: rgba(0, 0, 0, 0.55);
+  /* Superfícies (escuro) — carvão azulado, sem preto puro. */
+  --color-bg: #0b1115;
+  --color-surface: #10171c;
+  --color-surface-elevated: #202a31;
+  --color-surface-tertiary: #202a31;
+  --color-surface-hover: rgba(255, 255, 255, 0.06);
+  --color-overlay: rgba(0, 0, 0, 0.6);
 
   /* Text (dark) */
-  --color-text: #f5f4ef;
-  --color-text-muted: #8e8b7f;
-  --color-text-subtle: #605e54;
+  --color-text: #f4f7f8;
+  --color-text-muted: #b7c1c8;
+  --color-text-subtle: #8e9ca6;
 
   /* Borders (dark) */
-  --color-border: #33312a;
-  --color-border-strong: #444239;
+  --color-border: #34414a;
+  --color-border-strong: #4c5a63;
 
   /* A mesma rampa verde; o escuro usa um grau mais claro para contraste. */
-  --color-accent-50:  #ecf9f0;
+  --color-accent-50: #ecf9f0;
   --color-accent-100: #d8f6e2;
-  --color-accent-200: #b4efc8;
-  --color-accent-300: #81e4a8;
+  --color-accent-200: #bdf5ce;
+  --color-accent-300: #83e6a3;
   --color-accent-400: #41d98a;
   --color-accent-500: #00ca77;
   --color-accent-600: #00b66b;
@@ -372,53 +398,61 @@
   --color-accent-800: #196d42;
   --color-accent-900: #1b5837;
   --color-accent-950: #002411;
-  --color-accent: var(--color-accent-400);
-  --color-accent-fg: #161510;
-  --color-accent-soft: rgba(65, 217, 138, 0.16);
-  --color-accent-hover: var(--color-accent-300);
+  --color-accent: var(--color-accent-300);
+  --color-accent-fg: #07110b;
+  --color-accent-soft: rgba(131, 230, 163, 0.16);
+  --color-accent-hover: var(--color-accent-200);
 
-  /* Neutrals — greige (11 stops, dark) */
-  --color-neutral-50:  #f5f4ef;
-  --color-neutral-100: #e6e4dc;
-  --color-neutral-200: #bbb8ac;
-  --color-neutral-300: #8e8b7f;
-  --color-neutral-400: #605e54;
-  --color-neutral-500: #444239;
-  --color-neutral-600: #33312a;
-  --color-neutral-700: #272620;
-  --color-neutral-800: #1d1c17;
-  --color-neutral-900: #161510;
-  --color-neutral-950: #0c0b08;
+  /* Neutros azulados (11 stops, dark) */
+  --color-neutral-50: #f4f7f8;
+  --color-neutral-100: #e2e8eb;
+  --color-neutral-200: #cbd4d9;
+  --color-neutral-300: #b7c1c8;
+  --color-neutral-400: #8e9ca6;
+  --color-neutral-500: #687780;
+  --color-neutral-600: #4c5a63;
+  --color-neutral-700: #34414a;
+  --color-neutral-800: #202a31;
+  --color-neutral-900: #10171c;
+  --color-neutral-950: #0b1115;
 
   /* States (dark) */
-  --color-success: #82a077;
-  --color-success-bg: rgba(130, 160, 119, 0.18);
-  --color-success-fg: #a4ba9a;
-  --color-warning: #d09455;
-  --color-warning-bg: rgba(208, 148, 85, 0.18);
-  --color-warning-fg: #e0ad77;
-  --color-error: #c87263;
-  --color-error-bg: rgba(200, 114, 99, 0.18);
-  --color-error-fg: #d99182;
-  --color-info: #7da9bf;
-  --color-info-bg: rgba(125, 169, 191, 0.18);
-  --color-info-fg: #9bbfd2;
+  --color-success: #83e6a3;
+  --color-success-bg: rgba(131, 230, 163, 0.14);
+  --color-success-fg: #bdf5ce;
+  --color-warning: #e0aa62;
+  --color-warning-bg: rgba(224, 170, 98, 0.14);
+  --color-warning-fg: #f1c98d;
+  --color-error: #e78378;
+  --color-error-bg: rgba(231, 131, 120, 0.14);
+  --color-error-fg: #f2aaa3;
+  --color-info: #72aee6;
+  --color-info-bg: rgba(114, 174, 230, 0.14);
+  --color-info-fg: #a8d0f2;
 
-  /* Navegação (escuro) — preserva a paleta atual até a próxima etapa. */
-  --color-sidebar: var(--color-surface);
-  --color-sidebar-foreground: var(--color-text);
-  --color-sidebar-muted: var(--color-text-muted);
-  --color-sidebar-active: var(--color-success);
-  --color-sidebar-active-fg: #ffffff;
-  --color-sidebar-hover: var(--color-success-bg);
-  --color-sidebar-hover-fg: var(--color-success-fg);
+  /* Navegação (escuro) — estrutural, com menta seletiva. */
+  --color-sidebar: #151d23;
+  --color-sidebar-foreground: #f4f7f8;
+  --color-sidebar-muted: #b7c1c8;
+  --color-sidebar-active: #83e6a3;
+  --color-sidebar-active-fg: #07110b;
+  --color-sidebar-hover: rgba(255, 255, 255, 0.06);
+  --color-sidebar-hover-fg: #f4f7f8;
+  --color-sidebar-border: rgba(255, 255, 255, 0.1);
 
-  /* Shadows — heavier in dark */
-  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.30);
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.40), 0 1px 1px 0 rgba(0, 0, 0, 0.20);
-  --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.45), 0 2px 4px -1px rgba(0, 0, 0, 0.30);
-  --shadow-lg: 0 12px 32px -6px rgba(0, 0, 0, 0.55), 0 4px 12px -2px rgba(0, 0, 0, 0.40);
-  --shadow-xl: 0 24px 48px -12px rgba(0, 0, 0, 0.65), 0 8px 16px -4px rgba(0, 0, 0, 0.50);
+  /* Sombras discretas: profundidade sem blocos pretos. */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.22);
+  --shadow-sm: 0 2px 5px -1px rgba(0, 0, 0, 0.26);
+  --shadow-md: 0 8px 20px -8px rgba(0, 0, 0, 0.34), 0 2px 6px -2px rgba(0, 0, 0, 0.24);
+  --shadow-lg: 0 18px 42px -16px rgba(0, 0, 0, 0.46), 0 6px 16px -8px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 0 28px 64px -24px rgba(0, 0, 0, 0.54), 0 10px 24px -12px rgba(0, 0, 0, 0.34);
+
+  /* Mantém a geometria aprovada do modo escuro; os raios maiores pertencem
+     exclusivamente à linguagem visual clara. */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
 
   /* shadcn-compat aliases */
   --background: var(--color-bg);
@@ -438,9 +472,9 @@
   --destructive-foreground: #ffffff;
   --border: var(--color-border);
   --input: var(--color-border);
-  --ring: var(--color-accent-400);
+  --ring: var(--color-accent-300);
   /* ---- Agenda · cor de pessoa (tema escuro) ----------------------------
-   * Mais claras e menos saturadas que as do claro: sobre `#161510` a versão
+   * Mais claras e menos saturadas que as do claro: sobre `#0b1115` a versão
    * escura de cada matiz sumiria. Mesma ordem, mesmos nomes.
    */
   --agenda-pessoa-1: #f89080;
@@ -484,6 +518,17 @@
   --color-bg: var(--color-bg);
   --color-surface: var(--color-surface);
   --color-surface-elevated: var(--color-surface-elevated);
+  /* `surface-muted` é apelido, não token novo: o `tailwind.config.ts` do v3
+     mapeava `surface.muted` para `var(--color-surface-elevated)` e nenhum dos
+     três blocos acima declara `--color-surface-muted`. Quem escreve
+     `bg-surface-muted` está pedindo a MESMA camada de `bg-surface-elevated`.
+     `surface-tertiary` e `surface-hover`, ao contrário, têm token próprio nos
+     três blocos — sem esta ponte o v4 não emitiria `bg-surface-tertiary` nem
+     `hover:bg-surface-hover`, e o trilho das abas e o hover dos itens
+     terciários ficariam sem cor, em silêncio. */
+  --color-surface-muted: var(--color-surface-elevated);
+  --color-surface-tertiary: var(--color-surface-tertiary);
+  --color-surface-hover: var(--color-surface-hover);
   --color-overlay: var(--color-overlay);
 
   --color-text: var(--color-text);
@@ -569,6 +614,7 @@
   --color-sidebar-active-fg: var(--color-sidebar-active-fg);
   --color-sidebar-hover: var(--color-sidebar-hover);
   --color-sidebar-hover-fg: var(--color-sidebar-hover-fg);
+  --color-sidebar-border: var(--color-sidebar-border);
 
   /* Tipografia */
   --font-sans: var(--font-atkinson), ui-sans-serif, system-ui, -apple-system,
@@ -607,9 +653,12 @@
   --radius-xl: var(--radius-xl);
   --radius-full: var(--radius-full);
 
-  /* Sombra */
+  /* Sombra. `card` é apelido de `sm` (era assim no `tailwind.config.ts` do
+     v3: `boxShadow.card = var(--shadow-sm)`), e não um degrau novo da escala:
+     `shadow-card` e `shadow-sm` desenham a MESMA sombra. */
   --shadow-xs: var(--shadow-xs);
   --shadow-sm: var(--shadow-sm);
+  --shadow-card: var(--shadow-sm);
   --shadow-md: var(--shadow-md);
   --shadow-lg: var(--shadow-lg);
   --shadow-xl: var(--shadow-xl);
@@ -740,17 +789,32 @@
     overflow-x: clip;
     background-color: var(--color-bg);
     color: var(--color-text);
-    font-family: var(--font-atkinson), ui-sans-serif, system-ui, -apple-system,
-      "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    font-feature-settings: "rlig" 1, "calt" 1, "ss01" 1;
+    font-family:
+      var(--font-atkinson),
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      "Segoe UI",
+      Roboto,
+      "Helvetica Neue",
+      Arial,
+      sans-serif;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1,
+      "ss01" 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
   }
 
-  code, kbd, pre, samp {
-    font-family: var(--font-mono), ui-monospace, "SFMono-Regular", Menlo,
-      Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  code,
+  kbd,
+  pre,
+  samp {
+    font-family:
+      var(--font-mono), ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono",
+      "Courier New", monospace;
     font-variant-numeric: tabular-nums;
   }
 
@@ -770,7 +834,7 @@
     border-radius: var(--radius-sm);
   }
   [data-theme="dark"] :focus-visible {
-    outline-color: var(--color-accent-400);
+    outline-color: var(--color-accent-300);
   }
 
   /* Modo de alto contraste do sistema (Windows High Contrast / forced-colors).

@@ -68,7 +68,7 @@ export function TemplatesClient({ canShare, currentUserId }: Props) {
         <Button
           type="button"
           onClick={openNew}
-          className="w-full bg-accent-600 text-accent-foreground hover:bg-accent-700 sm:w-auto"
+          className="w-full bg-accent text-accent-foreground hover:bg-accent-hover dark:bg-accent-600 dark:hover:bg-accent-700 sm:w-auto"
         >
           <Plus /> {t("Novo template")}
         </Button>

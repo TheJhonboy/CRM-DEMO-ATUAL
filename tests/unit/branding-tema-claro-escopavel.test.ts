@@ -24,7 +24,13 @@ function blocoDe(seletor: string): Map<string, string> {
     if (linha === "}") return decls;
     if (!linha.startsWith("--")) continue;
     const corte = linha.indexOf(":");
-    decls.set(linha.slice(0, corte).trim(), linha.slice(corte + 1).replace(/;$/, "").trim());
+    decls.set(
+      linha.slice(0, corte).trim(),
+      linha
+        .slice(corte + 1)
+        .replace(/;$/, "")
+        .trim(),
+    );
   }
   throw new Error(`o bloco \`${seletor}\` não fecha`);
 }
@@ -90,9 +96,9 @@ describe("tema claro escopável em subárvore", () => {
     expect(CSS).toMatch(/\[data-theme="light"\]\s*\{\s*color-scheme:\s*light;/);
   });
 
-  it("usa o verde forte escolhido para a seleção da lateral", () => {
-    expect(blocoDe(":root").get("--color-sidebar-active")).toBe("#00b66b");
-    expect(blocoDe('[data-theme="light"]').get("--color-sidebar-active")).toBe("#00b66b");
+  it("usa verde suave na seleção da lateral clara", () => {
+    expect(blocoDe(":root").get("--color-sidebar-active")).toBe("#e9f5ed");
+    expect(blocoDe('[data-theme="light"]').get("--color-sidebar-active")).toBe("#e9f5ed");
   });
 });
 

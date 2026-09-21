@@ -56,7 +56,7 @@ export function SourcesTab() {
             </ol>
             <Button
               onClick={() => setCreateOpen(true)}
-              className="bg-accent-600 text-accent-foreground hover:bg-accent-700"
+              className="bg-accent text-accent-foreground hover:bg-accent-hover dark:bg-accent-600 dark:hover:bg-accent-700"
             >
               <Plus /> {t("Criar primeira fonte")}
             </Button>
@@ -68,7 +68,11 @@ export function SourcesTab() {
           onCreated={setSelected}
         />
         {selected ? (
-          <SourceDetail source={selected} open={!!selected} onOpenChange={() => setSelected(null)} />
+          <SourceDetail
+            source={selected}
+            open={!!selected}
+            onOpenChange={() => setSelected(null)}
+          />
         ) : null}
       </div>
     );
@@ -79,7 +83,7 @@ export function SourcesTab() {
       <div className="flex sm:justify-end">
         <Button
           onClick={() => setCreateOpen(true)}
-          className="w-full bg-accent-600 text-accent-foreground hover:bg-accent-700 sm:w-auto"
+          className="w-full bg-accent text-accent-foreground hover:bg-accent-hover dark:bg-accent-600 dark:hover:bg-accent-700 sm:w-auto"
         >
           <Plus /> {t("Nova fonte")}
         </Button>

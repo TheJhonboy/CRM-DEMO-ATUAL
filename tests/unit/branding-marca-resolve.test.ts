@@ -2,11 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { derivarMarca } from "@/lib/branding/contraste";
 import { REGUA_DO_PRODUTO } from "@/lib/branding/regua-do-produto";
-import {
-  camadaDoAmbiente,
-  resolverMarca,
-  type CamadaDeMarca,
-} from "@/lib/branding/resolve";
+import { camadaDoAmbiente, resolverMarca, type CamadaDeMarca } from "@/lib/branding/resolve";
 import {
   ALGORITMO_ATUAL,
   envelopeDeSemente,
@@ -22,8 +18,7 @@ const envelope = (patch: Record<string, unknown> = {}) => ({
   ...patch,
 });
 
-const codigos = (m: { motivos: readonly { codigo: string }[] }) =>
-  m.motivos.map((x) => x.codigo);
+const codigos = (m: { motivos: readonly { codigo: string }[] }) => m.motivos.map((x) => x.codigo);
 
 describe("envelope — a forma do que se grava", () => {
   it("guarda ENTRADA e nunca saída", () => {
@@ -92,7 +87,10 @@ describe("resolvedor — nunca lança", () => {
   );
 
   it("uma semente que não é hex vira motivo, não exceção", () => {
-    const marca = resolverMarca([{ origem: "teste", cor: envelope({ semente_hex: "roxo" }) }], REGUA);
+    const marca = resolverMarca(
+      [{ origem: "teste", cor: envelope({ semente_hex: "roxo" }) }],
+      REGUA,
+    );
     expect(marca.cor).toBeNull();
     expect(codigos(marca)).toEqual(["semente_invalida"]);
   });
@@ -263,10 +261,13 @@ describe("diagnóstico não vaza identidade", () => {
     // motivos passam a conviver num log só, e a cor de uma empresa não tem por
     // que aparecer no diagnóstico de outra.
     const sementes = ["#f5c518", "#808080", "#0f172a", "#dc2626"];
+    const motivos = sementes.flatMap(
+      (hex) => resolverMarca([camadaDoAmbiente({ APP_ACCENT_HEX: hex })], REGUA).motivos,
+    );
+
+    expect(motivos.length).toBeGreaterThan(0);
     for (const hex of sementes) {
-      const marca = resolverMarca([camadaDoAmbiente({ APP_ACCENT_HEX: hex })], REGUA);
-      expect(marca.motivos.length).toBeGreaterThan(0);
-      for (const m of marca.motivos) {
+      for (const m of motivos) {
         expect(`${m.detalhe} ${m.alvo ?? ""}`).not.toContain(hex);
       }
     }
@@ -295,10 +296,7 @@ describe("memoização da derivação", () => {
 
   it("o cache devolve o mesmo que a derivação direta (não uma cópia velha)", () => {
     const direto = derivarMarca("#7c3aed", REGUA);
-    const pelaCamada = resolverMarca(
-      [camadaDoAmbiente({ APP_ACCENT_HEX: "#7c3aed" })],
-      REGUA,
-    );
+    const pelaCamada = resolverMarca([camadaDoAmbiente({ APP_ACCENT_HEX: "#7c3aed" })], REGUA);
     expect(pelaCamada.cor?.derivada).toEqual(direto);
   });
 });
