@@ -2,6 +2,7 @@
 import { Droppable } from "@hello-pangea/dnd";
 import { useRef, type CSSProperties } from "react";
 import { useT } from "@/hooks/i18n/useT";
+import { ehHexValido, normalizarHex } from "@/lib/branding/rampa";
 import { cn } from "@/lib/utils";
 import type { Lead } from "@/lib/types/leads";
 import type { Stage } from "@/lib/kanban/types";
@@ -91,7 +92,16 @@ export function StageColumn({
   // inteiro (borda + fundo em `color-mix`, 28% da cor sobre a superfície), que
   // é o que dá identidade à coluna nos dois temas. `--color-border-strong` é o
   // fallback de etapa sem cor.
-  const stageAccent = stage.color ?? "var(--color-border-strong)";
+  //
+  // `stage.color` é valor do BANCO e entra num `color-mix(...)` dentro do atributo
+  // `style`. A CHECK `crm_stages_color_format` (`#rrggbb`) fecha o caminho hoje,
+  // mas o código não depende de uma constraint de schema: só entra o que
+  // `ehHexValido` aceita, já normalizado em `#rrggbb`; qualquer outra coisa cai
+  // no mesmo fallback da etapa sem cor.
+  const stageAccent =
+    stage.color && ehHexValido(stage.color)
+      ? normalizarHex(stage.color)
+      : "var(--color-border-strong)";
   const accentStyle: CSSProperties = { backgroundColor: stageAccent };
   const headerStyle = {
     "--stage-accent": stageAccent,
