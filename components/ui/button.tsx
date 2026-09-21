@@ -24,7 +24,10 @@ const buttonVariants = cva(
     "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
     "disabled:pointer-events-none disabled:opacity-50",
     "[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
-    "hover:-translate-y-px active:translate-y-0",
+    // O levante de 1px no hover não vale para quem pediu menos movimento:
+    // `motion-reduce:` é emitido DEPOIS do `hover:` (mesma especificidade) e o
+    // zera. Provado no CSS compilado por tests/unit/botao-movimento-reduzido.test.ts.
+    "hover:-translate-y-px active:translate-y-0 motion-reduce:hover:translate-y-0",
   ].join(" "),
   {
     variants: {
@@ -37,7 +40,10 @@ const buttonVariants = cva(
           "bg-surface text-accent-800 border border-border hover:border-accent-700 hover:bg-surface-hover hover:text-accent-900 dark:bg-transparent dark:text-text dark:hover:border-accent dark:hover:bg-surface-elevated dark:hover:text-accent",
         ghost:
           "bg-transparent text-text hover:bg-surface-hover hover:text-accent-800 dark:hover:bg-accent-soft dark:hover:text-accent",
-        destructive: "bg-error text-white hover:brightness-95 shadow-xs",
+        // No escuro `--color-error` é #e78378, um fundo CLARO: a regra do tema é tinta
+        // escura sobre fundo claro. `text-white` dava 2,65:1; `accent-foreground`
+        // (#07110b) dá 7,24:1. Medido em tests/unit/tema-contraste-dos-componentes.test.ts.
+        destructive: "bg-error text-white hover:brightness-95 shadow-xs dark:text-accent-foreground",
         link: "bg-transparent text-accent underline underline-offset-4 decoration-1 hover:decoration-2 h-auto p-0",
       },
       // Alturas de toque: abaixo de `lg` (mesmo corte que o resto da casca
