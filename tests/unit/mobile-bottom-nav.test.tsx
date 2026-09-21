@@ -87,9 +87,9 @@ describe("barra de navegação inferior (mobile)", () => {
       expect(rotulo).toHaveClass("line-clamp-2", "px-1", "text-center", "leading-tight");
       // A 320px cada aba tem 64px (um quinto da barra) e, tirado o `px-1` do rótulo, 56px de
       // conteúdo. "Respuestas rápidas" (espanhol) começa por uma palavra de 10 letras sem ponto de
-      // quebra, que a 11px ocupa quase toda essa largura. O `line-clamp-2` põe `overflow:hidden` no
-      // rótulo: sem `break-words` (`overflow-wrap:break-word`) uma palavra que não cabe seria
-      // CORTADA em vez de quebrada. Vale para as cinco abas, inclusive o Mais.
+      // quebra, que a 11px ocupa 55,67px. `break-words` (`overflow-wrap:break-word`) é uma
+      // proteção barata para as cinco abas, inclusive o Mais, medida como inerte: a 11px nada
+      // quebra nem sai da aba, e a 12px a caixa cresce uns 5px sem cortar nada.
       expect(rotulo).toHaveClass("break-words");
       // `truncate` era o que deixava o rótulo largo alargar a aba.
       expect(rotulo).not.toHaveClass("truncate");

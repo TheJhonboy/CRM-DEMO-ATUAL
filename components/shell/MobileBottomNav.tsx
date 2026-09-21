@@ -36,10 +36,13 @@ import { cn } from "@/lib/utils";
  *    aba da ponta encosta na borda da tela e o anel padrão saía inteiro fora dela,
  *    a 2,1:1 contra a barra clara.
  *
- * Os rótulos também levam `break-words`: a 320px cada aba tem 64px (um quinto da
- * barra) e, tirado o `px-1` do rótulo, 56px de conteúdo, e o `overflow:hidden` do
- * `line-clamp-2` CORTARIA uma palavra sem ponto de quebra que não coubesse ("Respuestas",
- * de "Respuestas rápidas" em espanhol, tem 10 letras) em vez de quebrá-la.
+ * Os rótulos também levam `break-words`, por precaução: a 320px cada aba tem 64px (um
+ * quinto da barra) e, tirado o `px-1` do rótulo, 56px de conteúdo, e "Respuestas" (de
+ * "Respuestas rápidas", em espanhol) ocupa 55,67px a 11px. Medido num Chromium real: a 11px
+ * nada quebra nem sai da aba; com a fonte 9% maior a palavra passa (60,7px) e a caixa do
+ * rótulo cresce uns 5px para fora da aba, sem cortar nada. `break-word` não reduz a
+ * largura mínima do item, então a classe é inerte nesses casos; só `wrap-anywhere`
+ * quebraria a palavra no meio.
  */
 export function MobileBottomNav() {
   const t = useT();
