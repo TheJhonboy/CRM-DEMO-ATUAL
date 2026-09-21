@@ -29,7 +29,11 @@ const DropdownMenuSubTrigger = React.forwardRef<
     className={cn(
       // Do tema: verde suave no item em foco/aberto (antes o item virava um
       // bloco de verde cheio). Da v4: `outline-hidden`.
-      "flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-2 text-sm outline-hidden focus:bg-accent-soft focus:text-accent-800 data-[state=open]:bg-accent-soft data-[state=open]:text-accent-800 dark:focus:text-accent-foreground dark:data-[state=open]:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+      // No escuro o texto é `text-text`, em todo item deste arquivo: o verde
+      // suave é translúcido (#223832 sobre o popover) e `accent-foreground` é a
+      // tinta da menta SÓLIDA — #07110b sobre #223832 dá 1,54:1; `text-text`, 11,61:1.
+      // Medido em tests/unit/tema-contraste-dos-componentes.test.ts.
+      "flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-2 text-sm outline-hidden focus:bg-accent-soft focus:text-accent-800 data-[state=open]:bg-accent-soft data-[state=open]:text-accent-800 dark:focus:text-text dark:data-[state=open]:text-text [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
       inset && "pl-8",
       className,
     )}
@@ -88,7 +92,7 @@ const DropdownMenuItem = React.forwardRef<
   <DropdownMenuPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-2 text-sm outline-hidden transition-colors duration-base focus:bg-accent-soft focus:text-accent-800 data-[disabled]:pointer-events-none data-[disabled]:opacity-50 dark:focus:text-accent-foreground [&>svg]:size-4 [&>svg]:shrink-0",
+      "relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-2 text-sm outline-hidden transition-colors duration-base focus:bg-accent-soft focus:text-accent-800 data-[disabled]:pointer-events-none data-[disabled]:opacity-50 dark:focus:text-text [&>svg]:size-4 [&>svg]:shrink-0",
       inset && "pl-8",
       className,
     )}
@@ -104,7 +108,7 @@ const DropdownMenuCheckboxItem = React.forwardRef<
   <DropdownMenuPrimitive.CheckboxItem
     ref={ref}
     className={cn(
-      "relative flex cursor-default select-none items-center rounded-sm py-2 pl-8 pr-2 text-sm outline-hidden transition-colors duration-base focus:bg-accent-soft focus:text-accent-800 data-[disabled]:pointer-events-none data-[disabled]:opacity-50 dark:focus:text-accent-foreground",
+      "relative flex cursor-default select-none items-center rounded-sm py-2 pl-8 pr-2 text-sm outline-hidden transition-colors duration-base focus:bg-accent-soft focus:text-accent-800 data-[disabled]:pointer-events-none data-[disabled]:opacity-50 dark:focus:text-text",
       className,
     )}
     checked={checked}
@@ -127,7 +131,7 @@ const DropdownMenuRadioItem = React.forwardRef<
   <DropdownMenuPrimitive.RadioItem
     ref={ref}
     className={cn(
-      "relative flex cursor-default select-none items-center rounded-sm py-2 pl-8 pr-2 text-sm outline-hidden transition-colors duration-base focus:bg-accent-soft focus:text-accent-800 data-[disabled]:pointer-events-none data-[disabled]:opacity-50 dark:focus:text-accent-foreground",
+      "relative flex cursor-default select-none items-center rounded-sm py-2 pl-8 pr-2 text-sm outline-hidden transition-colors duration-base focus:bg-accent-soft focus:text-accent-800 data-[disabled]:pointer-events-none data-[disabled]:opacity-50 dark:focus:text-text",
       className,
     )}
     {...props}

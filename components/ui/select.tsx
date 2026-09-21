@@ -117,8 +117,10 @@ const SelectItem = React.forwardRef<
     ref={ref}
     className={cn(
       // Do tema: item em foco/marcado usa o verde suave em vez de pintar a
-      // linha inteira de verde cheio. Da v4: `outline-hidden`.
-      "relative flex w-full cursor-default select-none items-center rounded-sm py-2 pl-2 pr-8 text-sm outline-hidden focus:bg-accent-soft focus:text-accent-800 data-[disabled]:pointer-events-none data-[state=checked]:bg-accent-soft data-[state=checked]:text-accent-800 data-[disabled]:opacity-50 dark:focus:text-accent-foreground dark:data-[state=checked]:text-accent-foreground",
+      // linha inteira de verde cheio. Da v4: `outline-hidden`. No escuro o
+      // texto é `text-text` (não `accent-foreground`, a tinta da menta sólida:
+      // 1,54:1 sobre o verde suave) — ver dropdown-menu.tsx.
+      "relative flex w-full cursor-default select-none items-center rounded-sm py-2 pl-2 pr-8 text-sm outline-hidden focus:bg-accent-soft focus:text-accent-800 data-[disabled]:pointer-events-none data-[state=checked]:bg-accent-soft data-[state=checked]:text-accent-800 data-[disabled]:opacity-50 dark:focus:text-text dark:data-[state=checked]:text-text",
       className,
     )}
     {...props}
