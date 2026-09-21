@@ -42,7 +42,13 @@
   /* Text (light) */
   --color-text: #121714;
   --color-text-muted: #606863;
-  --color-text-subtle: #929a95;
+  /* Placeholder e rótulo são texto (WCAG 1.4.3): #929a95 dava 2,62–2,89:1 em toda
+     superfície clara. #69716c é o mesmo cinza-esverdeado (mesmos deslocamentos de
+     canal do #929a95, +8 e +3 sobre o vermelho) no ponto mais claro que passa de
+     4,5:1 — 4,56:1 no bg, 4,51:1 em surface-hover (a superfície clara mais escura).
+     Fica abaixo do text-muted (5,21:1 no bg), mas as duas camadas ficaram próximas.
+     `--color-neutral-500` (#929a95) é degrau da rampa de neutros e não mudou. */
+  --color-text-subtle: #69716c;
 
   /* Borders (light) */
   --color-border: #e3e6e3;
@@ -286,7 +292,7 @@
   --color-overlay: rgba(14, 25, 18, 0.2);
   --color-text: #121714;
   --color-text-muted: #606863;
-  --color-text-subtle: #929a95;
+  --color-text-subtle: #69716c;
   --color-border: #e3e6e3;
   --color-border-strong: #d7dcd8;
   --color-accent: var(--color-accent-700);
