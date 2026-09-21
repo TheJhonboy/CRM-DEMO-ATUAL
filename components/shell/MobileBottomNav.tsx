@@ -23,10 +23,21 @@ import { cn } from "@/lib/utils";
  *    abaixo de 60px.
  *  - Pílula `bg-sidebar-active` atrás do ícone da aba ativa (o mesmo fundo do item
  *    ativo do Sidebar de desktop): só a cor do rótulo separava ativa de inativa por
- *    1,25:1 no tema claro. O glifo não fica branco sobre ela (2,66:1 no claro e
- *    2,90:1 no escuro, abaixo dos 3:1 do WCAG 1.4.11): é "recortado" na pílula com a
- *    cor da própria barra (`text-sidebar`; o ícone herda `currentColor` do span). O
- *    rótulo fica fora da pílula e mantém a cor da aba.
+ *    1,25:1 no tema claro. O glifo usa `text-sidebar-active-fg` — o par que o token
+ *    existe para formar (6,57:1 no claro, 12,63:1 no escuro; WCAG 1.4.11 pede 3:1
+ *    para gráfico que carrega significado). O ícone herda `currentColor` do span.
+ *
+ *    ⚠️ Era `text-sidebar` ("recortar" o glifo na cor da própria barra), e a troca
+ *    NÃO é gosto: na paleta antiga a barra era azul-marinho sobre pílula verde cheia
+ *    (3,42:1) e o branco de `sidebar-active-fg` dava 2,66:1. Com a paleta Calixto o
+ *    claro tem barra quase branca (#fafbfa) e pílula verde-pálida (#e9f5ed) — recortar
+ *    o glifo nela dá 1,08:1, ou seja, ícone INVISÍVEL. Medido com
+ *    `razaoDeContraste` de `lib/branding/contraste.ts`.
+ *  - O rótulo fica fora da pílula. Ele é lido sobre a BARRA, não sobre a pílula, e por
+ *    isso não pode usar `sidebar-active-fg` no escuro: lá esse token é o quase-preto
+ *    #07110b, feito para a menta, e dá 1,13:1 contra a barra #151d23. `dark:` devolve
+ *    o `sidebar-foreground` (15,83:1). No claro `sidebar-active-fg` é o verde-floresta
+ *    #17623e e vale 7,10:1 contra #fafbfa, então lá ele fica.
  *  - Todo rótulo reserva SEMPRE duas linhas (`min-h-[2.5em]` = 2 × o `leading-tight`
  *    de 1,25) e a pílula tem 28px: sem isso o grupo [pílula + rótulo] de "Respostas
  *    rápidas" media ~61,5px e o das outras quatro ~47,75px, e como cada grupo é
@@ -34,7 +45,8 @@ import { cn } from "@/lib/utils";
  *    topo numa aba, ~7,6px nas outras). Com grupos iguais as pílulas se alinham.
  *  - Anel de foco para DENTRO da aba (offset de foco negativo) e na cor do item ativo: a
  *    aba da ponta encosta na borda da tela e o anel padrão saía inteiro fora dela,
- *    a 2,1:1 contra a barra clara.
+ *    a 2,1:1 contra a barra clara. O anel é lido contra a BARRA e leva o mesmo
+ *    `dark:` do rótulo, pela mesma medição (7,10:1 no claro, 15,83:1 no escuro).
  *
  * Os rótulos também levam `break-words`, por precaução: a 320px cada aba tem 64px (um
  * quinto da barra) e, tirado o `px-1` do rótulo, 56px de conteúdo, e "Respuestas" (de
@@ -69,14 +81,16 @@ export function MobileBottomNav() {
             href={item.href}
             aria-current={isActive ? "page" : undefined}
             className={cn(
-              "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] transition-colors duration-200 focus-visible:-outline-offset-2 focus-visible:outline-sidebar-active-fg",
-              isActive ? "text-sidebar-active-fg" : "text-sidebar-muted hover:text-sidebar-hover-fg",
+              "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] transition-colors duration-200 focus-visible:-outline-offset-2 focus-visible:outline-sidebar-active-fg dark:focus-visible:outline-sidebar-foreground",
+              isActive
+                ? "text-sidebar-active-fg dark:text-sidebar-foreground"
+                : "text-sidebar-muted hover:text-sidebar-hover-fg",
             )}
           >
             <span
               className={cn(
                 "flex h-7 w-14 items-center justify-center rounded-full transition-colors duration-200",
-                isActive && "bg-sidebar-active text-sidebar",
+                isActive && "bg-sidebar-active text-sidebar-active-fg",
               )}
             >
               <Icon size={22} weight={isActive ? "fill" : "regular"} aria-hidden />
@@ -92,7 +106,7 @@ export function MobileBottomNav() {
           <button
             type="button"
             aria-label={t("Mais opções")}
-            className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] text-sidebar-muted transition-colors duration-200 hover:text-sidebar-hover-fg focus-visible:-outline-offset-2 focus-visible:outline-sidebar-active-fg"
+            className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[11px] text-sidebar-muted transition-colors duration-200 hover:text-sidebar-hover-fg focus-visible:-outline-offset-2 focus-visible:outline-sidebar-active-fg dark:focus-visible:outline-sidebar-foreground"
           >
             <span className="flex h-7 w-14 items-center justify-center rounded-full transition-colors duration-200">
               <DotsThree size={22} weight="bold" aria-hidden />

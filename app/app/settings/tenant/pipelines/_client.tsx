@@ -195,7 +195,10 @@ function PipelineEditor({ pipeline }: { pipeline: PipelineRow }) {
           {t("Aparecem no dossiê do negócio. No follow-up, você escolhe em qual campo gravar a resposta.")}
         </p>
         {fields.map((f, i) => (
-          <div key={`${f.key}-${i}`} className="grid gap-2 rounded-md border border-border p-2 md:grid-cols-[1fr_1fr_8rem_auto]">
+          <div
+            key={`${f.key}-${i}`}
+            className="grid gap-2 rounded-md border border-border p-2 md:grid-cols-[1fr_1fr_8rem_auto]"
+          >
             <Input
               aria-label={`${t("Chave do campo")} ${i + 1}`}
               placeholder={t("chave (endereco)")}
@@ -296,7 +299,7 @@ function PipelineEditor({ pipeline }: { pipeline: PipelineRow }) {
         <Button
           onClick={handleSave}
           disabled={isPending}
-          className="w-full bg-accent-500 text-text hover:bg-accent-600 sm:w-auto"
+          className="w-full bg-accent text-accent-foreground hover:bg-accent-hover dark:bg-accent-500 dark:text-text dark:hover:bg-accent-600 sm:w-auto"
         >
           {isPending ? t("Salvando…") : t("Salvar vocabulário e campos")}
         </Button>

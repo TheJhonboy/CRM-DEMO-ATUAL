@@ -308,10 +308,7 @@ export function AgentMappingSection({
                     )}
                   </p>
                 ) : (
-                  <Select
-                    value={escolhida ?? SEM_ETAPA}
-                    onValueChange={(v) => escolher(passo, v)}
-                  >
+                  <Select value={escolhida ?? SEM_ETAPA} onValueChange={(v) => escolher(passo, v)}>
                     <SelectTrigger
                       aria-label={`${t("Etapa para")} «${t(ROTULO_DO_PASSO[passo])}»`}
                       data-testid={`etapa-${passo}`}
@@ -354,7 +351,7 @@ export function AgentMappingSection({
           onClick={enviar}
           disabled={!mudou || gravando}
           data-testid="salvar-mapeamento"
-          className="bg-accent-500 text-text hover:bg-accent-600"
+          className="bg-accent text-accent-foreground hover:bg-accent-hover dark:bg-accent-500 dark:text-text dark:hover:bg-accent-600"
         >
           {gravando ? t("Salvando…") : t("Salvar estas escolhas")}
         </Button>

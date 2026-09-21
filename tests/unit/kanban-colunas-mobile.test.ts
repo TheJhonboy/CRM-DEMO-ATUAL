@@ -23,10 +23,16 @@ const RAIZ = process.cwd();
  * próxima aparece ~28px.
  */
 describe("Kanban — colunas no celular", () => {
+  // A cadeia de classes é pinada inteira de propósito (é a geometria que o caso
+  // protege), então uma troca de SUPERFÍCIE também reprova aqui. Foi o que
+  // aconteceu no tema Calixto: a coluna saiu de `bg-surface-muted/40` para
+  // `bg-surface` e ganhou `overflow-hidden` (o cabeçalho agora tem fundo
+  // próprio e vazava no canto arredondado) e `dark:border-white/10`. Nada de
+  // geometria mudou — `w-[85vw] shrink-0 snap-center … md:w-80` está igual.
   it("a coluna real tem ~85vw com snap no celular, 320px a partir de md — sem snap-none (o contêiner o controla)", () => {
     const src = fs.readFileSync(path.join(RAIZ, "components/kanban/StageColumn.tsx"), "utf8");
     expect(src).toContain(
-      'className="flex w-[85vw] shrink-0 snap-center flex-col rounded-lg border border-border bg-surface-muted/40 md:w-80"',
+      'className="flex w-[85vw] shrink-0 snap-center flex-col overflow-hidden rounded-lg border border-border bg-surface dark:border-white/10 md:w-80"',
     );
   });
 
@@ -57,8 +63,10 @@ describe("Kanban — colunas no celular", () => {
     expect(src).toContain(
       'className="flex snap-x snap-mandatory gap-3 overflow-x-auto p-4 max-md:-mx-6 md:snap-none"',
     );
+    // Mesma superfície, também: o esqueleto acompanhou a coluna real na troca
+    // de paleta, senão o board mudaria de cor quando os dados chegassem.
     expect(src).toContain(
-      'className="flex w-[85vw] shrink-0 snap-center flex-col gap-2 rounded-lg border border-border bg-surface-muted/40 p-3 md:w-80"',
+      'className="flex w-[85vw] shrink-0 snap-center flex-col gap-2 rounded-lg border border-border bg-surface p-3 dark:border-white/10 md:w-80"',
     );
   });
 });

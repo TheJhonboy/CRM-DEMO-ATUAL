@@ -126,18 +126,22 @@ export function SidebarContent({
         )}
       >
         {logo && !collapsed ? (
+          // <img> em vez de next/image de propósito: a URL vem de quem hospeda
+          // (banco ou .env), e next/image exige allowlist de domínios fechada em
+          // build — a imagem pré-buildada rejeitaria o domínio do self-hoster.
+          // Altura fixa e largura livre porque a arte enviada tem proporção
+          // desconhecida; forçar as duas distorceria o logo de quem configurou.
+          //
           // Chip claro só no tema escuro: a arte enviada é de quem hospeda, sem
-          // garantia de que tenha contraste contra `--color-surface` escuro
-          // (`#1d1c17`). Sem isto, todo logo escuro/colorido — a maioria do que
-          // se sobe pensando em fundo claro — some no tema escuro (issue: logo
-          // da Dra. Mariana Nascimento, azul-marinho sobre quase-preto).
+          // garantia de que tenha contraste contra a barra escura
+          // (`--color-sidebar` = `#151d23`). Sem isto, todo logo escuro/colorido
+          // — a maioria do que se sobe pensando em fundo claro — some no tema
+          // escuro (issue: logo da Dra. Mariana Nascimento, azul-marinho sobre
+          // quase-preto). O carvão azulado do tema novo não muda essa conta: o
+          // fundo continua escuro demais para arte escura.
           <div className="rounded-md dark:bg-white dark:px-2 dark:py-1 dark:shadow-sm">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={logo}
-              alt={nome}
-              className="h-7 w-auto max-w-[10rem] object-contain"
-            />
+            <img src={logo} alt={nome} className="h-7 w-auto max-w-[10rem] object-contain" />
           </div>
         ) : collapsed ? (
           // Recolhida, a marca ainda precisa ser reconhecível. Mantém o logo
@@ -159,7 +163,12 @@ export function SidebarContent({
               className="h-9 w-9 shrink-0 object-contain"
             />
             <span className="ml-2 font-semibold tracking-tight">{nome}</span>
-            <WhatsappLogo size={16} weight="fill" aria-hidden className="ml-1 text-[#bff7dd]" />
+            <WhatsappLogo
+              size={16}
+              weight="fill"
+              aria-hidden
+              className="ml-1 text-accent-700 dark:text-accent"
+            />
           </>
         )}
       </div>
@@ -376,7 +385,10 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
         //
         // `shrink-0` porque item de flex encolhe por padrão, e uma barra de 60
         // espremida para caber é o mesmo defeito por outro caminho.
-        "sticky top-0 z-30 flex self-stretch shrink-0 flex-col border-r border-sidebar-muted/20 bg-sidebar text-sidebar-foreground transition-[width] duration-200",
+        // `sticky top-0` é a correção acima e fica. Do tema vem só a borda:
+        // token próprio `border-sidebar-border` (antes era `sidebar-muted/20`)
+        // e o filete branco a 10% no escuro.
+        "sticky top-0 z-30 flex shrink-0 flex-col self-stretch border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200 dark:border-white/10",
         collapsed ? "w-16" : "w-60",
       )}
     >

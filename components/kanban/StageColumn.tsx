@@ -87,13 +87,27 @@ export function StageColumn({
     ancora.current = null;
     onSelectMany?.(idsVisiveis, !todosSelecionados);
   };
-  const accentStyle: CSSProperties | undefined = stage.color
-    ? { backgroundColor: stage.color }
-    : undefined;
+  // A cor da etapa deixa de ser só um pontinho e passa a tingir o cabeçalho
+  // inteiro (borda + fundo em `color-mix`, 28% da cor sobre a superfície), que
+  // é o que dá identidade à coluna nos dois temas. `--color-border-strong` é o
+  // fallback de etapa sem cor.
+  const stageAccent = stage.color ?? "var(--color-border-strong)";
+  const accentStyle: CSSProperties = { backgroundColor: stageAccent };
+  const headerStyle = {
+    "--stage-accent": stageAccent,
+    "--stage-header-bg": `color-mix(in srgb, ${stageAccent} 28%, var(--color-surface))`,
+  } as CSSProperties;
 
   return (
-    <div className="flex w-[85vw] shrink-0 snap-center flex-col rounded-lg border border-border bg-surface-muted/40 md:w-80">
-      <div className="group/etapa flex items-center gap-2 border-b border-border px-3 py-2.5">
+    // `w-[85vw] snap-center … md:w-80` é a geometria mobile (coluna larga que
+    // encaixa no snap horizontal) e fica; do tema vêm `bg-surface`,
+    // `overflow-hidden` (senão o fundo do cabeçalho vaza no canto arredondado)
+    // e a borda clara do escuro.
+    <div className="flex w-[85vw] shrink-0 snap-center flex-col overflow-hidden rounded-lg border border-border bg-surface dark:border-white/10 md:w-80">
+      <div
+        className="group/etapa flex items-center gap-2 border-b border-[var(--stage-accent)] bg-[var(--stage-header-bg)] px-3 py-2.5"
+        style={headerStyle}
+      >
         {/* "Selecionar a etapa inteira" é o gesto que faz a ação em lote valer a
             pena: sem ele, mover trinta cards deixa de ser trinta arrastes e vira
             trinta cliques com modificador. Fica no cabeçalho porque é ali que a
@@ -121,16 +135,11 @@ export function StageColumn({
           )}
         />
         <span
-          className={cn(
-            "h-2 w-2 rounded-full",
-            !stage.color && "bg-text-muted/40",
-          )}
+          className={cn("h-2 w-2 rounded-full", !stage.color && "bg-text-muted/40")}
           style={accentStyle}
           aria-hidden
         />
-        <h2 className="flex-1 truncate text-sm font-semibold text-text">
-          {stage.name}
-        </h2>
+        <h2 className="flex-1 truncate text-sm font-semibold text-text">{stage.name}</h2>
         <span className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-medium tabular-nums text-text-muted">
           {selecionadosAqui > 0 ? `${selecionadosAqui}/${leads.length}` : leads.length}
         </span>

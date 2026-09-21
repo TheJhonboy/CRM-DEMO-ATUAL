@@ -57,7 +57,11 @@ function BoardSkeleton() {
       {[0, 1, 2].map((c) => (
         <div
           key={c}
-          className="flex w-[85vw] shrink-0 snap-center flex-col gap-2 rounded-lg border border-border bg-surface-muted/40 p-3 md:w-80"
+          // Mesma superfície da coluna real (`StageColumn`): o tema Calixto
+          // levou a coluna de `bg-surface-muted/40` para `bg-surface`, e um
+          // esqueleto numa camada diferente faz o board mudar de cor quando os
+          // dados chegam — o mesmo defeito que a largura igual já evita.
+          className="flex w-[85vw] shrink-0 snap-center flex-col gap-2 rounded-lg border border-border bg-surface p-3 dark:border-white/10 md:w-80"
         >
           <Skeleton className="h-5 w-32" />
           {[0, 1, 2, 3].map((i) => (

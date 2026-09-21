@@ -151,7 +151,10 @@ export function FunisClient({
   }
 
   const formularioDeCriacao = novo !== null && (
-    <Card className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center" data-testid="form-novo-funil">
+    <Card
+      className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center"
+      data-testid="form-novo-funil"
+    >
       <Input
         autoFocus
         value={novo}
@@ -215,7 +218,7 @@ export function FunisClient({
           {podeGerenciar && novo === null ? (
             <Button
               data-testid="novo-funil"
-              className="w-full bg-accent-600 text-accent-foreground hover:bg-accent-700 sm:w-auto"
+              className="w-full bg-accent text-accent-foreground hover:bg-accent-hover dark:bg-accent-600 dark:hover:bg-accent-700 sm:w-auto"
               onClick={() => setNovo("")}
               disabled={ocupado}
             >
@@ -240,7 +243,11 @@ export function FunisClient({
           const erroDaLinha = erro?.id === funil.id ? erro.texto : null;
 
           return (
-            <li key={funil.id} className="flex flex-col gap-3 p-4" data-testid={`funil-${funil.id}`}>
+            <li
+              key={funil.id}
+              className="flex flex-col gap-3 p-4"
+              data-testid={`funil-${funil.id}`}
+            >
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                 {podeGerenciar && (
                   <div className="flex shrink-0 flex-wrap gap-1">
@@ -250,7 +257,9 @@ export function FunisClient({
                       aria-label={`${t("Subir")} «${funil.name}» ${t("na lista")}`}
                       data-testid={`subir-${funil.id}`}
                       disabled={ocupado || i === 0}
-                      onClick={() => aplicar(funil.id, { depois_de: vizinhoAoMover(funis, i, "subir") })}
+                      onClick={() =>
+                        aplicar(funil.id, { depois_de: vizinhoAoMover(funis, i, "subir") })
+                      }
                     >
                       <CaretUp size={16} aria-hidden />
                     </Button>
@@ -260,7 +269,9 @@ export function FunisClient({
                       aria-label={`${t("Descer")} «${funil.name}» ${t("na lista")}`}
                       data-testid={`descer-${funil.id}`}
                       disabled={ocupado || i === funis.length - 1}
-                      onClick={() => aplicar(funil.id, { depois_de: vizinhoAoMover(funis, i, "descer") })}
+                      onClick={() =>
+                        aplicar(funil.id, { depois_de: vizinhoAoMover(funis, i, "descer") })
+                      }
                     >
                       <CaretDown size={16} aria-hidden />
                     </Button>
@@ -301,7 +312,9 @@ export function FunisClient({
                       data-testid={`abrir-${funil.id}`}
                     >
                       <span className="flex items-center gap-2">
-                        <span className="text-sm font-medium group-hover:underline">{funil.name}</span>
+                        <span className="text-sm font-medium group-hover:underline">
+                          {funil.name}
+                        </span>
                         {funil.is_default && (
                           <Badge variant="secondary" className="text-[10px]">
                             {t("Padrão")}
@@ -383,7 +396,10 @@ export function FunisClient({
               </div>
 
               {erroDaLinha && (
-                <p className="text-sm leading-relaxed text-destructive" data-testid={`erro-${funil.id}`}>
+                <p
+                  className="text-sm leading-relaxed text-destructive"
+                  data-testid={`erro-${funil.id}`}
+                >
                   {erroDaLinha}
                 </p>
               )}
@@ -393,7 +409,10 @@ export function FunisClient({
                   {arquivandoAqui.erro ? (
                     // A recusa da rota, INTEIRA: é ela que diz qual formulário ou
                     // automação está no caminho, e o que fazer antes de tentar de novo.
-                    <p className="text-sm leading-relaxed" data-testid={`arquivar-erro-${funil.id}`}>
+                    <p
+                      className="text-sm leading-relaxed"
+                      data-testid={`arquivar-erro-${funil.id}`}
+                    >
                       {arquivandoAqui.erro}
                     </p>
                   ) : (

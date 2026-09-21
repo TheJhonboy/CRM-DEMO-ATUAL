@@ -1,7 +1,11 @@
+import fs from "node:fs";
+import path from "node:path";
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 import { MobileBottomNav } from "@/components/shell/MobileBottomNav";
+import { razaoDeContraste } from "@/lib/branding/contraste";
 import type { ActiveOrg, AuthUser } from "@/lib/auth/types";
 
 const authRef: { user: Pick<AuthUser, "is_platform_admin">; activeOrg: ActiveOrg | null } = {
@@ -115,12 +119,18 @@ describe("barra de navegação inferior (mobile)", () => {
 
   // A cor do rótulo sozinha separava a aba ativa da inativa por 1,25:1 no tema claro
   // (medido); o ícone preenchido era a única pista. A pílula é o MESMO fundo do item ativo
-  // do Sidebar de desktop (`bg-sidebar-active`), mas o glifo NÃO fica branco sobre ele:
-  // branco sobre a pílula verde dava 2,66:1 no claro e 2,90:1 no escuro (WCAG 1.4.11 pede
-  // 3:1 para um gráfico que carrega significado). O glifo é "recortado" na pílula com a
-  // cor da própria barra (`text-sidebar`; o <Icon> herda `currentColor` do span). O rótulo
-  // continua fora da pílula, com a cor da aba.
-  it("só a aba ativa tem a pílula bg-sidebar-active com o glifo na cor da barra; as inativas e o Mais têm o mesmo invólucro (h-7 w-14) sem ela", () => {
+  // do Sidebar de desktop (`bg-sidebar-active`), e o glifo usa o par que o token existe
+  // para formar: `text-sidebar-active-fg` (6,57:1 no claro, 12,63:1 no escuro — WCAG
+  // 1.4.11 pede 3:1 para um gráfico que carrega significado). O <Icon> herda
+  // `currentColor` do span. O rótulo continua fora da pílula, com a cor da aba.
+  //
+  // ⚠️ ESTE CASO EXIGIA `text-sidebar` até a paleta Calixto entrar, e a troca é medição,
+  // não gosto. Na paleta antiga a barra era azul-marinho (#0f4c75) e a pílula verde cheia
+  // (#00b66b): recortar o glifo na cor da barra dava 3,42:1 e o `sidebar-active-fg` branco
+  // dava 2,66:1 — o recorte era o único que passava. Na paleta Calixto o claro inverteu:
+  // barra quase branca (#fafbfa) sobre pílula verde-pálida (#e9f5ed) dá 1,08:1, glifo
+  // invisível. Medido com `razaoDeContraste` de `lib/branding/contraste.ts`.
+  it("só a aba ativa tem a pílula bg-sidebar-active com o glifo na cor de frente dela; as inativas e o Mais têm o mesmo invólucro (h-7 w-14) sem ela", () => {
     render(<MobileBottomNav />);
     const ativa = screen.getByRole("link", { name: /Inbox/ });
     expect(ativa).toHaveClass("text-sidebar-active-fg");
@@ -129,7 +139,7 @@ describe("barra de navegação inferior (mobile)", () => {
       "w-14",
       "rounded-full",
       "bg-sidebar-active",
-      "text-sidebar",
+      "text-sidebar-active-fg",
     );
     expect(ativa.firstElementChild).not.toHaveClass("h-8");
     // O rótulo da aba ativa NÃO ganha a cor da barra: ele fica fora da pílula.
@@ -151,7 +161,9 @@ describe("barra de navegação inferior (mobile)", () => {
 
   // A aba da ponta encosta na borda da tela: o anel de foco padrão (2px + offset de 2px)
   // saía 100% fora da viewport, e a 2,1:1 contra a barra clara. O offset negativo o
-  // desenha para dentro da aba, e a cor é a do item ativo do Sidebar (9,1:1 no claro).
+  // desenha para dentro da aba, e a cor é a do item ativo do Sidebar (7,10:1 no claro).
+  // O `dark:` existe porque `sidebar-active-fg` no escuro é o quase-preto da pílula de
+  // menta: contra a barra escura ele dá 1,13:1 — ver o caso de contraste abaixo.
   it("todas as abas desenham o anel de foco para dentro e na cor do item ativo", () => {
     render(<MobileBottomNav />);
     expect(abas()).toHaveLength(5);
@@ -159,8 +171,71 @@ describe("barra de navegação inferior (mobile)", () => {
       expect(aba).toHaveClass(
         "focus-visible:-outline-offset-2",
         "focus-visible:outline-sidebar-active-fg",
+        "dark:focus-visible:outline-sidebar-foreground",
       );
     }
+  });
+});
+
+/**
+ * O CONTRASTE DA BARRA, MEDIDO NOS TOKENS — não em nome de classe.
+ *
+ * Os casos acima provam que a classe está no DOM. Nenhum deles prova que a COR que ela
+ * carrega dá para enxergar, e é exatamente por aí que a barra quebrou duas vezes numa
+ * troca de paleta que não encostou neste arquivo:
+ *
+ *   - glifo recortado com `text-sidebar` sobre `bg-sidebar-active`: 3,42:1 na paleta
+ *     azul-marinho, 1,08:1 na Calixto clara (barra #fafbfa, pílula #e9f5ed);
+ *   - rótulo e anel com `sidebar-active-fg` sobre a barra: 17,06:1 na paleta antiga
+ *     escura, 1,13:1 na Calixto escura (#07110b, que é a frente da MENTA, sobre #151d23).
+ *
+ * Em ambos os casos toda asserção de classe continuava verde. Este caso lê os tokens dos
+ * blocos de tema do `globals.css` e mede com o helper do produto; quem trocar a paleta
+ * de novo reprova aqui, com o número na mensagem.
+ */
+describe("barra inferior · contraste dos tokens nos dois temas", () => {
+  const CSS = fs.readFileSync(path.join(process.cwd(), "app/globals.css"), "utf8");
+
+  /** Hex de um `--color-*` dentro do bloco de seletor pedido. */
+  function token(seletor: string, nome: string): string {
+    const i = CSS.search(new RegExp(`^${seletor.replace(/[[\]"$]/g, "\\$&")}\\s*\\{`, "m"));
+    expect(i, `não achei o bloco \`${seletor}\``).toBeGreaterThanOrEqual(0);
+    const bloco = CSS.slice(i, CSS.indexOf("\n}", i));
+    const m = new RegExp(`^\\s*${nome}:\\s*(#[0-9a-f]{3,8});`, "im").exec(bloco);
+    expect(m?.[1], `\`${nome}\` não é hex literal em \`${seletor}\``).toBeTruthy();
+    return m![1]!;
+  }
+
+  // `:root` é o bloco claro canônico (ver o comentário do `[data-theme="light"]` em
+  // globals.css: o claro mora no `:root` e é espelhado para subárvore).
+  const temas = [
+    ["claro", ":root"],
+    ["escuro", '[data-theme="dark"]'],
+  ] as const;
+
+  it.each(temas)("o glifo da pílula ativa passa de 3:1 sobre ela — tema %s", (_, seletor) => {
+    const razao = razaoDeContraste(
+      token(seletor, "--color-sidebar-active-fg"),
+      token(seletor, "--color-sidebar-active"),
+    );
+    expect(razao, `glifo da pílula a ${razao.toFixed(2)}:1`).toBeGreaterThanOrEqual(3);
+  });
+
+  it.each(temas)("os rótulos passam de 4,5:1 sobre a barra — tema %s", (tema, seletor) => {
+    const barra = token(seletor, "--color-sidebar");
+    // No claro o rótulo ativo é `sidebar-active-fg`; no escuro o `dark:` do componente
+    // troca para `sidebar-foreground`. A troca está aqui para o teste medir o que a tela
+    // realmente pinta, não o token que o nome sugere.
+    const ativo = token(
+      seletor,
+      tema === "escuro" ? "--color-sidebar-foreground" : "--color-sidebar-active-fg",
+    );
+    const inativo = token(seletor, "--color-sidebar-muted");
+
+    const rAtivo = razaoDeContraste(ativo, barra);
+    const rInativo = razaoDeContraste(inativo, barra);
+    expect(rAtivo, `rótulo ativo a ${rAtivo.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+    expect(rInativo, `rótulo inativo a ${rInativo.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
   });
 });
 

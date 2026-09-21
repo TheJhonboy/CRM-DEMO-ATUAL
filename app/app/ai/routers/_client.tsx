@@ -60,7 +60,7 @@ export function RoutersClient({ initialState, channelSessions }: Props) {
         {canManagePerm && (
           <Button
             onClick={() => setCreateOpen(true)}
-            className="w-full bg-accent-600 text-accent-foreground hover:bg-accent-700 sm:w-auto"
+            className="w-full bg-accent text-accent-foreground hover:bg-accent-hover dark:bg-accent-600 dark:hover:bg-accent-700 sm:w-auto"
           >
             <Plus /> {t("Novo roteador")}
           </Button>
@@ -78,7 +78,7 @@ export function RoutersClient({ initialState, channelSessions }: Props) {
           {canManagePerm && (
             <Button
               onClick={() => setCreateOpen(true)}
-              className="bg-accent-600 text-accent-foreground hover:bg-accent-700"
+              className="bg-accent text-accent-foreground hover:bg-accent-hover dark:bg-accent-600 dark:hover:bg-accent-700"
             >
               <Plus /> {t("Criar meu primeiro roteador")}
             </Button>

@@ -26,7 +26,9 @@ interface EnrollState {
  *
  * On completion, reloads the page so the parent layout re-evaluates the gate.
  */
-export function MfaEnrollModal({ motivo = "obrigatorio" }: { motivo?: "obrigatorio" | "escolha" } = {}) {
+export function MfaEnrollModal({
+  motivo = "obrigatorio",
+}: { motivo?: "obrigatorio" | "escolha" } = {}) {
   const t = useT();
   const [step, setStep] = useState<Step>("intro");
   const [enrollState, setEnrollState] = useState<EnrollState | null>(null);
@@ -80,9 +82,9 @@ export function MfaEnrollModal({ motivo = "obrigatorio" }: { motivo?: "obrigator
       role="dialog"
       aria-modal="true"
       aria-labelledby="mfa-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4"
     >
-      <div className="w-full max-w-md rounded-lg border border-border bg-background p-6 shadow-xl">
+      <div className="w-full max-w-md rounded-lg border border-border bg-surface p-6 shadow-xl">
         {step === "intro" && (
           <div className="space-y-4">
             <div>
@@ -107,7 +109,7 @@ export function MfaEnrollModal({ motivo = "obrigatorio" }: { motivo?: "obrigator
               </p>
             </div>
             {error && (
-              <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              <div className="border-destructive/30 bg-destructive/10 rounded-md border px-3 py-2 text-sm text-destructive">
                 {error}
               </div>
             )}
@@ -132,7 +134,9 @@ export function MfaEnrollModal({ motivo = "obrigatorio" }: { motivo?: "obrigator
                 {t("Escaneie o QR code")}
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                {t("Abra seu app autenticador, adicione uma nova conta e digite o código de 6 dígitos abaixo.")}
+                {t(
+                  "Abra seu app autenticador, adicione uma nova conta e digite o código de 6 dígitos abaixo.",
+                )}
               </p>
             </div>
 
@@ -174,7 +178,7 @@ export function MfaEnrollModal({ motivo = "obrigatorio" }: { motivo?: "obrigator
                     hasError={!!error}
                   />
                   {error && (
-                    <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-center text-sm text-destructive">
+                    <div className="border-destructive/30 bg-destructive/10 rounded-md border px-3 py-2 text-center text-sm text-destructive">
                       {error}
                     </div>
                   )}
