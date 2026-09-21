@@ -265,8 +265,8 @@ describe("Contatos — lista de cartões no celular", () => {
       }
       // No modo de contraste forçado do Windows o `outline-offset: 2px !important` global vence o
       // offset negativo dos chips: o anel (2px + 2px de offset) volta a sair da caixa do chip, e a
-      // barra `overflow-x-auto` o recortaria em cima e embaixo com só `pb-1`. `p-1` dá folga nos
-      // quatro lados.
+      // barra `overflow-x-auto` o recortaria em cima e nas laterais com só `pb-1`. `p-1` dá folga
+      // nos quatro lados.
       expect(barra).toHaveClass("overflow-x-auto", "p-1");
       expect(barra).not.toHaveClass("pb-1");
     });
