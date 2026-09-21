@@ -299,7 +299,7 @@ function PipelineEditor({ pipeline }: { pipeline: PipelineRow }) {
         <Button
           onClick={handleSave}
           disabled={isPending}
-          className="w-full bg-accent text-accent-foreground hover:bg-accent-hover dark:bg-accent-500 dark:text-text dark:hover:bg-accent-600 sm:w-auto"
+          className="w-full bg-accent text-accent-foreground hover:bg-accent-hover sm:w-auto"
         >
           {isPending ? t("Salvando…") : t("Salvar vocabulário e campos")}
         </Button>

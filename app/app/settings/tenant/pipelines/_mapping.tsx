@@ -351,7 +351,7 @@ export function AgentMappingSection({
           onClick={enviar}
           disabled={!mudou || gravando}
           data-testid="salvar-mapeamento"
-          className="bg-accent text-accent-foreground hover:bg-accent-hover dark:bg-accent-500 dark:text-text dark:hover:bg-accent-600"
+          className="bg-accent text-accent-foreground hover:bg-accent-hover"
         >
           {gravando ? t("Salvando…") : t("Salvar estas escolhas")}
         </Button>
