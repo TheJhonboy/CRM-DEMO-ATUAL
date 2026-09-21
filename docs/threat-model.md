@@ -130,9 +130,19 @@ um handler novo nasça sem filtro e sem invariante correspondente.
 quando um arquivo importa `lib/supabase/admin` sem referenciar `organization_id`. Barato,
 determinístico, e transforma disciplina em gate.
 
-### T4 — Secret de convite com fallback conhecido 🟠 CONFIRMADO no código, mitigado na prática
+### T4 — Secret de convite com fallback conhecido 🟢 CORRIGIDO (21/09/2026)
 
-`lib/auth/invite-token.ts:16`:
+> **Corrigido.** O literal `"dev-fallback"` foi removido de `lib/auth/invite-token.ts`. A
+> cadeia agora é `INVITE_TOKEN_SECRET → INTERNAL_SECRET` e, sem nenhum dos dois, assinar e
+> verificar **lançam** um `Error` claro (sem valor de segredo na mensagem). Vazio ou só
+> espaços conta como ausente — `??` deixaria `""` passar, e o `.env.example` entrega
+> `INTERNAL_SECRET=` vazio. Fixado por `tests/unit/convite-segredo-de-assinatura.test.ts`
+> (inclui um token forjado com `"dev-fallback"` que não é mais aceito). Resta, como dívida
+> separada: `INVITE_TOKEN_SECRET` continua fora de `lib/env.ts` e do `.env.example` (item (c)
+> do residual abaixo) e o módulo segue lendo `process.env` cru — de propósito, para lançar
+> em vez de degradar. O texto abaixo é o achado original, mantido como registro.
+
+`lib/auth/invite-token.ts:16` (antes da correção):
 
 ```
 INVITE_TOKEN_SECRET → INTERNAL_SECRET → "dev-fallback"
@@ -254,7 +264,7 @@ Não avaliado por falta de execução/instância:
 | T1 | Sem rate limit em login/signup/convite/crons/MCP | 🔴 | baixo — infra já existe |
 | T2 | Rate limit degrada silenciosamente para memória | 🟠 | baixo |
 | T3 | Service role sem gate de escrita para handler novo | 🟠 | médio (lint rule) — invariantes já cobrem em CI |
-| T4 | `"dev-fallback"` como secret de convite | 🟠 | trivial |
+| T4 | `"dev-fallback"` como secret de convite — **corrigido em 21/09/2026** | 🟢 | feito |
 | T5 | 3 secrets fora do `.env.example` | 🟠 | trivial |
 | T7 | Sem scan de secret no CI + 116 PNGs de evidência sem revisão de PII | 🟡 | baixo |
 | T6 | Guard de SSRF existe; o E2E que o prova não roda no CI | 🟢 | baixo |

@@ -1,4 +1,4 @@
-import { beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 const h = vi.hoisted(() => ({ send: vi.fn(), audit: vi.fn() }));
 vi.mock("@/lib/env", () => ({ env: { NEXT_PUBLIC_APP_URL: "http://localhost:3013" } }));
 vi.mock("@/lib/email/resend", () => ({ sendEmail: h.send }));
@@ -11,6 +11,14 @@ const input = { email: "guest@example.test", role: "admin" as const,
   organizationId: "a2180000-0000-4000-8000-000000000001", orgName: "Org",
   inviterId: "a2180000-0000-4000-8000-000000000002", inviterName: "Admin", requestId: "test" };
 beforeEach(() => vi.resetAllMocks());
+// Segredo explícito: o módulo de convite NÃO tem fallback público e lança sem segredo
+// (tests/unit/convite-segredo-de-assinatura.test.ts fixa esse comportamento).
+beforeEach(() => {
+  vi.stubEnv("INVITE_TOKEN_SECRET", "segredo-de-teste-do-convite");
+});
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 it("sem serviço de e-mail continua com link assinado, validade e auditoria sem token", async () => {
   h.send.mockResolvedValue({ ok: false, error: "not_configured" });
   const result = await issueInvite(input);

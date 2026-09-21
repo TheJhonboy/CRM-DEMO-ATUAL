@@ -23,7 +23,7 @@
  * e-mail: pessoa sem sessão nenhuma, que cairia no `requireAuth()` e voltaria
  * para o login sem nunca ler que um e-mail a espera.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
@@ -42,6 +42,16 @@ vi.mock("@/lib/audit", async (orig) => ({
 }));
 
 const signUpDoProvedor = vi.fn();
+
+// Segredo explícito: o módulo de convite NÃO tem fallback público e lança sem segredo
+// (tests/unit/convite-segredo-de-assinatura.test.ts fixa esse comportamento). O caso
+// "com convite VÁLIDO" assina um token de verdade.
+beforeEach(() => {
+  vi.stubEnv("INVITE_TOKEN_SECRET", "segredo-de-teste-do-convite");
+});
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 /** Um e-mail novo por caso: o teto de `signup` é por IP e por janela. */
 let n = 0;

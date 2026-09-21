@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NAV_CATALOG } from "@/lib/navigation/catalogo";
 import {
   destinosDaInterface,
@@ -15,6 +15,14 @@ const granular = { preset: "completa", destinos: ["/app/products"] } as const;
 const hrefs = (settings: unknown, role: "agent" | "admin" = "admin", platform = false) =>
   destinosDaInterface(settings, platform, role).map((d) => d.href);
 describe("interface por vínculo é apresentação", () => {
+  // Segredo explícito: o módulo de convite NÃO tem fallback público e lança sem
+  // segredo (tests/unit/convite-segredo-de-assinatura.test.ts fixa esse comportamento).
+  beforeEach(() => {
+    vi.stubEnv("INVITE_TOKEN_SECRET", "segredo-de-teste-do-convite");
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
   it("legado completa acompanha catálogo e não duplica IDs", () => {
     expect(hrefs(null)).toEqual(NAV_CATALOG.map((d) => d.href));
     expect(new Set(NAV_CATALOG.map((d) => d.href)).size).toBe(NAV_CATALOG.length);

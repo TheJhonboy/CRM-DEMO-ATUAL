@@ -6,16 +6,33 @@
  *   - body = base64url(JSON({invite_id, email, organization_id, role, exp}))
  *   - sig  = base64url(HMAC_SHA256(secret, body))
  *
- * Secret resolution: INVITE_TOKEN_SECRET → INTERNAL_SECRET → "dev-fallback".
- * Production deployments MUST set one of the first two. Verification uses
- * `timingSafeEqual` to avoid timing oracles.
+ * Secret resolution: INVITE_TOKEN_SECRET → INTERNAL_SECRET. There is NO
+ * built-in fallback: when neither is set (empty or whitespace-only counts as
+ * not set) signing AND verifying throw, so a misconfigured server fails loudly
+ * instead of trusting a value that sits in a public repository. Production
+ * deployments MUST set one of the two. Verification uses `timingSafeEqual` to
+ * avoid timing oracles.
  */
 import { z } from "zod";
 import { interfaceSettingsSchema, type InterfaceSettings } from "@/lib/navigation/interface";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-const SECRET = (): string =>
-  process.env.INVITE_TOKEN_SECRET ?? process.env.INTERNAL_SECRET ?? "dev-fallback";
+/**
+ * Resolvido na hora do uso, não no import. Vazio ou só espaços conta como
+ * AUSENTE: `??` só cai no próximo em null/undefined, e o `.env.example` entrega
+ * `INTERNAL_SECRET=` vazio — `""` passaria e assinaria com chave de comprimento
+ * zero. O valor devolvido é o BRUTO (sem trim) de propósito: quem já tem convite
+ * assinado com um segredo que tem espaço nas pontas não pode ter a chave mudada.
+ * A mensagem do erro nomeia as variáveis, nunca valores.
+ */
+const SECRET = (): string => {
+  for (const candidato of [process.env.INVITE_TOKEN_SECRET, process.env.INTERNAL_SECRET]) {
+    if (candidato !== undefined && candidato.trim() !== "") return candidato;
+  }
+  throw new Error(
+    "Segredo de assinatura de convites ausente: defina INVITE_TOKEN_SECRET ou INTERNAL_SECRET (não vazio).",
+  );
+};
 
 export interface InvitePayload {
   interface_settings?: InterfaceSettings;

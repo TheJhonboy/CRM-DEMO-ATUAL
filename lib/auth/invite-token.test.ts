@@ -1,5 +1,14 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { signInviteToken, verifyInviteToken, INVITE_TTL_SECONDS } from "./invite-token";
+
+// Segredo explícito: o módulo NÃO tem fallback público e lança sem segredo
+// (o comportamento sem segredo é fixado em tests/unit/convite-segredo-de-assinatura.test.ts).
+beforeEach(() => {
+  vi.stubEnv("INVITE_TOKEN_SECRET", "segredo-de-teste-do-convite");
+});
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 const base = () => ({
   invite_id: "11111111-1111-4111-8111-111111111111",

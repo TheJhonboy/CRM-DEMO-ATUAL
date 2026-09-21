@@ -38,21 +38,33 @@ const DIRS = ["lib", "app", "workers", "scripts"];
 /**
  * Variáveis que `lib/env.ts` declara OBRIGATÓRIAS — elas saem da varredura.
  *
- * ⚠️ Esta exclusão nasceu de um FALSO POSITIVO do próprio gate, e o registro
- * importa. Ele acusou `lib/auth/invite-token.ts:16`
- * (`INVITE_TOKEN_SECRET ?? INTERNAL_SECRET ?? "dev-fallback"`), porque
- * `INTERNAL_SECRET` vem vazia no `.env.example`. Parecia grave: segredo de
- * assinatura virando `""`.
+ * ⚠️ Esta exclusão nasceu de um FALSO POSITIVO do próprio gate — e o registro
+ * abaixo tem duas metades, porque a primeira acabou sendo só meia verdade.
  *
- * Testei antes de exigir, e caiu. `lib/env.ts:30` define
+ * 1) O que se concluiu na época. O gate acusou `lib/auth/invite-token.ts:16`
+ * (`INVITE_TOKEN_SECRET ?? INTERNAL_SECRET ?? "dev-fallback"`), porque
+ * `INTERNAL_SECRET` vem vazia no `.env.example`. Testei antes de exigir, e
+ * caiu: `lib/env.ts:30` define
  * `required = isProd ? z.string().min(1) : z.string().default("")` — em
  * produção a variável vazia **reprova na validação e o app não sobe**, com
- * mensagem própria. O caminho do `??` é inalcançável lá, e em desenvolvimento o
- * fallback declarado (`dev-fallback`) é a intenção escrita no cabeçalho do
- * arquivo: *"Production deployments MUST set one of the first two."*
+ * mensagem própria. O caminho do `??` é inalcançável lá. Isso continua
+ * verdadeiro, e é por isso que a exclusão das obrigatórias continua aqui.
  *
- * Um gate que reprovasse isso mandaria alguém consertar um defeito que não
- * existe — que é o que o passe 7 da triagem desta casa proíbe.
+ * 2) O que a auditoria de 21/09/2026 (achado 4) corrigiu. Concluir "então o
+ * `dev-fallback` é a intenção escrita no cabeçalho do arquivo" foi o erro: o
+ * módulo lê `process.env` CRU, não herda garantia nenhuma do Zod, e o literal
+ * é público — em dev/teste e em qualquer processo que não passou por
+ * `lib/env.ts`, um token forjado com `"dev-fallback"` era aceito como válido
+ * (payload com `organization_id` e `role`: admin em qualquer organização). O
+ * fallback foi REMOVIDO: `invite-token.ts` agora trata segredo vazio/só espaços
+ * como ausente e LANÇA quando nada na cadeia existe. O comportamento está
+ * fixado em `tests/unit/convite-segredo-de-assinatura.test.ts`, não aqui.
+ *
+ * Lição para quem mexer nesta exclusão: "inalcançável em produção" não
+ * significa "sem defeito" — foi exatamente essa exclusão que manteve o gate
+ * calado sobre o literal. Se aparecer um `?? "<default>"` numa
+ * variável obrigatória que NÃO seja segredo, a exclusão serve; se for segredo
+ * ou chave de assinatura, o certo é falhar alto, não escondê-la aqui.
  */
 function obrigatoriasNoEnvTs(): Set<string> {
   const src = fs.readFileSync(path.join(RAIZ, "lib/env.ts"), "utf8");

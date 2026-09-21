@@ -401,8 +401,13 @@ itens envelhecem em ritmos diferentes, e o cabeçalho passava a mentir por todos
   6, "incluindo 3 secrets"; os três (`IMPERSONATE_COOKIE_SECRET`, `INTERNAL_CRON_SECRET`,
   `LGPD_SIGNING_KEY`) estão lá. Se você adicionar env var, adicione nos dois lugares (item 9 do
   DoD) — a regra continua valendo, o que caiu foi a dívida.
-- `lib/auth/invite-token.ts` cai em `"dev-fallback"` como secret HMAC se nenhum secret existir
-  (inalcançável em produção, porque `INTERNAL_SECRET` é obrigatório e derruba o boot).
+- `lib/auth/invite-token.ts` **não tem mais fallback** de secret HMAC (o literal `"dev-fallback"`
+  foi removido na auditoria de 21/09/2026). A cadeia é `INVITE_TOKEN_SECRET` → `INTERNAL_SECRET`;
+  vazio ou só espaços conta como ausente, e sem nenhum dos dois assinar e verificar **lançam**
+  um `Error` claro. Teste que assina/verifica convite precisa dar o segredo
+  (`vi.stubEnv("INVITE_TOKEN_SECRET", "…")` + `vi.unstubAllEnvs()`) — não reintroduza um
+  fallback para "fazer o teste passar". Comportamento fixado em
+  `tests/unit/convite-segredo-de-assinatura.test.ts`.
 - **Boa parte dos handlers de `app/api/**` usa service role** — reconte:
   `grep -rl createAdminClient app/api --include='route.ts' | wc -l` contra
   `git ls-files 'app/api/**/route.ts' | wc -l`. Não há gate automático para o filtro de

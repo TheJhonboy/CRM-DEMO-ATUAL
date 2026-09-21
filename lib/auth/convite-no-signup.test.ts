@@ -8,12 +8,21 @@
  *  - provisionar quando havia convite → o defeito de origem volta, agora com um
  *    conserto por cima dando a impressão de estar resolvido.
  */
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { decidirConviteDoSignup } from "@/lib/auth/convite-no-signup";
 import { signInviteToken, verifyInviteToken } from "@/lib/auth/invite-token";
 
 const ORG = "22222222-2222-4222-8222-222222222222";
+
+// Segredo explícito: o módulo de convite NÃO tem fallback público e lança sem segredo
+// (tests/unit/convite-segredo-de-assinatura.test.ts fixa esse comportamento).
+beforeEach(() => {
+  vi.stubEnv("INVITE_TOKEN_SECRET", "segredo-de-teste-do-convite");
+});
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 function token(email: string, expEmSegundos = Math.floor(2_000_000_000)) {
   return signInviteToken({
