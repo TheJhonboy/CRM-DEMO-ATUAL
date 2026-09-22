@@ -8,7 +8,9 @@ const mapeamento = fs.readFileSync(path.join(process.cwd(), "app/app/settings/te
 
 describe("ações de salvar a configuração de funis", () => {
   it("usa verde claro quando cada botão está disponível", () => {
-    const classe = "bg-accent-500 text-text hover:bg-accent-600";
+    // O par de cores (rótulo x fundo, nos dois temas) é medido em light-primary-actions.test.ts;
+    // aqui só se prende que os dois botões seguem a receita do verde do Calixto.
+    const classe = "bg-accent text-accent-foreground hover:bg-accent-hover";
     expect(cliente).toContain(classe);
     expect(mapeamento).toContain(classe);
   });

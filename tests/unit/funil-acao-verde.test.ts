@@ -8,7 +8,7 @@ const fonte = fs.readFileSync(path.join(process.cwd(), "app/app/kanban/_client.t
 describe("ação principal dos Funis", () => {
   it("usa o verde Calixto no botão Novo funil", () => {
     expect(fonte).toMatch(
-      /data-testid="novo-funil"\s+className="w-full bg-accent-600 text-accent-foreground hover:bg-accent-700 sm:w-auto"/,
+      /data-testid="novo-funil"\s+className="w-full bg-accent text-accent-foreground hover:bg-accent-hover dark:bg-accent-600 dark:hover:bg-accent-700 sm:w-auto"/,
     );
   });
 });

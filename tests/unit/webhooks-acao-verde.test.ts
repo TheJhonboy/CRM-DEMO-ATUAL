@@ -10,7 +10,7 @@ const fonte = fs.readFileSync(
 describe("ação de criação de fonte", () => {
   it("usa o verde principal do Calixto", () => {
     expect(fonte).toContain(
-      "bg-accent-600 text-accent-foreground hover:bg-accent-700",
+      "bg-accent text-accent-foreground hover:bg-accent-hover dark:bg-accent-600 dark:hover:bg-accent-700",
     );
   });
 });

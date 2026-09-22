@@ -2,7 +2,7 @@
 
 > **Especificação aprovada:** `C:\Users\Usuario\.codex\attachments\9f25dc58-bd52-4b7c-8333-5bd5a365a054\pasted-text.txt`
 >
-> **Referência visual aprovada:** `C:\Users\Usuario\AppData\Local\Temp\codex-clipboard-e4f99896-a7d4-42a3-a973-271af65a8792.png`
+> **Referência visual aprovada:** captura de tela colada pelo autor na sessão do Codex de 12/09/2026 (não versionada; a paleta que ela mostra está descrita nos critérios de aceite abaixo).
 
 ## Objetivo
 
