@@ -71,8 +71,8 @@ describe("adapter instagram", () => {
     expect(JSON.parse(init.body)).toEqual({
       recipient: { id: "IGSID_1" },
       message: { text: "oi" },
-      messaging_type: "RESPONSE",
     });
+    expect(JSON.parse(init.body)).not.toHaveProperty("messaging_type");
   });
 
   it.each([
@@ -230,14 +230,97 @@ describe("adapter instagram", () => {
   });
 });
 
+describe("adapter instagram — texto longo em partes", () => {
+  const bytes = (s: string) => new TextEncoder().encode(s).length;
+  const corpos = (spy: ReturnType<typeof vi.fn>) =>
+    spy.mock.calls.map((c) => JSON.parse(c[1].body));
+
+  it("1000 bytes: uma chamada so", async () => {
+    const spy = vi.fn().mockResolvedValue(resposta(200, { message_id: "m1" }));
+    vi.stubGlobal("fetch", spy);
+    await a().send(envio({ body: "a".repeat(1000) }));
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  it("1001 bytes: duas chamadas em sequencia; externalId = mid da primeira; sem messaging_type", async () => {
+    const spy = vi
+      .fn()
+      .mockResolvedValueOnce(resposta(200, { message_id: "m1" }))
+      .mockResolvedValueOnce(resposta(200, { message_id: "m2" }));
+    vi.stubGlobal("fetch", spy);
+    const r = await a().send(envio({ body: "a".repeat(1001) }));
+    expect(r).toEqual({ externalId: "m1" });
+    expect(spy).toHaveBeenCalledTimes(2);
+    for (const b of corpos(spy)) {
+      expect(b).not.toHaveProperty("messaging_type");
+      expect(bytes(b.message.text)).toBeLessThanOrEqual(1000);
+    }
+  });
+
+  it("paragrafos longos: partes respeitam paragrafo e beforeSend roda uma vez", async () => {
+    const p1 = "Primeiro paragrafo. ".repeat(30).trim();
+    const p2 = "Segundo paragrafo. ".repeat(30).trim();
+    const spy = vi.fn().mockResolvedValue(resposta(200, { message_id: "m" }));
+    vi.stubGlobal("fetch", spy);
+    const beforeSend = vi.fn();
+    await a().send(envio({ body: `${p1}
+
+${p2}`, beforeSend }));
+    expect(corpos(spy).map((b) => b.message.text)).toEqual([p1, p2]);
+    expect(beforeSend).toHaveBeenCalledTimes(1);
+  });
+
+  it("emoji na borda: nenhuma parte quebra o ponto de codigo", async () => {
+    const spy = vi.fn().mockResolvedValue(resposta(200, { message_id: "m" }));
+    vi.stubGlobal("fetch", spy);
+    await a().send(envio({ body: "a".repeat(998) + "😀😀😀" }));
+    const textos = corpos(spy).map((b) => b.message.text as string);
+    expect(textos.join("")).toBe("a".repeat(998) + "😀😀😀");
+    for (const t of textos) expect(t).not.toContain("�");
+  });
+
+  it("falha na parte 2: lanca com a parte no detalhe, sem mandar a 3; 4xx nao re-tenta", async () => {
+    const spy = vi
+      .fn()
+      .mockResolvedValueOnce(resposta(200, { message_id: "m1" }))
+      .mockResolvedValueOnce(resposta(400, { error: { code: 100 } }));
+    vi.stubGlobal("fetch", spy);
+    const e = await erroDe(a().send(envio({ body: "a".repeat(2500) })));
+    expect(e.message).toBe("instagram_send_failed: http_400 (parte 2/3)");
+    expect(spy).toHaveBeenCalledTimes(2);
+    expect((e as unknown as { externalIdsEnviados: string[] }).externalIdsEnviados).toEqual(["m1"]);
+  });
+
+  it("5xx na parte 2 NAO e retentavel (re-enviar duplicaria a parte 1); na parte 1 segue retentavel", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(resposta(200, { message_id: "m1" }))
+        .mockResolvedValue(resposta(503, {})),
+    );
+    const e2 = await erroDe(a().send(envio({ body: "a".repeat(1500) })));
+    expect((e2 as unknown as { retryable: boolean }).retryable).toBe(false);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(resposta(503, {})));
+    const e1 = await erroDe(a().send(envio({ body: "a".repeat(1500) })));
+    expect((e1 as unknown as { retryable: boolean }).retryable).toBe(true);
+  });
+
+  it("parte 1 falha num texto longo: detalhe com parte 1/2", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(resposta(400, { error: { code: 100 } })));
+    const e = await erroDe(a().send(envio({ body: "a".repeat(1500) })));
+    expect(e.message).toBe("instagram_send_failed: http_400 (parte 1/2)");
+  });
+});
+
 describe("adapter instagram — checkHealth", () => {
   const saude = () => a().checkHealth!({ organizationId: ORG, sessionRef: "IGACC" });
 
-  it("200: WORKING, GET /{conta}?fields=username com Bearer", async () => {
+  it("200: WORKING, GET /me?fields=user_id,username com Bearer", async () => {
     const spy = vi.fn().mockResolvedValue(resposta(200, { username: "loja" }));
     vi.stubGlobal("fetch", spy);
     expect(await saude()).toEqual({ reachable: true, status: "WORKING", detail: null });
-    expect(spy.mock.calls[0]![0]).toBe(`${BASE}/IGACC?fields=username`);
+    expect(spy.mock.calls[0]![0]).toBe(`${BASE}/me?fields=user_id,username`);
     expect(spy.mock.calls[0]![1].headers.Authorization).toBe(`Bearer ${TOKEN}`);
   });
 

@@ -22,6 +22,7 @@
  */
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveInstagramCredentials } from "../instagram/credentials";
+import { dividirTextoEmPartes } from "../instagram/texto";
 import type { InstagramCredentials } from "../instagram/credentials";
 import type {
   ChannelAdapter,
@@ -42,8 +43,15 @@ const BACKOFF_MS = 400;
 /** Falha que vale tentar de novo (`retryable`). Não carrega segredo. */
 export class InstagramSendError extends Error {
   constructor(
-    detail: string,
+    readonly detail: string,
     readonly retryable: boolean,
+    /**
+     * `message_id` das partes JÁ entregues quando um texto longo falha no meio.
+     * O handler de envio não tem onde gravá-los (só lê `externalId` do retorno),
+     * então hoje é informação de diagnóstico; os ecos dessas partes são tratados
+     * como nossos pela ingestão (corpo contido num envio recente nosso).
+     */
+    readonly externalIdsEnviados: string[] = [],
   ) {
     super(`${CODES.sendFailed}: ${detail}`);
     this.name = "InstagramSendError";
@@ -92,9 +100,14 @@ async function chamar(
   throw new InstagramSendError("rede_indisponivel", true);
 }
 
-/** `kind` do envelope → `message` da Send API. `null` = tipo que o canal não entrega. */
-function mensagem(env: OutboundEnvelope): Record<string, unknown> | null {
-  if (env.kind === "text") return { text: env.body ?? "" };
+/**
+ * `kind` do envelope → lista de `message` da Send API (uma por chamada). Texto acima
+ * de 1000 bytes vira várias partes. `null` = tipo que o canal não entrega.
+ */
+function mensagens(env: OutboundEnvelope): Record<string, unknown>[] | null {
+  if (env.kind === "text") {
+    return dividirTextoEmPartes(env.body ?? "").map((text) => ({ text }));
+  }
   const tipo =
     env.kind === "image" ? "image"
     : env.kind === "video" ? "video"
@@ -102,7 +115,7 @@ function mensagem(env: OutboundEnvelope): Record<string, unknown> | null {
     : env.kind === "document" ? "file"
     : null;
   if (!tipo || !env.media?.url) return null;
-  return { attachment: { type: tipo, payload: { url: env.media.url } } };
+  return [{ attachment: { type: tipo, payload: { url: env.media.url } } }];
 }
 
 async function credenciais(
@@ -135,31 +148,44 @@ export const instagramAdapter: ChannelAdapter = {
     const thread = envelope.providerConversationId;
     if (!thread) throw new InstagramSendError("sem_thread_do_instagram", false);
 
-    const message = mensagem(envelope);
-    if (!message) throw new InstagramSendError("kind_nao_suportado", false);
+    const partes = mensagens(envelope);
+    if (!partes) throw new InstagramSendError("kind_nao_suportado", false);
 
     const creds = await credenciais(envelope.organizationId, envelope.sessionRef);
 
     await envelope.beforeSend?.();
-    const r = await chamar(`${creds.baseUrl}/${creds.accountId}/messages`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${creds.accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        recipient: { id: thread },
-        message,
-        messaging_type: "RESPONSE",
-      }),
-    });
+    // Partes em sequência (await de cada uma): a ordem de chegada é a do texto. O único
+    // retry é o de `chamar` (5xx/conexão) e é POR PARTE; parte que falha interrompe o
+    // envio — as seguintes não saem. O `externalId` devolvido é o da PRIMEIRA parte; o
+    // eco das demais é reconhecido pela ingestão (corpo contido no envio recente).
+    const enviados: string[] = [];
+    let primeiro: string | null = null;
+    for (let i = 0; i < partes.length; i++) {
+      const sufixo = partes.length > 1 ? ` (parte ${i + 1}/${partes.length})` : "";
+      const r = await chamar(`${creds.baseUrl}/${creds.accountId}/messages`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${creds.accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ recipient: { id: thread }, message: partes[i] }),
+      }).catch((e: unknown) => {
+        if (e instanceof InstagramSendError && partes.length > 1) {
+          // Depois da 1ª parte, re-tentar a mensagem inteira duplicaria o que já chegou.
+          throw new InstagramSendError(`${e.detail}${sufixo}`, i === 0 && e.retryable, enviados);
+        }
+        throw e;
+      });
 
-    if (!r.ok || r.body.error) {
-      const mapeado = detalheDoCodigo(r.body.error?.code);
-      const detalhe = mapeado ?? `http_${r.status}`;
-      throw new InstagramSendError(detalhe, r.status >= 500);
+      if (!r.ok || r.body.error) {
+        const mapeado = detalheDoCodigo(r.body.error?.code);
+        const detalhe = mapeado ?? `http_${r.status}`;
+        throw new InstagramSendError(`${detalhe}${sufixo}`, i === 0 && r.status >= 500, enviados);
+      }
+      if (r.body.message_id) enviados.push(r.body.message_id);
+      if (i === 0) primeiro = r.body.message_id ?? null;
     }
-    return { externalId: r.body.message_id ?? null };
+    return { externalId: primeiro };
   },
 
   async checkHealth(
@@ -178,7 +204,7 @@ export const instagramAdapter: ChannelAdapter = {
 
     let r: Awaited<ReturnType<typeof chamar>>;
     try {
-      r = await chamar(`${creds.baseUrl}/${creds.accountId}?fields=username`, {
+      r = await chamar(`${creds.baseUrl}/me?fields=user_id,username`, {
         headers: { Authorization: `Bearer ${creds.accessToken}` },
       });
     } catch {
