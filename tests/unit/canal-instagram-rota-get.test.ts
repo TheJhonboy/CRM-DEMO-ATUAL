@@ -30,6 +30,29 @@ describe("GET /webhooks/channel/[token]", () => {
     expect(r.headers.get("content-type")).toContain("text/plain");
     expect(await r.text()).toBe("98765");
   });
+  it("resposta leva x-content-type-options: nosniff", async () => {
+    const r = await chamar(TOKEN, q(TOKEN));
+    expect(r.headers.get("x-content-type-options")).toBe("nosniff");
+  });
+  it("challenge com 256 caracteres passa; com 257 e 403", async () => {
+    const ok = "a".repeat(256);
+    const r = await chamar(TOKEN, `hub.mode=subscribe&hub.verify_token=${TOKEN}&hub.challenge=${ok}`);
+    expect(r.status).toBe(200);
+    expect(await r.text()).toBe(ok);
+    const longo = await chamar(TOKEN, `hub.mode=subscribe&hub.verify_token=${TOKEN}&hub.challenge=${"a".repeat(257)}`);
+    expect(longo.status).toBe(403);
+  });
+  it.each(["<script>alert(1)</script>", "a b", "x%0d%0ay", "a.b", "", "%3Chtml%3E"])(
+    "challenge fora de [0-9A-Za-z_-] (%j): 403, nunca ecoado",
+    async (c) => {
+      const r = await chamar(TOKEN, `hub.mode=subscribe&hub.verify_token=${TOKEN}&hub.challenge=${c}`);
+      expect(r.status).toBe(403);
+      expect(await r.text()).toBe("forbidden");
+    },
+  );
+  it("sem challenge: 403", async () => {
+    expect((await chamar(TOKEN, `hub.mode=subscribe&hub.verify_token=${TOKEN}`)).status).toBe(403);
+  });
   it("verify_token errado: 403", async () => {
     expect((await chamar(TOKEN, q("outro-token-xx"))).status).toBe(403);
   });

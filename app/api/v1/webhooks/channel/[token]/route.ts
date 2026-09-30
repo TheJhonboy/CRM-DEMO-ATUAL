@@ -85,7 +85,10 @@ export async function GET(
     pathToken: token,
   });
   if (challenge === null) return new Response("forbidden", { status: 403 });
-  return new Response(challenge, { status: 200, headers: { "content-type": "text/plain" } });
+  return new Response(challenge, {
+    status: 200,
+    headers: { "content-type": "text/plain", "x-content-type-options": "nosniff" },
+  });
 }
 
 export async function POST(

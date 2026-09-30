@@ -48,7 +48,9 @@ export function instagramChallenge(params: URLSearchParams, expectedToken: strin
   const a = Buffer.from(given);
   const b = Buffer.from(expectedToken);
   if (a.length !== b.length || !timingSafeEqual(a, b)) return null; // tempo constante
-  return params.get("hub.challenge");
+  // O challenge é ecoado no corpo: só o formato que a Meta manda (números) e com teto.
+  const challenge = params.get("hub.challenge");
+  return challenge !== null && /^[0-9A-Za-z_-]{1,256}$/.test(challenge) ? challenge : null;
 }
 
 const str = (v: unknown): string | null => (typeof v === "string" && v.length > 0 ? v : null);
