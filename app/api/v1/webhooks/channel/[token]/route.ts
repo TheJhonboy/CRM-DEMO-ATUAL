@@ -40,9 +40,11 @@ import {
   acceptsInboundWebhook,
   COLUNAS_DA_SESSAO_DE_ENTRADA,
   handleInboundWebhook,
+  lerCorpoComLimite,
   type InboundWebhookInput,
   verifyInboundHandshake,
 } from "@/lib/channels/inbound";
+import { logger } from "@/lib/logger";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { decryptWebhookSecret } from "@/lib/webhooks/secrets";
 
@@ -62,12 +64,19 @@ export async function GET(
   if (!token || token.length < 8) return new Response("not found", { status: 404 });
 
   const admin = createAdminClient();
-  const { data } = await admin
-    .from("channel_sessions")
-    .select("provider")
-    .eq("webhook_path_token", token)
-    .maybeSingle();
-  if (!data) return new Response("not found", { status: 404 });
+  const { data } = await queryTolerantToMissingArchived(
+    () =>
+      admin
+        .from("channel_sessions")
+        .select(`provider, ${ARCHIVED_AT}`)
+        .eq("webhook_path_token", token)
+        .maybeSingle(),
+    () => admin.from("channel_sessions").select("provider").eq("webhook_path_token", token).maybeSingle(),
+  );
+  // Canal arquivado não responde o handshake (mesma regra do POST).
+  if (!data || (data as { archived_at?: string | null }).archived_at) {
+    return new Response("not found", { status: 404 });
+  }
 
   const challenge = verifyInboundHandshake({
     provider: (data as { provider: string }).provider,
@@ -91,7 +100,12 @@ export async function POST(
     return fail("not_found", "unknown webhook token", 404, { requestId });
   }
 
-  const rawBody = await req.text();
+  // Corpo sem autenticação nunca chega ao banco acima do teto (em BYTES, limitado
+  // durante a leitura): o string lido é o mesmo que o verificador assina.
+  const rawBody = await lerCorpoComLimite(req);
+  if (rawBody === null) {
+    return fail("payload_too_large", "payload_too_large", 413, { requestId });
+  }
   const admin = createAdminClient();
 
   const { data } = await queryTolerantToMissingArchived(
@@ -184,6 +198,8 @@ export async function POST(
       validSignature: null,
       erro: detalhe,
     });
-    return fail("internal_error", detalhe, 500, { requestId });
+    // O detalhe fica no arquivo do webhook e no log do servidor; a resposta é estática.
+    logger.error("[webhook-channel] falha interna", { requestId, provider: sessao.provider, detail: detalhe.slice(0, 300) });
+    return fail("internal_error", "internal_error", 500, { requestId });
   }
 }

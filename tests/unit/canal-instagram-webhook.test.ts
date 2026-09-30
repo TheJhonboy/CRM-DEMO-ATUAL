@@ -89,3 +89,25 @@ describe("envelope e parse", () => {
     expect(parseInstagramInbound(r.envelope)).toEqual([{ kind: "read", accountId: "IGACC", senderId: "IGSID1", timestamp: 5 }]);
   });
 });
+
+describe("limites do envelope", () => {
+  const entradas = (n: number) => JSON.stringify({ object: "instagram", entry: Array.from({ length: n }, () => ({ id: "IGACC", messaging: [] })) });
+  const msgs = (n: number) => JSON.stringify({ object: "instagram", entry: [{ id: "IGACC", messaging: Array.from({ length: n }, () => ({ message: { mid: "SEGREDO-DO-CLIENTE" } })) }] });
+
+  it("20 entries passam, 21 violam o contrato nomeando o campo", () => {
+    expect(lerEnvelopeInstagram(entradas(20)).ok).toBe(true);
+    const r = lerEnvelopeInstagram(entradas(21));
+    expect(r).toMatchObject({ ok: false, motivo: "contrato_violado" });
+    if (!r.ok && r.motivo === "contrato_violado") expect(r.campos.join(",")).toContain("entry");
+  });
+
+  it("50 messaging passam, 51 violam sem vazar valor", () => {
+    expect(lerEnvelopeInstagram(msgs(50)).ok).toBe(true);
+    const r = lerEnvelopeInstagram(msgs(51));
+    expect(r).toMatchObject({ ok: false, motivo: "contrato_violado" });
+    if (!r.ok && r.motivo === "contrato_violado") {
+      expect(r.campos.join(",")).toContain("messaging");
+      expect(JSON.stringify(r)).not.toContain("SEGREDO-DO-CLIENTE");
+    }
+  });
+});

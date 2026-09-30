@@ -44,19 +44,37 @@ export interface InstagramIngestResult {
 
 const MAX_ANEXOS = 10;
 const MAX_URL = 2048;
+/** Teto de eventos tratados por requisição (defesa contra corpo inflado). */
+const MAX_EVENTOS = 100;
 
 type Anexo = { type: string; url?: string };
 
+/** Hosts de mídia da Meta: o host precisa ser igual ao domínio ou terminar em `.domínio`. */
+const DOMINIOS_DE_MIDIA = ["cdninstagram.com", "fbcdn.net", "fbsbx.com"];
+
+function urlDeMidiaPermitida(url: unknown): url is string {
+  if (typeof url !== "string" || url.length > MAX_URL || !url.startsWith("https://")) return false;
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== "https:" || u.username || u.password || u.port) return false;
+  const host = u.hostname.toLowerCase();
+  return DOMINIOS_DE_MIDIA.some((d) => host === d || host.endsWith(`.${d}`));
+}
+
 /**
- * Anexo seguro: a URL só sobrevive se for `https://` e curta. Qualquer outra
- * coisa (`http:`, `javascript:`, `data:`, caminho relativo, texto enorme) fica
- * sem URL — o tipo é guardado, a URL nunca chega ao worker que a baixa.
+ * Anexo seguro: a URL só sobrevive se for `https://`, curta, sem userinfo nem
+ * porta e de um host de mídia da Meta (`*.cdninstagram.com`, `*.fbcdn.net`,
+ * `*.fbsbx.com`). Qualquer outra coisa fica sem URL — o tipo é guardado, a URL
+ * nunca chega ao worker que a baixa (que seria um SSRF com host de atacante).
  */
 export function anexosSeguros(brutos: InstagramMessage["attachments"]): Anexo[] {
-  return brutos.slice(0, MAX_ANEXOS).map((a) => {
-    const ok = typeof a.url === "string" && a.url.startsWith("https://") && a.url.length <= MAX_URL;
-    return ok ? { type: a.type, url: a.url as string } : { type: a.type };
-  });
+  return brutos.slice(0, MAX_ANEXOS).map((a) =>
+    urlDeMidiaPermitida(a.url) ? { type: a.type, url: a.url } : { type: a.type },
+  );
 }
 
 export async function ingestInstagramInbound(
@@ -64,7 +82,16 @@ export async function ingestInstagramInbound(
   input: { organizationId: string; channelSessionId: string; accountId: string; events: InstagramEvent[]; requestId?: string },
 ): Promise<InstagramIngestResult[]> {
   const resultados: InstagramIngestResult[] = [];
-  for (const ev of input.events) {
+  let eventos = input.events;
+  if (eventos.length > MAX_EVENTOS) {
+    logger.warn("[instagram] eventos acima do teto por requisição foram descartados", {
+      organization_id: input.organizationId,
+      recebidos: eventos.length,
+      processados: MAX_EVENTOS,
+    });
+    eventos = eventos.slice(0, MAX_EVENTOS);
+  }
+  for (const ev of eventos) {
     if (!input.accountId || ev.accountId !== input.accountId) {
       resultados.push({ status: "ignored", reason: "conta_de_outra_sessao" });
       continue;
@@ -211,8 +238,10 @@ async function adotarMidDoEnvioEmVoo(
 
   const { data: adotadas, error } = await admin
     .from("messages")
-    .update({ external_id: ev.externalId })
+    // `sent` junto com o mid, mas só a partir de queued/sending: não rebaixa delivered/read.
+    .update({ external_id: ev.externalId, status: "sent" })
     .eq("id", alvo.id)
+    .in("status", ["queued", "sending"])
     .eq("organization_id", organizationId)
     .is("external_id", null)
     .select("id");

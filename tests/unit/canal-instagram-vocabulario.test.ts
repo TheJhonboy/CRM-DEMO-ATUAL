@@ -80,3 +80,23 @@ describe("baseline espelha a 0275", () => {
     );
   });
 });
+
+/** 0276 — a conta Instagram é única entre os canais ATIVOS da organização (molde: 0165). */
+const MIGRATION_0276 = "supabase/migrations/20260930130000_0276_instagram_conta_unica_entre_ativos.sql";
+describe("migration 0276", () => {
+  const m = readFileSync(MIGRATION_0276, "utf8");
+  const idx = /create unique index if not exists channel_sessions_instagram_account_id_ativo_unique\s+on public\.channel_sessions \(organization_id, instagram_account_id\)\s+where archived_at is null and instagram_account_id is not null;/;
+
+  it("cria o índice único parcial por organização, só entre ativos", () => {
+    expect(m).toMatch(idx);
+    expect(baseline).toMatch(idx);
+  });
+
+  it("deduplica ANTES do índice, renomeando a perdedora (sem apagar)", () => {
+    expect(m).toMatch(/partition by organization_id, instagram_account_id/);
+    expect(m).toContain("'-conflito-' || s.id::text");
+    expect(m.indexOf("-conflito-")).toBeLessThan(m.indexOf("create unique index"));
+    expect(m).not.toMatch(/drop table|delete from|truncate/i);
+    expect(baseline).toContain("set instagram_account_id = s.instagram_account_id || '-conflito-' || s.id::text");
+  });
+});
