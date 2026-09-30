@@ -9270,6 +9270,120 @@ export const DICIONARIO: Traducoes = {
   'A origem aparece na ficha do contato e no filtro "Site (landing page)" da lista de contatos.': {
     es: 'El origen aparece en la ficha del contacto y en el filtro "Sitio (landing page)" de la lista de contactos.',
   },
+  // canal-instagram (conexão do Instagram) — _form.tsx, page.tsx e a aba em ConexoesShell.
+  "← Voltar para Conexões": { es: "← Volver a Conexiones" },
+  "Conectar o Instagram": { es: "Conectar Instagram" },
+  "Conecte a conta profissional do Instagram da empresa para receber e responder mensagens diretas aqui.": {
+    es: "Conecta la cuenta profesional de Instagram de la empresa para recibir y responder mensajes directos aquí.",
+  },
+  "Não foi possível copiar. Selecione o texto e copie à mão.": {
+    es: "No se pudo copiar. Selecciona el texto y cópialo a mano.",
+  },
+  "Token inválido": { es: "Token inválido" },
+  "Não foi possível testar agora. Tente de novo.": {
+    es: "No se pudo probar ahora. Inténtalo de nuevo.",
+  },
+  "A Meta recusou o token. Conecte de novo com um token novo.": {
+    es: "Meta rechazó el token. Conecta de nuevo con un token nuevo.",
+  },
+  "Conexão funcionando.": { es: "Conexión funcionando." },
+  "A Meta não respondeu ao teste. Tente de novo em instantes.": {
+    es: "Meta no respondió a la prueba. Inténtalo de nuevo en unos instantes.",
+  },
+  "Estado da conexão": { es: "Estado de la conexión" },
+  "Mensagens diretas do Instagram entram e saem pelo CRM, atendidas pela sua equipe e pelo agente de IA.": {
+    es: "Los mensajes directos de Instagram entran y salen por el CRM, atendidos por tu equipo y por el agente de IA.",
+  },
+  "Nenhuma conta do Instagram conectada.": { es: "Ninguna cuenta de Instagram conectada." },
+  "Enquanto isso, nenhuma mensagem do Instagram chega ao CRM. Siga os passos abaixo para conectar.": {
+    es: "Mientras tanto, ningún mensaje de Instagram llega al CRM. Sigue los pasos de abajo para conectar.",
+  },
+  "A Meta recusou o token desta conta.": { es: "Meta rechazó el token de esta cuenta." },
+  "As respostas não saem até você gerar um token novo e conectar de novo, abaixo.": {
+    es: "Las respuestas no salen hasta que generes un token nuevo y conectes de nuevo, abajo.",
+  },
+  "A Meta não respondeu ao teste agora. O estado mostrado é o da última conexão, não de um teste.": {
+    es: "Meta no respondió a la prueba ahora. El estado mostrado es el de la última conexión, no el de una prueba.",
+  },
+  "Conta conectada": { es: "Cuenta conectada" },
+  "Token e segredo ficam guardados cifrados e não são mostrados de novo.": {
+    es: "El token y el secreto se guardan cifrados y no se muestran de nuevo.",
+  },
+  "Testar conexão": { es: "Probar conexión" },
+  "Passo a passo": { es: "Paso a paso" },
+  "Crie um app na Meta.": { es: "Crea una app en Meta." },
+  "Em developers.facebook.com, crie um app do tipo Empresa e adicione o produto Instagram com a permissão de mensagens.": {
+    es: "En developers.facebook.com, crea una app de tipo Empresa y agrega el producto Instagram con el permiso de mensajes.",
+  },
+  "Ligue o Instagram à Página.": { es: "Vincula Instagram a la Página." },
+  "A conta precisa ser profissional (Empresa ou Criador) e estar vinculada a uma Página do Facebook, com acesso às mensagens liberado nas configurações do Instagram.": {
+    es: "La cuenta debe ser profesional (Empresa o Creador) y estar vinculada a una Página de Facebook, con el acceso a los mensajes habilitado en la configuración de Instagram.",
+  },
+  "Pegue os três dados.": { es: "Toma los tres datos." },
+  "O ID da conta do Instagram, um token de acesso com permissão de mensagens e o segredo do app (Configurações do app › Básico).": {
+    es: "El ID de la cuenta de Instagram, un token de acceso con permiso de mensajes y el secreto de la app (Configuración de la app › Básico).",
+  },
+  "Cole aqui e conecte.": { es: "Pega aquí y conecta." },
+  "O CRM testa o token na Meta antes de gravar. Se o ID não for o da conta do token, a conexão é recusada.": {
+    es: "El CRM prueba el token en Meta antes de guardar. Si el ID no es el de la cuenta del token, la conexión se rechaza.",
+  },
+  "Ligue a volta.": { es: "Conecta la vuelta." },
+  "Cole a URL e o verify token abaixo no webhook do app e assine o campo de mensagens. Sem isso o CRM envia, mas não recebe.": {
+    es: "Pega la URL y el verify token de abajo en el webhook de la app y suscribe el campo de mensajes. Sin eso el CRM envía, pero no recibe.",
+  },
+  "Trocar os dados da conexão": { es: "Cambiar los datos de la conexión" },
+  "Dados da conta": { es: "Datos de la cuenta" },
+  "ID da conta do Instagram": { es: "ID de la cuenta de Instagram" },
+  "só números, 5 a 32 dígitos": { es: "solo números, de 5 a 32 dígitos" },
+  "gravado — preencha para trocar": { es: "guardado — completa para cambiar" },
+  "cole o token": { es: "pega el token" },
+  "Segredo do app": { es: "Secreto de la app" },
+  "cole o segredo do app": { es: "pega el secreto de la app" },
+  "É com ele que o CRM confere que cada mensagem recebida veio mesmo da Meta.": {
+    es: "Con él el CRM comprueba que cada mensaje recibido vino realmente de Meta.",
+  },
+  "Nome de exibição (opcional)": { es: "Nombre para mostrar (opcional)" },
+  "O token é testado na Meta antes de ser gravado.": {
+    es: "El token se prueba en Meta antes de guardarse.",
+  },
+  Webhook: { es: "Webhook" },
+  "Cole os dois valores no webhook do app na Meta e assine o campo de mensagens. Sem isso o CRM": {
+    es: "Pega los dos valores en el webhook de la app en Meta y suscribe el campo de mensajes. Sin eso el CRM",
+  },
+  ": a resposta do cliente não chega, e nada na tela avisa.": {
+    es: ": la respuesta del cliente no llega y nada en la pantalla avisa.",
+  },
+  "URL de retorno": { es: "URL de retorno" },
+  "Verify token": { es: "Verify token" },
+  Instagram: { es: "Instagram" },
+  "Receba e responda mensagens diretas da conta profissional do Instagram da empresa.": {
+    es: "Recibe y responde mensajes directos de la cuenta profesional de Instagram de la empresa.",
+  },
+  "Abrir conexão do Instagram": { es: "Abrir conexión de Instagram" },
+  // mensagens devolvidas pela API de conexão do Instagram (traduzidas na rota).
+  "Muitas tentativas. Aguarde um minuto.": { es: "Demasiados intentos. Espera un minuto." },
+  "Confira os dados: o ID da conta tem só dígitos, e o token e o segredo do app devem estar completos.": {
+    es: "Revisa los datos: el ID de la cuenta solo tiene dígitos, y el token y el secreto de la app deben estar completos.",
+  },
+  "Token recusado ou expirado pela Meta. Gere um novo e cole de novo.": {
+    es: "Token rechazado o expirado por Meta. Genera uno nuevo y pégalo de nuevo.",
+  },
+  "A Meta recusou o token. Confira se ele tem permissão de mensagens do Instagram.": {
+    es: "Meta rechazó el token. Comprueba que tenga permiso de mensajes de Instagram.",
+  },
+  "O ID informado não é o da conta deste token. Use o ID que a Meta associa ao token (o mesmo que chega nos webhooks).": {
+    es: "El ID indicado no es el de la cuenta de este token. Usa el ID que Meta asocia al token (el mismo que llega en los webhooks).",
+  },
+  "Não foi possível falar com a Meta agora. Tente de novo em instantes.": {
+    es: "No se pudo hablar con Meta ahora. Inténtalo de nuevo en unos instantes.",
+  },
+  "A Meta não devolveu a conta deste token.": { es: "Meta no devolvió la cuenta de este token." },
+  "Cifra indisponível nesta instalação — nada foi gravado.": {
+    es: "Cifrado no disponible en esta instalación — no se guardó nada.",
+  },
+  "Não foi possível gravar a conexão. Tente de novo.": {
+    es: "No se pudo guardar la conexión. Inténtalo de nuevo.",
+  },
 };
 
 /**
