@@ -14703,6 +14703,27 @@ create unique index if not exists channel_sessions_zernio_account_id_ativo_uniqu
   on public.channel_sessions (zernio_account_id)
   where archived_at is null and zernio_account_id is not null;
 
+-- ---- conta Instagram única entre ativos da organização (migration 0276; molde 0165) ----
+with ativos as (
+  select id,
+         row_number() over (
+           partition by organization_id, instagram_account_id
+           order by created_at desc nulls last, id desc
+         ) as posicao
+    from public.channel_sessions
+   where archived_at is null
+     and instagram_account_id is not null
+)
+update public.channel_sessions s
+   set instagram_account_id = s.instagram_account_id || '-conflito-' || s.id::text
+  from ativos a
+ where a.id = s.id
+   and a.posicao > 1;
+
+create unique index if not exists channel_sessions_instagram_account_id_ativo_unique
+  on public.channel_sessions (organization_id, instagram_account_id)
+  where archived_at is null and instagram_account_id is not null;
+
 -- ---- superfície do pointer de follow-up (migration 0196) ----
 -- IA vs automação CRM: um motor, duas listas. Default 'followup' deixa toda
 -- linha já existente na superfície de IA. CHECK de conjunto (PARES).
