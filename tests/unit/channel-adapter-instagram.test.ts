@@ -68,6 +68,7 @@ describe("adapter instagram", () => {
     expect(init.method).toBe("POST");
     expect(init.headers.Authorization).toBe(`Bearer ${TOKEN}`);
     expect(init.signal).toBeInstanceOf(AbortSignal);
+    expect(init.redirect).toBe("error");
     expect(JSON.parse(init.body)).toEqual({
       recipient: { id: "IGSID_1" },
       message: { text: "oi" },
@@ -322,6 +323,7 @@ describe("adapter instagram — checkHealth", () => {
     expect(await saude()).toEqual({ reachable: true, status: "WORKING", detail: null });
     expect(spy.mock.calls[0]![0]).toBe(`${BASE}/me?fields=user_id,username`);
     expect(spy.mock.calls[0]![1].headers.Authorization).toBe(`Bearer ${TOKEN}`);
+    expect(spy.mock.calls[0]![1].redirect).toBe("error");
   });
 
   it("190: token_expirado, alcancavel", async () => {

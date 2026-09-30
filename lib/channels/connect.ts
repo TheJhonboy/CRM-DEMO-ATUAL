@@ -301,6 +301,7 @@ export async function validateInstagramAccount(input: {
     // O token vai no cabeçalho, nunca na URL (URL vai para log de proxy).
     res = await fetch(`${instagramBaseUrl()}/me?fields=user_id,username`, {
       headers: { Authorization: `Bearer ${input.accessToken}` },
+      redirect: "error",
       signal: AbortSignal.timeout(GRAPH_TIMEOUT_MS),
     });
   } catch {
@@ -374,6 +375,7 @@ export async function subscribeInstagramWebhooks(accessToken: string): Promise<b
       {
         method: "POST",
         headers: { Authorization: `Bearer ${accessToken}` },
+        redirect: "error",
         signal: AbortSignal.timeout(SUBSCRIBE_TIMEOUT_MS),
       },
     );

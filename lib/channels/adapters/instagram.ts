@@ -86,7 +86,12 @@ async function chamar(
   for (let tentativa = 0; tentativa < 2; tentativa++) {
     if (tentativa > 0) await dormir(BACKOFF_MS);
     try {
-      const res = await fetch(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) });
+      const res = await fetch(url, {
+        ...init,
+        // O pedido leva o token: um redirect o levaria a outro host.
+        redirect: "error",
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
       if (res.status >= 500 && tentativa === 0) continue;
       const body = (await res.json().catch(() => ({}))) as GraphBody;
       return { status: res.status, ok: res.ok, body };

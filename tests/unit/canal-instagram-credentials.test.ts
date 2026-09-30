@@ -100,6 +100,24 @@ describe("instagramBaseUrl", () => {
     expect(instagramBaseUrl()).toBe("http://localhost:9999/x");
   });
 
+  it("em producao, override que nao e https:// e ignorado (cai no padrao)", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("INSTAGRAM_GRAPH_BASE_URL", "http://169.254.169.254/x");
+    expect(instagramBaseUrl()).toBe(`https://graph.instagram.com/${graphVersion()}`);
+  });
+
+  it("em producao, override https:// continua valendo", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("INSTAGRAM_GRAPH_BASE_URL", "https://graph.teste.exemplo/v1");
+    expect(instagramBaseUrl()).toBe("https://graph.teste.exemplo/v1");
+  });
+
+  it("fora de producao, override http:// (teste de integracao) vale", () => {
+    vi.stubEnv("NODE_ENV", "test");
+    vi.stubEnv("INSTAGRAM_GRAPH_BASE_URL", "http://localhost:9999/x");
+    expect(instagramBaseUrl()).toBe("http://localhost:9999/x");
+  });
+
   it("override só com espaço cai no padrão", () => {
     vi.stubEnv("INSTAGRAM_GRAPH_BASE_URL", "   ");
     expect(instagramBaseUrl()).toBe(`https://graph.instagram.com/${graphVersion()}`);

@@ -368,6 +368,8 @@ describe("POST — sucesso", () => {
     expect(f).toHaveBeenCalledTimes(2); // /me e subscribed_apps
     const url = String(f.mock.calls[0]![0]);
     expect(url).toContain("/me?fields=user_id,username");
+    // Todo fetch com Authorization recusa redirect (senao o token seguiria para outro host).
+    for (const [, init] of f.mock.calls as [string, RequestInit][]) expect(init.redirect).toBe("error");
     expect(url).not.toContain(TOKEN);
 
     expect(linhas).toHaveLength(1);

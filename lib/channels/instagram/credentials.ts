@@ -41,9 +41,13 @@ export interface InstagramCredsLookup {
  * padrão em vez de gerar URL sem host.
  */
 export function instagramBaseUrl(): string {
-  return (
-    process.env.INSTAGRAM_GRAPH_BASE_URL?.trim() || `https://graph.instagram.com/${graphVersion()}`
-  );
+  const padrao = `https://graph.instagram.com/${graphVersion()}`;
+  const override = process.env.INSTAGRAM_GRAPH_BASE_URL?.trim();
+  if (!override) return padrao;
+  // Em produção o token iria para o host do override: só https://. (http:// é para teste
+  // de integração local.)
+  if (process.env.NODE_ENV === "production" && !override.startsWith("https://")) return padrao;
+  return override;
 }
 
 /** `null` = sem credencial utilizável (linha ausente/arquivada, decifra falhou, token vazio).
