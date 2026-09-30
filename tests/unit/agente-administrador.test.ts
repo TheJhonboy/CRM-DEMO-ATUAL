@@ -6,6 +6,7 @@
  * quem decide o escopo (o job, nunca o argumento), o que entra na lista de
  * ferramentas, o que vai para a auditoria e o que NUNCA influencia a decisão.
  */
+import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const auditSpy = vi.fn();
@@ -58,9 +59,11 @@ function bancoEmMemoria(seed: Record<string, Linha[]>) {
     let patch: Linha = {};
     let novas: Linha[] = [];
     let teto = Infinity;
+    let ordem: string | null = null;
+    let faixa: [number, number] | null = null;
     const executa = () => {
       if (op === "insert") {
-        const comId = novas.map((n) => ({ id: `gen-${++seq}`, ...n }));
+        const comId = novas.map((n) => ({ id: `gen-${++seq}`, created_at: AGORA.toISOString(), ...n }));
         tabelas[nome]!.push(...comId);
         return { data: comId, error: null };
       }
@@ -69,7 +72,11 @@ function bancoEmMemoria(seed: Record<string, Linha[]>) {
         for (const r of alvo) Object.assign(r, patch);
         return { data: alvo, error: null };
       }
-      return { data: alvo.slice(0, teto), error: null };
+      const ordenado = ordem
+        ? [...alvo].sort((x, y) => String(x[ordem!] ?? "").localeCompare(String(y[ordem!] ?? "")))
+        : alvo;
+      const fatia = faixa ? ordenado.slice(faixa[0], faixa[1] + 1) : ordenado;
+      return { data: fatia.slice(0, teto), error: null };
     };
     const b: Record<string, unknown> = {
       select: () => b,
@@ -77,7 +84,21 @@ function bancoEmMemoria(seed: Record<string, Linha[]>) {
       in: (c: string, vs: unknown[]) => (filtros.push((r) => vs.includes(r[c])), b),
       is: (c: string, v: unknown) => (filtros.push((r) => (r[c] ?? null) === v), b),
       not: (c: string, _o: string, v: unknown) => (filtros.push((r) => (r[c] ?? null) !== v), b),
-      order: () => b,
+      gte: (c: string, v: string) => (filtros.push((r) => String(r[c] ?? "") >= v), b),
+      gt: (c: string, v: string) => (filtros.push((r) => String(r[c] ?? "") > v), b),
+      lt: (c: string, v: string) => (filtros.push((r) => r[c] != null && String(r[c]) < v), b),
+      lte: (c: string, v: string) => (filtros.push((r) => r[c] != null && String(r[c]) <= v), b),
+      // Só o formato que o administrador usa: "last_activity_at.lt.X,and(last_activity_at.is.null,created_at.lt.X)"
+      or: (expr: string) => {
+        const m = /^last_activity_at\.lt\.(.+),and\(last_activity_at\.is\.null,created_at\.lt\.(.+)\)$/.exec(expr);
+        if (!m) throw new Error(`or() não suportado pelo dublê: ${expr}`);
+        filtros.push((r) =>
+          r.last_activity_at != null ? String(r.last_activity_at) < m[1]! : String(r.created_at) < m[2]!,
+        );
+        return b;
+      },
+      order: (c: string) => ((ordem = c), b),
+      range: (de: number, ate: number) => ((faixa = [de, ate]), b),
       limit: (n: number) => ((teto = n), b),
       update: (p: Linha) => ((op = "update"), (patch = p), b),
       insert: (p: Linha | Linha[]) => ((op = "insert"), (novas = Array.isArray(p) ? p : [p]), b),
@@ -145,15 +166,31 @@ function adminDe(db: ReturnType<typeof bancoEmMemoria>) {
 beforeEach(() => auditSpy.mockClear());
 
 describe("superfície de ferramentas do administrador", () => {
-  it("expõe exatamente as quatro ações seguras, e nenhuma de apagar/enviar", () => {
+  it("expõe exatamente as três ações seguras, e nenhuma de apagar/enviar/mover etapa", () => {
     const nomes = ferramentasAdministrador.map((t) => t.name).sort();
-    expect(nomes).toEqual([
-      "admin_criar_tarefa",
-      "admin_etiquetar_contato",
-      "admin_mover_etapa",
-      "admin_registrar_nota",
-    ]);
-    for (const n of nomes) expect(n).not.toMatch(/delete|apagar|remove|send|enviar/i);
+    expect(nomes).toEqual(["admin_criar_tarefa", "admin_etiquetar_contato", "admin_registrar_nota"]);
+    for (const n of nomes) expect(n).not.toMatch(/delete|apagar|remove|send|enviar|mover|move|stage|etapa/i);
+  });
+
+  it("mover etapa não existe: a ferramenta é recusada e o código não importa o handler de mover", async () => {
+    const db = bancoEmMemoria(cenario());
+    await expect(
+      executarFerramentaAdministrador("admin_mover_etapa", { lead_id: uuid(21), to_stage_id: uuid(2) }, ctxDe(db, ORG_A)),
+    ).rejects.toThrow(/ferramenta_nao_permitida/);
+    const fonte = readFileSync("lib/mcp/tools/administracao.ts", "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(fonte).not.toMatch(/crmMoveLeadStage|moveLeadHandler|lead\.stage_changed/);
+    expect(db.tabelas.crm_leads!.find((l) => l.id === uuid(21))!.stage_id).toBe(uuid(1));
+  });
+
+  it("uma rodada completa não emite lead.stage_changed nem mexe em etapa de lead", async () => {
+    const db = bancoEmMemoria(cenario());
+    const etapasAntes = JSON.stringify(db.tabelas.crm_leads!.map((l) => [l.id, l.stage_id]));
+    await executarAdministrador(adminDe(db), { organizationId: ORG_A, limite: 50 });
+    expect(JSON.stringify(db.tabelas.crm_leads!.map((l) => [l.id, l.stage_id]))).toBe(etapasAntes);
+    const acoesAuditadas = auditSpy.mock.calls.map((c) => String(c[0].action));
+    expect(acoesAuditadas.filter((a) => /stage/i.test(a))).toEqual([]);
+    expect(JSON.stringify(auditSpy.mock.calls)).not.toContain("lead.stage_changed");
+    expect(db.tabelas.crm_lead_activities!.filter((a) => /stage/i.test(String(a.type)))).toEqual([]);
   });
 
   it("recusa ferramenta fora da lista, inclusive as existentes de apagar/enviar", async () => {
@@ -178,7 +215,6 @@ function ctxDe(db: ReturnType<typeof bancoEmMemoria>, org: string) {
 
 describe("auditoria: toda ação grava ator, organização e alvo", () => {
   it.each([
-    ["admin_mover_etapa", { lead_id: uuid(21), to_stage_id: uuid(2) }, uuid(21)],
     ["admin_criar_tarefa", { lead_id: uuid(22), titulo: "Retomar contato" }, uuid(22)],
     ["admin_registrar_nota", { lead_id: uuid(22), texto: "cliente pediu retorno" }, uuid(22)],
     ["admin_etiquetar_contato", { contact_id: uuid(52), tag: "sem-responsavel" }, uuid(52)],
@@ -197,10 +233,18 @@ describe("auditoria: toda ação grava ator, organização e alvo", () => {
     expect(JSON.stringify(e.metadata)).toContain(alvo);
   });
 
+  it("etiquetar: a auditoria de domínio contact.tags_changed leva actorApiTokenId null (não '')", async () => {
+    const db = bancoEmMemoria(cenario());
+    await executarFerramentaAdministrador("admin_etiquetar_contato", { contact_id: uuid(52), tag: "sem-responsavel" }, ctxDe(db, ORG_A));
+    const dominio = auditSpy.mock.calls.map((c) => c[0]).filter((e) => e.action === "contact.tags_changed");
+    expect(dominio).toHaveLength(1);
+    expect(dominio[0].actorApiTokenId).toBeNull();
+  });
+
   it("uma ação que falha também é auditada (success=false)", async () => {
     const db = bancoEmMemoria(cenario());
     await expect(
-      executarFerramentaAdministrador("admin_mover_etapa", { lead_id: uuid(31), to_stage_id: uuid(12) }, ctxDe(db, ORG_A)),
+      executarFerramentaAdministrador("admin_criar_tarefa", { lead_id: uuid(31), titulo: "x" }, ctxDe(db, ORG_A)),
     ).rejects.toThrow();
     const e = auditSpy.mock.calls.map((c) => c[0]).find((x) => x.action === "mcp.tool_called");
     expect(e.metadata.success).toBe(false);
@@ -233,25 +277,23 @@ describe("isolamento entre organizações", () => {
     const ctx = ctxDe(db, ORG_A);
     await expect(executarFerramentaAdministrador("admin_criar_tarefa", { lead_id: uuid(32), titulo: "x" }, ctx)).rejects.toThrow();
     await expect(executarFerramentaAdministrador("admin_registrar_nota", { lead_id: uuid(32), texto: "x" }, ctx)).rejects.toThrow();
-    await expect(executarFerramentaAdministrador("admin_mover_etapa", { lead_id: uuid(31), to_stage_id: uuid(12) }, ctx)).rejects.toThrow();
     await expect(executarFerramentaAdministrador("admin_etiquetar_contato", { contact_id: uuid(61), tag: "sem-responsavel" }, ctx)).rejects.toThrow();
     expect(db.tabelas.crm_tasks).toHaveLength(0);
     expect(db.tabelas.crm_lead_activities).toHaveLength(0);
     expect(db.tabelas.contacts!.find((c) => c.id === uuid(61))!.tags).toEqual([]);
-    expect(db.tabelas.crm_leads!.find((l) => l.id === uuid(31))!.stage_id).toBe(uuid(11));
   });
 
   it("rodar para A não toca B, e rodar para B não toca A", async () => {
     const db = bancoEmMemoria(cenario());
     const antesB = JSON.stringify([db.tabelas.crm_leads!.filter((l) => l.organization_id === ORG_B), db.tabelas.contacts!.filter((c) => c.organization_id === ORG_B)]);
     const relA = await executarAdministrador(adminDe(db), { organizationId: ORG_A, limite: 50 });
-    expect(relA.executadas).toBe(3); // mover + tarefa + etiqueta
+    expect(relA.executadas).toBe(2); // tarefa + etiqueta
     const depoisB = JSON.stringify([db.tabelas.crm_leads!.filter((l) => l.organization_id === ORG_B), db.tabelas.contacts!.filter((c) => c.organization_id === ORG_B)]);
     expect(depoisB).toBe(antesB);
     expect(db.tabelas.crm_tasks!.every((t) => t.organization_id === ORG_A)).toBe(true);
 
     const relB = await executarAdministrador(adminDe(db), { organizationId: ORG_B, limite: 50 });
-    expect(relB.executadas).toBe(3);
+    expect(relB.executadas).toBe(2);
     expect(db.tabelas.crm_tasks!.filter((t) => t.organization_id === ORG_B)).toHaveLength(1);
     // A continua com a sua única tarefa
     expect(db.tabelas.crm_tasks!.filter((t) => t.organization_id === ORG_A)).toHaveLength(1);
@@ -264,12 +306,12 @@ describe("isolamento entre organizações", () => {
 describe("limite por execução", () => {
   it("processa no máximo `limite` ações e informa o que ficou", async () => {
     const db = bancoEmMemoria(cenario());
-    const rel = await executarAdministrador(adminDe(db), { organizationId: ORG_A, limite: 2 });
-    expect(rel.executadas).toBe(2);
+    const rel = await executarAdministrador(adminDe(db), { organizationId: ORG_A, limite: 1 });
+    expect(rel.executadas).toBe(1);
     expect(rel.adiadasPeloLimite).toBe(1);
-    expect(rel.acoes).toHaveLength(2);
+    expect(rel.acoes).toHaveLength(1);
     const chamadas = auditSpy.mock.calls.map((c) => c[0]).filter((e) => e.action === "mcp.tool_called");
-    expect(chamadas).toHaveLength(2);
+    expect(chamadas).toHaveLength(1);
   });
 
   it("limite 0 não faz nada", async () => {
@@ -287,6 +329,41 @@ describe("limite por execução", () => {
     expect(db.tabelas.crm_tasks).toHaveLength(1);
   });
 
+  it("I3: fechar a tarefa do administrador não gera outra na rodada seguinte (7 dias, qualquer status)", async () => {
+    const db = bancoEmMemoria(cenario());
+    await executarAdministrador(adminDe(db), { organizationId: ORG_A, limite: 50 });
+    db.tabelas.crm_tasks![0]!.status = "done";
+    const rel2 = await executarAdministrador(adminDe(db), { organizationId: ORG_A, limite: 50 });
+    expect(rel2.executadas).toBe(0);
+    expect(db.tabelas.crm_tasks).toHaveLength(1);
+    // passados 8 dias da criação, a retomada pode voltar
+    const depois = { ...adminDe(db), agora: () => new Date(AGORA.getTime() + 8 * 86_400_000) };
+    db.tabelas.crm_tasks![0]!.created_at = AGORA.toISOString();
+    const rel3 = await executarAdministrador(depois, { organizationId: ORG_A, limite: 50 });
+    expect(db.tabelas.crm_tasks!.filter((t) => t.lead_id === uuid(22))).toHaveLength(2);
+    expect(rel3.executadas).toBeGreaterThan(0);
+  });
+
+  it("I3: o dedupe consulta só os ids do lote, e o candidato vem filtrado do SQL (não do 'mais antigos 500')", async () => {
+    const db = bancoEmMemoria(cenario());
+    const consultas: Array<{ t: string; m: string; a: unknown[] }> = [];
+    const real = db.client as unknown as { from: (t: string) => Record<string, (...a: unknown[]) => unknown> };
+    const original = real.from.bind(real);
+    real.from = (t: string) => {
+      const b = original(t);
+      for (const m of ["in", "or"]) {
+        const f = b[m] as (...a: unknown[]) => unknown;
+        b[m] = (...a: unknown[]) => (consultas.push({ t, m, a }), f(...a));
+      }
+      return b;
+    };
+    await executarAdministrador(adminDe(db), { organizationId: ORG_A, limite: 50 });
+    const dedupe = consultas.filter((c) => c.t === "crm_tasks" && c.m === "in" && c.a[0] === "lead_id");
+    expect(dedupe.length).toBeGreaterThan(0);
+    for (const d of dedupe) expect(d.a[1]).toEqual([uuid(22)]); // só o lead candidato (o 21 é recente)
+    expect(consultas.some((c) => c.t === "crm_leads" && c.m === "or")).toBe(true);
+  });
+
   it("uma ação que falha não derruba as outras e entra no relatório", async () => {
     const db = bancoEmMemoria(cenario());
     const real = db.client as unknown as { from: (t: string) => Record<string, unknown> };
@@ -297,9 +374,53 @@ describe("limite por execução", () => {
       return b;
     };
     const rel = await executarAdministrador(adminDe(db), { organizationId: ORG_A, limite: 50 });
-    expect(rel.executadas).toBe(2);
+    expect(rel.executadas).toBe(1);
     expect(rel.falhas).toBe(1);
     expect(rel.acoes.find((a) => !a.ok)).toMatchObject({ ferramenta: "admin_criar_tarefa" });
+  });
+});
+
+describe("I4: limite conta sucessos; tentativas têm teto; regras se revezam", () => {
+  function muitosLeadsParados(n: number) {
+    const base = cenario();
+    for (let i = 0; i < n; i++) {
+      base.crm_leads!.push({
+        id: uuid(1000 + i), organization_id: ORG_A, pipeline_id: uuid(100), stage_id: uuid(2),
+        contact_id: uuid(51), status: "open", last_activity_at: diasAtras(20), created_at: diasAtras(40), title: `L${i}`,
+      });
+    }
+    return base;
+  }
+
+  it("uma regra cujo alvo sempre falha não consome o limite nem esgota a outra", async () => {
+    const db = bancoEmMemoria(muitosLeadsParados(30));
+    const real = db.client as unknown as { from: (t: string) => Record<string, unknown> };
+    const original = real.from.bind(real);
+    let tentativasDeTarefa = 0;
+    real.from = (t: string) => {
+      const b = original(t);
+      if (t === "crm_tasks") {
+        b.insert = () => {
+          tentativasDeTarefa++;
+          throw new Error("alvo_sempre_falha");
+        };
+      }
+      return b;
+    };
+    const rel = await executarAdministrador(adminDe(db), { organizationId: ORG_A, limite: 2 });
+    // a etiqueta (outra regra) foi executada mesmo com a tarefa falhando sempre
+    expect(rel.acoes.filter((a) => a.ok).map((a) => a.ferramenta)).toEqual(["admin_etiquetar_contato"]);
+    // tentativas limitadas a 3x o limite
+    expect(rel.acoes.length).toBeLessThanOrEqual(6);
+    expect(tentativasDeTarefa).toBeLessThanOrEqual(6);
+    expect(rel.falhas).toBe(rel.acoes.length - 1);
+  });
+
+  it("sucessos param no limite, mesmo com mais candidatas", async () => {
+    const db = bancoEmMemoria(muitosLeadsParados(30));
+    const rel = await executarAdministrador(adminDe(db), { organizationId: ORG_A, limite: 5 });
+    expect(rel.executadas).toBe(5);
+    expect(rel.acoes.filter((a) => a.ok)).toHaveLength(5);
   });
 });
 
@@ -330,7 +451,7 @@ describe("texto de cliente é dado, nunca instrução", () => {
   it("a função de decisão só consome campos estruturados (texto não altera o resultado)", () => {
     const base = {
       leads: [
-        { id: "l1", contactId: "c1", pipelineId: "p", stageId: "s1", stageArquivada: false, primeiraEtapaAtivaId: "s2", ultimaAtividadeEm: diasAtras(10), criadoEm: diasAtras(30), temTarefaAberta: false },
+        { id: "l1", contactId: "c1", ultimaAtividadeEm: diasAtras(10), criadoEm: diasAtras(30), temTarefaAberta: false, tarefaRecenteDoAdministrador: false },
       ],
       conversas: [],
     };
@@ -341,25 +462,21 @@ describe("texto de cliente é dado, nunca instrução", () => {
 
 describe("decidirAcoes (pura)", () => {
   const lead = (o: Record<string, unknown> = {}) => ({
-    id: "l1", contactId: "c1", pipelineId: "p", stageId: "s1", stageArquivada: false,
-    primeiraEtapaAtivaId: "s2", ultimaAtividadeEm: diasAtras(1), criadoEm: diasAtras(30), temTarefaAberta: false, ...o,
+    id: "l1", contactId: "c1", ultimaAtividadeEm: diasAtras(1), criadoEm: diasAtras(30),
+    temTarefaAberta: false, tarefaRecenteDoAdministrador: false, ...o,
   });
   const conversa = (o: Record<string, unknown> = {}) => ({
     id: "v1", contactId: "c1", status: "open", atribuidaA: null, ultimaEntradaEm: diasAtras(2), tagsDoContato: [] as string[], ...o,
   });
 
-  it("lead em etapa arquivada vai para a primeira etapa ativa", () => {
-    expect(decidirAcoes({ leads: [lead({ stageArquivada: true })], conversas: [] }, AGORA)).toEqual([
-      { ferramenta: "admin_mover_etapa", args: { lead_id: "l1", to_stage_id: "s2" } },
-    ]);
-  });
-  it("sem etapa ativa para onde ir, não move", () => {
-    expect(decidirAcoes({ leads: [lead({ stageArquivada: true, primeiraEtapaAtivaId: null })], conversas: [] }, AGORA)).toEqual([]);
+  it("lead em etapa arquivada NÃO é movido (mover etapa saiu da v1)", () => {
+    expect(decidirAcoes({ leads: [lead({ stageArquivada: true })], conversas: [] }, AGORA)).toEqual([]);
   });
   it("lead parado há 7+ dias sem tarefa aberta ganha tarefa; com tarefa ou recente, não", () => {
     expect(decidirAcoes({ leads: [lead({ ultimaAtividadeEm: diasAtras(7) })], conversas: [] }, AGORA)).toHaveLength(1);
     expect(decidirAcoes({ leads: [lead({ ultimaAtividadeEm: diasAtras(6) })], conversas: [] }, AGORA)).toEqual([]);
     expect(decidirAcoes({ leads: [lead({ ultimaAtividadeEm: diasAtras(20), temTarefaAberta: true })], conversas: [] }, AGORA)).toEqual([]);
+    expect(decidirAcoes({ leads: [lead({ ultimaAtividadeEm: diasAtras(20), tarefaRecenteDoAdministrador: true })], conversas: [] }, AGORA)).toEqual([]);
   });
   it("sem atividade registrada usa a data de criação", () => {
     expect(decidirAcoes({ leads: [lead({ ultimaAtividadeEm: null, criadoEm: diasAtras(9) })], conversas: [] }, AGORA)).toHaveLength(1);
@@ -372,7 +489,7 @@ describe("decidirAcoes (pura)", () => {
     expect(decidirAcoes({ leads: [], conversas: [conversa({ ultimaEntradaEm: diasAtras(0.5) })] }, AGORA)).toEqual([]);
   });
   it("é determinística", () => {
-    const s = { leads: [lead({ stageArquivada: true }), lead({ id: "l2", ultimaAtividadeEm: diasAtras(9) })], conversas: [conversa()] };
+    const s = { leads: [lead({ ultimaAtividadeEm: diasAtras(9) }), lead({ id: "l2", ultimaAtividadeEm: diasAtras(9) })], conversas: [conversa()] };
     expect(decidirAcoes(s, AGORA)).toEqual(decidirAcoes(s, AGORA));
   });
 });

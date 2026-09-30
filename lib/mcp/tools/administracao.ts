@@ -3,19 +3,25 @@
  *
  * ─── DECISÃO DE REUSO (Task 9, Step 1) ──────────────────────────────────────
  *
- * Já existiam ferramentas para duas das quatro ações, e elas são REUSADAS, não
- * reescritas:
- *   - mover etapa  → `crm_move_lead_stage` (leads.ts → `moveLeadHandler`: mesma
- *     regra de funil, mesma atividade na linha do tempo, mesma auditoria).
+ * Já existia ferramenta para UMA das três ações, e ela é REUSADA, não reescrita:
  *   - etiquetar    → `crm_manage_tags` (governance.ts: validação G3-05 das tags,
  *     recusa de alvo de outra organização).
  * Não existia ferramenta MCP para tarefa (`crm_tasks` só tinha rota REST com
  * cookie de sessão) nem para nota de lead; essas duas nascem aqui, diretas na
  * tabela e sempre filtradas por `organization_id`.
  *
- * Por que o administrador NÃO usa as `crm_*` cruas: elas são largas demais para
- * um robô que roda sozinho (`crm_move_lead_stage` fecha negócio em etapa
- * ganha/perdida; `crm_manage_tags` aceita qualquer tag e remove). Cada
+ * ─── FORA DA v1: MOVER ETAPA (`admin_mover_etapa`, regra R1) ────────────────
+ * Mover o lead de etapa emite `lead.stage_changed`, que `lib/followup/
+ * gatilho-etapa.ts` consome para INSCREVER follow-ups automáticos (e que também
+ * dispara webhooks de saída e conversões). Isso faria o administrador mandar
+ * mensagem ao cliente por tabela, o oposto do contrato ("nunca envia mensagem
+ * por conta própria"). Só pode voltar quando o evento puder ser suprimido por
+ * ator (o handler saber que o autor é o administrador e os consumidores
+ * ignorarem esse ator). Até lá: nenhum código daqui importa o handler de mover
+ * (testado).
+ *
+ * Por que o administrador NÃO usa a `crm_*` crua: ela é larga demais para
+ * um robô que roda sozinho (`crm_manage_tags` aceita qualquer tag e remove). Cada
  * `admin_*` é um ESTREITAMENTO: valida de novo, recusa o que passa do escopo
  * seguro e delega o trabalho ao original.
  *
@@ -28,10 +34,9 @@
  * uma única porta de entrada, `executarFerramentaAdministrador`.
  *
  * ─── REGRAS (binding) ───────────────────────────────────────────────────────
- *  1. Só ações seguras: mover etapa (nunca para ganha/perdida/arquivada),
- *     criar tarefa, registrar nota, etiquetar contato. NADA apaga dado. NADA
+ *  1. Só ações seguras: criar tarefa, registrar nota, etiquetar contato. NADA apaga dado. NADA
  *     envia mensagem ao cliente. Nenhum nome desta lista casa
- *     delete|apagar|remove|send|enviar (testado).
+ *     delete|apagar|remove|send|enviar|mover|stage|etapa (testado).
  *  2. `organization_id` vem do contexto do job. Argumento que o mencione é
  *     RECUSADO (`argumento_proibido`) antes de qualquer leitura.
  *  3. Toda chamada — sucesso ou falha — grava `mcp.tool_called` via
@@ -46,7 +51,6 @@ import { conversationTagsSchema } from "@/lib/schemas/messaging";
 import { auditMcpToolCall } from "../audit";
 import type { McpContext, McpToolDefinition } from "../types";
 import { crmManageTags } from "./governance";
-import { crmMoveLeadStage } from "./leads";
 
 /** Ator fixo das ações do administrador (aparece em metadata.actor_id). */
 export const ADMIN_AGENT_ACTOR_ID = "agente-administrador";
@@ -56,6 +60,14 @@ export const TAGS_DO_ADMINISTRADOR = ["sem-responsavel"] as const;
 
 /** Qualquer chave que mencione organização é tentativa de escolher o escopo. */
 const CHAVE_DE_ORGANIZACAO = /org/i;
+
+/**
+ * Marcador ESTRUTURADO de origem das tarefas do administrador. `crm_tasks` não
+ * tem coluna de origem; `description` é o campo que o administrador controla
+ * (a tela não a preenche ao criar), então ele grava este valor EXATO e o dedupe
+ * (R2) o consulta por igualdade — nunca por texto do título.
+ */
+export const MARCADOR_TAREFA_ADMINISTRADOR = "origem:agente-administrador";
 
 const TITULO_MAX = 200;
 const NOTA_MAX = 1000;
@@ -120,51 +132,6 @@ function comAuditoria<T extends z.ZodRawShape>(
 }
 
 // ---------------------------------------------------------------------------
-// admin_mover_etapa
-// ---------------------------------------------------------------------------
-
-const moverShape = {
-  lead_id: z.string().uuid(),
-  to_stage_id: z.string().uuid(),
-  reason: z.string().max(200).optional(),
-};
-
-export const adminMoverEtapa: McpToolDefinition<typeof moverShape> = {
-  name: "admin_mover_etapa",
-  description:
-    "Administrador: move um lead ABERTO para outra etapa ativa do MESMO funil. Nunca para etapa ganha, perdida ou arquivada.",
-  inputSchema: moverShape,
-  category: "write",
-  requiresRole: "manager",
-  requiresScope: "mcp:write",
-  handler: comAuditoria<typeof moverShape>("admin_mover_etapa", async (input, ctx) => {
-    const lead = await leadDaOrganizacao(ctx, input.lead_id);
-    if (lead.status !== "open") throw new Error("lead_nao_aberto");
-
-    const { data: etapa, error } = await ctx.supabase
-      .from("crm_stages")
-      .select("id, pipeline_id, is_archived, is_won, is_lost")
-      .eq("id", input.to_stage_id)
-      .eq("organization_id", ctx.organizationId)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!etapa) throw new Error("stage_not_found");
-    const e = etapa as { pipeline_id: string; is_archived: boolean; is_won: boolean; is_lost: boolean };
-    if (e.pipeline_id !== lead.pipeline_id) throw new Error("etapa_de_outro_funil");
-    if (e.is_archived || e.is_won || e.is_lost) throw new Error("etapa_nao_permitida");
-
-    return crmMoveLeadStage.handler(
-      {
-        lead_id: input.lead_id,
-        to_stage_id: input.to_stage_id,
-        reason: input.reason ?? "Organização automática pelo administrador",
-      },
-      ctx,
-    );
-  }),
-};
-
-// ---------------------------------------------------------------------------
 // admin_criar_tarefa
 // ---------------------------------------------------------------------------
 
@@ -193,6 +160,7 @@ export const adminCriarTarefa: McpToolDefinition<typeof tarefaShape> = {
         lead_id: lead.id,
         contact_id: lead.contact_id,
         title: input.titulo,
+        description: MARCADOR_TAREFA_ADMINISTRADOR,
         due_date: input.prazo ?? null,
         priority: input.prioridade,
         status: "pending",
@@ -277,7 +245,6 @@ export const adminEtiquetarContato: McpToolDefinition<typeof etiquetaShape> = {
 // ---------------------------------------------------------------------------
 
 export const ferramentasAdministrador = [
-  adminMoverEtapa,
   adminCriarTarefa,
   adminRegistrarNota,
   adminEtiquetarContato,

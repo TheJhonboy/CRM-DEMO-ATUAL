@@ -215,7 +215,8 @@ export const crmManageTags: McpToolDefinition<typeof tagsInputShape> = {
     await audit({
       action: TAG_AUDIT_ACTION[input.target_kind],
       actorUserId: a.actorUserId,
-      actorApiTokenId: ctx.apiTokenId,
+      // Job do administrador não tem token: '' quebraria o insert uuid da auditoria.
+      actorApiTokenId: ctx.apiTokenId || null,
       organizationId: ctx.organizationId,
       resourceType: input.target_kind,
       resourceId: input.target_id,
