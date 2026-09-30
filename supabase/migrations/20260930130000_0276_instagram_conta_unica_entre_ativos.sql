@@ -9,7 +9,8 @@
 --
 -- Deduplicação ANTES do índice (o `update.sh` roda sem ON_ERROR_STOP): a linha
 -- perdedora NÃO é apagada nem arquivada — o identificador é renomeado para
--- `<original>-conflito-<id da sessão>` e a saúde do canal avisa o operador.
+-- `<original>-conflito-<id da sessão>`. Não há aviso automático: o canal renomeado
+-- deixa de casar com os webhooks da Meta até o operador reconectá-lo.
 -- Fica a sessão ativa mais recente. Idempotente: o sufixo carrega o `id`, então
 -- a segunda passada casa zero linhas. Nome de índice novo (sem homônimo).
 
