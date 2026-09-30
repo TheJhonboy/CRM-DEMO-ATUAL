@@ -45,6 +45,9 @@ const MIN_SECRET_LEN = 16;
  * As colunas que a rota lê da sessão. Moram aqui porque algumas pertencem a um
  * canal só (o id da conta do Instagram) e a rota não nomeia provider.
  */
+/** Teto do corpo aceito na rota de entrada ANTES de qualquer gravação (corpo não autenticado). */
+export const LIMITE_CORPO_WEBHOOK_BYTES = 1024 * 1024;
+
 export const COLUNAS_DA_SESSAO_DE_ENTRADA =
   "id, organization_id, provider, display_name, phone_number, instagram_account_id, webhook_secret_encrypted";
 

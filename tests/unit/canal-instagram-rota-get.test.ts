@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /** GET da rota neutra: handshake em texto puro, 404 token desconhecido, 403 token errado. */
 
-let sessao: { provider: string } | null = null;
+let sessao: { provider: string; archived_at?: string | null } | null = null;
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => ({
     from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: sessao, error: null }) }) }) }),
@@ -39,6 +39,10 @@ describe("GET /webhooks/channel/[token]", () => {
   });
   it("token curto: 404 sem consultar o banco", async () => {
     expect((await chamar("curto", q("curto"))).status).toBe(404);
+  });
+  it("canal arquivado: 404, nao responde o handshake", async () => {
+    sessao = { provider: "instagram", archived_at: "2026-09-01T00:00:00Z" };
+    expect((await chamar(TOKEN, q(TOKEN))).status).toBe(404);
   });
   it("provider que nao faz handshake: 403", async () => {
     sessao = { provider: "zernio" };
