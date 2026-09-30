@@ -35,14 +35,14 @@ export interface InstagramCredsLookup {
 }
 
 /**
- * Base da Graph API (host do Facebook Login for Business). A versão vem do lugar
+ * Base da API do Instagram com Instagram Login (host graph.instagram.com). A versão vem do lugar
  * único (`lib/graph-version.ts`). `INSTAGRAM_GRAPH_BASE_URL` existe só para teste
  * de integração; `||` + `trim()` para que vazio (estado do `.env.example`) caia no
  * padrão em vez de gerar URL sem host.
  */
 export function instagramBaseUrl(): string {
   return (
-    process.env.INSTAGRAM_GRAPH_BASE_URL?.trim() || `https://graph.facebook.com/${graphVersion()}`
+    process.env.INSTAGRAM_GRAPH_BASE_URL?.trim() || `https://graph.instagram.com/${graphVersion()}`
   );
 }
 

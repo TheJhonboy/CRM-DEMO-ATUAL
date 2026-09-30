@@ -90,9 +90,9 @@ describe("resolveInstagramCredentials", () => {
 });
 
 describe("instagramBaseUrl", () => {
-  it("por padrão usa graph.facebook.com com a versão única da Graph", () => {
+  it("por padrão usa graph.instagram.com com a versão única da Graph", () => {
     vi.stubEnv("INSTAGRAM_GRAPH_BASE_URL", "");
-    expect(instagramBaseUrl()).toBe(`https://graph.facebook.com/${graphVersion()}`);
+    expect(instagramBaseUrl()).toBe(`https://graph.instagram.com/${graphVersion()}`);
   });
 
   it("override explícito vale, com trim", () => {
@@ -102,6 +102,6 @@ describe("instagramBaseUrl", () => {
 
   it("override só com espaço cai no padrão", () => {
     vi.stubEnv("INSTAGRAM_GRAPH_BASE_URL", "   ");
-    expect(instagramBaseUrl()).toBe(`https://graph.facebook.com/${graphVersion()}`);
+    expect(instagramBaseUrl()).toBe(`https://graph.instagram.com/${graphVersion()}`);
   });
 });
