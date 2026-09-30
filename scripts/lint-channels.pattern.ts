@@ -46,8 +46,13 @@
  * fica verde afirmando que a doutrina é respeitada enquanto o nome se espalha
  * por rota, componente e cópia de tela. Provider novo = uma linha aqui, no
  * mesmo commit.
+ *
+ * `instagram` NU fica de fora de propósito: é também a plataforma de anúncio
+ * (conversões, atribuição) e prosa de tela, então a palavra sozinha reprovaria
+ * uso legítimo. Só os identificadores que são inequivocamente o TRANSPORTE
+ * (colunas e host do Graph) entram.
  */
-const SEPARADO = /(?<![a-zA-Z0-9])(waha|meta_cloud|zernio|graph\.facebook\.com)(?![a-zA-Z0-9])/i;
+const SEPARADO = /(?<![a-zA-Z0-9])(waha|meta_cloud|zernio|graph\.facebook\.com|graph\.instagram\.com|instagram_account_id|instagram_token_encrypted|instagram_scoped_id)(?![a-zA-Z0-9])/i;
 
 /**
  * Grafia PascalCase dentro de identificador: `WahaClient`,
@@ -57,7 +62,7 @@ const SEPARADO = /(?<![a-zA-Z0-9])(waha|meta_cloud|zernio|graph\.facebook\.com)(
  * segmento. Não seguido de minúscula/dígito exclui `Wahalla` — onde `Waha` é
  * começo de outra palavra, não segmento próprio.
  */
-const PASCAL = /(Waha|Zernio)(?![a-z0-9])/;
+const PASCAL = /(Waha|Zernio|InstagramAccountId|InstagramTokenEncrypted|InstagramScopedId)(?![a-z0-9])/;
 
 /** Um trecho de código/prosa nomeia um provider de canal? */
 export function nomeiaProvider(texto: string): boolean {

@@ -51,6 +51,13 @@ describe("fronteira do padrão de nome de provider", () => {
     ["import { x } from '@/lib/waha/client'", "caminho de import"],
     ["meta_cloud", "outro provider do vocabulário"],
     ["graph.facebook.com", "host de provider"],
+    ["graph.instagram.com", "host do transporte do Instagram"],
+    ["instagram_account_id", "coluna de channel_sessions"],
+    ["instagram_token_encrypted", "coluna de credencial"],
+    ["instagram_scoped_id", "coluna de contacts"],
+    ["row.instagram_account_id", "acesso a campo: `.` é separador"],
+    ["InstagramAccountId", "identificador PascalCase"],
+    ["getInstagramScopedId", "segmento PascalCase no meio do identificador"],
   ])("reconhece %s (%s)", (texto) => {
     expect(nomeiaProvider(texto)).toBe(true);
   });
@@ -62,6 +69,10 @@ describe("fronteira do padrão de nome de provider", () => {
     ["Wahalla", "idem, em PascalCase — `Waha` seguido de minúscula não é segmento"],
     ["metacloud", "sem o separador, não é o termo do vocabulário"],
     ["graphxfacebookxcom", "o ponto do host é literal, não coringa"],
+    ["instagram", "a palavra nua é plataforma de anúncio/prosa — uso legítimo"],
+    ["Instagram Ads", "idem, em prosa"],
+    ["xinstagram_account_idx", "colado em alfanumérico não é menção"],
+    ["InstagramAccountIdentity", "`InstagramAccountId` seguido de minúscula é outra palavra"],
   ])("NÃO reconhece %s (%s)", (texto) => {
     expect(nomeiaProvider(texto)).toBe(false);
   });

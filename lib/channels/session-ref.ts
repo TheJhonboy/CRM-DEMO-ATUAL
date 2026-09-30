@@ -14,7 +14,8 @@
 export type ChannelSessionRef =
   | { provider: "waha"; waha_session_name: string }
   | { provider: "meta_cloud"; meta_phone_number_id: string }
-  | { provider: "zernio"; zernio_account_id: string };
+  | { provider: "zernio"; zernio_account_id: string }
+  | { provider: "instagram"; instagram_account_id: string };
 
 /**
  * Colunas que um `select` do PostgREST precisa trazer para `resolveSessionRef`
@@ -22,7 +23,7 @@ export type ChannelSessionRef =
  * nomeia coluna de provider, e ela some da feature junto com a decisão.
  */
 export const CHANNEL_SESSION_REF_COLUMNS =
-  "provider, waha_session_name, meta_phone_number_id, zernio_account_id";
+  "provider, waha_session_name, meta_phone_number_id, zernio_account_id, instagram_account_id";
 
 export function resolveSessionRef(session: ChannelSessionRef): string {
   switch (session.provider) {
@@ -35,5 +36,8 @@ export function resolveSessionRef(session: ChannelSessionRef): string {
     // endereça pelo id dele. Mandar o id da Meta aqui responde 404.
     case "zernio":
       return session.zernio_account_id;
+    // O id da conta profissional do Instagram (IG user id) que a Meta devolve ao conectar.
+    case "instagram":
+      return session.instagram_account_id;
   }
 }

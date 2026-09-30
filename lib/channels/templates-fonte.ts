@@ -43,6 +43,9 @@ const FONTE: Record<ProviderDeMensagem, FonteDeTemplates | null> = {
   waha: null,
   meta_cloud: "oficial",
   zernio: "parceiro",
+  // Instagram não tem templates aprovados como o WhatsApp: fora da janela de 24h
+  // a Meta recusa e não há definição a listar. Mesma resposta do WAHA: nenhuma fonte.
+  instagram: null,
 };
 
 /** `null` quando este canal não trabalha com definições aprovadas. */

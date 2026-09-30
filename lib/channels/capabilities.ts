@@ -76,6 +76,19 @@ export const CHANNEL_CAPABILITIES: Record<ProviderDeMensagem, ChannelCapabilitie
     groups: "limited",
     costPerMessage: true,
   },
+  // Hetero-restrição: a Meta impõe janela de 24h para resposta livre (mensagem
+  // fora dela é recusada na hora, com código). Sem templates como no WhatsApp.
+  // Mídia de voz: só opus não se aplica aqui; áudio vai como anexo comum.
+  instagram: {
+    freeformOutsideWindow: false,
+    requiresTemplates: false,
+    canManageTemplates: false,
+    banRisk: false,
+    minIntervalMs: null,
+    voiceNote: "opus-only",
+    groups: "none",
+    costPerMessage: false,
+  },
 };
 
 /**
@@ -97,6 +110,7 @@ export const DEFAULT_CHANNEL_PROVIDER: ChannelProvider = "waha";
 export const CHANNEL_PROVIDER_WAHA: ChannelProvider = "waha";
 export const CHANNEL_PROVIDER_META: ChannelProvider = "meta_cloud";
 export const CHANNEL_PROVIDER_ZERNIO: ChannelProvider = "zernio";
+export const CHANNEL_PROVIDER_INSTAGRAM: ChannelProvider = "instagram";
 /** Chamada de voz WhatsApp (spec 18). Não transporta mensagem — ver abaixo. */
 export const CHANNEL_PROVIDER_WACALLS: ChannelProvider = "wacalls";
 
@@ -119,6 +133,7 @@ export const PROVIDERS_DE_MENSAGEM = [
   "waha",
   "meta_cloud",
   "zernio",
+  "instagram",
 ] as const satisfies readonly ProviderDeMensagem[];
 
 /**
