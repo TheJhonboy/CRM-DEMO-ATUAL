@@ -48,6 +48,42 @@ const MIN_SECRET_LEN = 16;
 /** Teto do corpo aceito na rota de entrada ANTES de qualquer gravação (corpo não autenticado). */
 export const LIMITE_CORPO_WEBHOOK_BYTES = 1024 * 1024;
 
+/**
+ * Lê o corpo da requisição com teto em BYTES, sem nunca acumular mais que o teto
+ * mais um pedaço. `content-length` só serve de atalho (inválido, negativo ou
+ * repetido vira "desconhecido"); quem manda a última palavra é a soma de
+ * `byteLength` lida do stream, que é cancelado assim que passa do limite.
+ * Devolve `null` quando o corpo excede o teto. Decodifica em UTF-8 só no fim.
+ */
+export async function lerCorpoComLimite(
+  req: Request,
+  limite: number = LIMITE_CORPO_WEBHOOK_BYTES,
+): Promise<string | null> {
+  const header = req.headers.get("content-length");
+  if (header !== null && /^\d+$/.test(header.trim()) && Number(header.trim()) > limite) return null;
+  if (!req.body) return "";
+  const reader = req.body.getReader();
+  const pedacos: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > limite) {
+      await reader.cancel().catch(() => undefined);
+      return null;
+    }
+    pedacos.push(value);
+  }
+  const inteiro = new Uint8Array(total);
+  let off = 0;
+  for (const p of pedacos) {
+    inteiro.set(p, off);
+    off += p.byteLength;
+  }
+  return new TextDecoder("utf-8").decode(inteiro);
+}
+
 export const COLUNAS_DA_SESSAO_DE_ENTRADA =
   "id, organization_id, provider, display_name, phone_number, instagram_account_id, webhook_secret_encrypted";
 

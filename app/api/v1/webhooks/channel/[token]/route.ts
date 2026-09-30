@@ -40,7 +40,7 @@ import {
   acceptsInboundWebhook,
   COLUNAS_DA_SESSAO_DE_ENTRADA,
   handleInboundWebhook,
-  LIMITE_CORPO_WEBHOOK_BYTES,
+  lerCorpoComLimite,
   type InboundWebhookInput,
   verifyInboundHandshake,
 } from "@/lib/channels/inbound";
@@ -100,14 +100,10 @@ export async function POST(
     return fail("not_found", "unknown webhook token", 404, { requestId });
   }
 
-  // Corpo sem autenticação nunca chega ao banco acima do teto: o header barra o
-  // óbvio sem ler nada, e o tamanho lido barra quem mente (ou omite) o header.
-  const declarado = Number(req.headers.get("content-length"));
-  if (Number.isFinite(declarado) && declarado > LIMITE_CORPO_WEBHOOK_BYTES) {
-    return fail("payload_too_large", "payload_too_large", 413, { requestId });
-  }
-  const rawBody = await req.text();
-  if (rawBody.length > LIMITE_CORPO_WEBHOOK_BYTES) {
+  // Corpo sem autenticação nunca chega ao banco acima do teto (em BYTES, limitado
+  // durante a leitura): o string lido é o mesmo que o verificador assina.
+  const rawBody = await lerCorpoComLimite(req);
+  if (rawBody === null) {
     return fail("payload_too_large", "payload_too_large", 413, { requestId });
   }
   const admin = createAdminClient();

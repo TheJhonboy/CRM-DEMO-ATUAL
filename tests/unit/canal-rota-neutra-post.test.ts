@@ -28,7 +28,7 @@ vi.mock("@/lib/channels/inbound", async (orig) => ({
 }));
 
 import { POST } from "@/app/api/v1/webhooks/channel/[token]/route";
-import { LIMITE_CORPO_WEBHOOK_BYTES } from "@/lib/channels/inbound";
+import { LIMITE_CORPO_WEBHOOK_BYTES, lerCorpoComLimite } from "@/lib/channels/inbound";
 
 const TOKEN = "tok-secreto-1234";
 const chamar = (body: string, headers: Record<string, string> = {}) =>
@@ -70,6 +70,43 @@ describe("POST /webhooks/channel/[token]", () => {
   it("corpo exatamente no limite passa", async () => {
     const r = await chamar("a".repeat(LIMITE_CORPO_WEBHOOK_BYTES));
     expect(r.status).toBe(200);
+  });
+
+  it("limite e em BYTES: 400k de euro (1,2 MB, 400k unidades UTF-16) e rejeitado", async () => {
+    const r = await chamar("€".repeat(400_000));
+    expect(r.status).toBe(413);
+    expect(h.abrir).not.toHaveBeenCalled();
+    expect(h.tratar).not.toHaveBeenCalled();
+  });
+
+  it.each(["abc", "-5", "1, 2", "1e9"])("content-length invalido (%s) vira desconhecido: corpo pequeno passa", async (cl) => {
+    const corpo = await lerCorpoComLimite(new Request("https://x.test/", { method: "POST", body: "{}", headers: { "content-length": cl } }));
+    expect(corpo).toBe("{}");
+  });
+
+  it("corpo em pedacos sem content-length: 413 lendo no maximo limite + um pedaco e cancela o stream", async () => {
+    const pedaco = new Uint8Array(256 * 1024).fill(97);
+    let enviados = 0;
+    let cancelado = false;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(c) {
+        enviados += 1;
+        c.enqueue(pedaco);
+        if (enviados > 100) c.close();
+      },
+      cancel() {
+        cancelado = true;
+      },
+    });
+    const req = new Request(`https://crm.test/api/v1/webhooks/channel/${TOKEN}`, {
+      method: "POST", body: stream, duplex: "half",
+    } as RequestInit);
+    const r = await POST(req as never, { params: Promise.resolve({ token: TOKEN }) });
+    expect(r.status).toBe(413);
+    expect(cancelado).toBe(true);
+    // limite = 4 pedacos de 256 KiB; o 5o ultrapassa e para a leitura (folga de 1 pedaco de pre-busca)
+    expect(enviados).toBeLessThanOrEqual(6);
+    expect(h.abrir).not.toHaveBeenCalled();
   });
 
   it("excecao interna: resposta generica, detalhe so no arquivo e no log", async () => {
