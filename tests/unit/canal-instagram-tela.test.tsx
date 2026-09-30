@@ -68,8 +68,40 @@ describe("estado inicial", () => {
     getMock.mockResolvedValue(naoConectado);
     render(<CanalInstagramForm />);
     expect(await screen.findByText("Crie um app na Meta.")).toBeInTheDocument();
-    expect(screen.getByText("Ligue o Instagram à Página.")).toBeInTheDocument();
+    expect(screen.getByText("Gere o token do Instagram.")).toBeInTheDocument();
     expect(screen.getByText("Cole aqui e conecte.")).toBeInTheDocument();
+  });
+
+  it("o passo a passo é o do Instagram Login: produto, escopos, tester, App Secret e assinatura de messages", async () => {
+    getMock.mockResolvedValue(naoConectado);
+    render(<CanalInstagramForm />);
+    await screen.findByText("Crie um app na Meta.");
+    const passos = screen.getByText("Passo a passo").closest("div")!.textContent ?? "";
+    expect(passos).toContain("Instagram API with Instagram Login");
+    expect(passos).toContain("instagram_business_basic");
+    expect(passos).toContain("instagram_business_manage_messages");
+    expect(passos).toMatch(/testadora/i);
+    expect(passos).toMatch(/segredo do app/i);
+    expect(passos).toMatch(/campo messages/i);
+    // Caminho Facebook Login: Página do Facebook não é necessária.
+    expect(passos).not.toMatch(/vinculada a uma Página/i);
+    expect(screen.queryByText("Ligue o Instagram à Página.")).not.toBeInTheDocument();
+  });
+
+  it("avisa, sempre visível, que o modo de teste do CRM silencia a IA no Instagram", async () => {
+    getMock.mockResolvedValue(naoConectado);
+    render(<CanalInstagramForm />);
+    const nota = await screen.findByTestId("nota-modo-teste");
+    expect(nota).toHaveTextContent(
+      "Com o modo de teste do CRM ativo a IA não responde no Instagram (o contato não tem telefone liberado); ative o go-live para testar.",
+    );
+  });
+
+  it("credencial indisponível (falha nossa, não da Meta): mensagem própria, não 'Meta não respondeu'", async () => {
+    getMock.mockResolvedValue({ data: { ...conectado.data, health: "credencial_indisponivel" } });
+    render(<CanalInstagramForm />);
+    expect(await screen.findByText(/não foi possível ler a credencial gravada/i)).toBeInTheDocument();
+    expect(screen.queryByText(/não respondeu ao teste agora/i)).not.toBeInTheDocument();
   });
 
   it("conectado: mostra a conta, a URL e o verify token para copiar, e o botão de testar", async () => {
@@ -181,6 +213,31 @@ describe("conectar", () => {
     // Nada do que foi colado reaparece em nenhum lugar do documento.
     expect(document.body.textContent).not.toContain("EAAB_token_secreto_de_teste_0123456789");
     expect(document.body.textContent).not.toContain("segredo_do_app_meta_0123456789");
+  });
+
+  it("webhookSubscribed=false: manda assinar o campo messages no painel da Meta", async () => {
+    getMock.mockResolvedValueOnce(naoConectado).mockResolvedValue(conectado);
+    postMock.mockResolvedValue({
+      data: { webhookUrl: URL_WEBHOOK, verifyToken: "tok123abc", username: "l", status: "WORKING", webhookSubscribed: false },
+    });
+    render(<CanalInstagramForm />);
+    await preencher();
+    fireEvent.click(screen.getByRole("button", { name: "Conectar" }));
+    const aviso = await screen.findByTestId("aviso-assinar-messages");
+    expect(aviso).toHaveTextContent(/assine o campo messages/i);
+  });
+
+  it("webhookSubscribed=true: confirma a assinatura e não manda assinar à mão", async () => {
+    getMock.mockResolvedValueOnce(naoConectado).mockResolvedValue(conectado);
+    postMock.mockResolvedValue({
+      data: { webhookUrl: URL_WEBHOOK, verifyToken: "tok123abc", username: "l", status: "WORKING", webhookSubscribed: true },
+    });
+    render(<CanalInstagramForm />);
+    await preencher();
+    fireEvent.click(screen.getByRole("button", { name: "Conectar" }));
+    expect(await screen.findByText("Falta ligar a volta")).toBeInTheDocument();
+    expect(screen.queryByTestId("aviso-assinar-messages")).not.toBeInTheDocument();
+    expect(screen.getByTestId("assinatura-ok")).toBeInTheDocument();
   });
 
   it("recusa do servidor aparece na tela (role=alert) e NÃO marca como conectado", async () => {

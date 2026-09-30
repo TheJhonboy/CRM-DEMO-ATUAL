@@ -36,7 +36,7 @@ type EstadoDaConexao = "conectado" | "nao_conectado" | "token_invalido";
 
 interface Estado {
   state: EstadoDaConexao;
-  health: "ok" | "falhou" | "sem_resposta" | null;
+  health: "ok" | "falhou" | "sem_resposta" | "credencial_indisponivel" | null;
   username: string | null;
   webhookUrl: string | null;
   verifyToken: string | null;
@@ -47,6 +47,8 @@ interface Conectado {
   verifyToken: string;
   username: string | null;
   status: string;
+  /** `false` = a assinatura automática do campo `messages` não foi confirmada pela Meta. */
+  webhookSubscribed?: boolean;
 }
 
 /** Campo somente-leitura com botão de copiar — o que o operador cola na Meta. */
@@ -216,6 +218,14 @@ export function CanalInstagramForm() {
           </div>
         )}
 
+        {!carregando && estadoAtual === "conectado" && estado?.health === "credencial_indisponivel" && (
+          <div role="status" className="rounded-md border border-warning/40 bg-warning-bg p-3 text-sm">
+            <p className="text-xs text-muted-foreground">
+              {t("Não foi possível ler a credencial gravada agora. Tente de novo em instantes.")}
+            </p>
+          </div>
+        )}
+
         {conectado && (
           <div className="flex flex-col gap-3 rounded-md border border-border bg-muted/40 p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
@@ -238,25 +248,36 @@ export function CanalInstagramForm() {
         <ol className="flex list-decimal flex-col gap-2 pl-5 text-sm">
           <li>
             <strong>{t("Crie um app na Meta.")}</strong>{" "}
-            {t("Em developers.facebook.com, crie um app do tipo Empresa e adicione o produto Instagram com a permissão de mensagens.")}
+            {t("Em developers.facebook.com, crie um app do tipo Empresa e adicione o produto Instagram API with Instagram Login. Não é o Facebook Login: nenhuma Página do Facebook é necessária.")}
           </li>
           <li>
-            <strong>{t("Ligue o Instagram à Página.")}</strong>{" "}
-            {t("A conta precisa ser profissional (Empresa ou Criador) e estar vinculada a uma Página do Facebook, com acesso às mensagens liberado nas configurações do Instagram.")}
+            <strong>{t("Prepare a conta.")}</strong>{" "}
+            {t("A conta do Instagram precisa ser profissional (Empresa ou Criador), com o acesso às mensagens liberado nas configurações do Instagram. Enquanto o app estiver em modo de desenvolvimento, adicione essa conta como testadora do app.")}
+          </li>
+          <li>
+            <strong>{t("Gere o token do Instagram.")}</strong>{" "}
+            {t("No painel do app, em Instagram API with Instagram Login, gere o token de acesso da conta com as permissões instagram_business_basic e instagram_business_manage_messages.")}
           </li>
           <li>
             <strong>{t("Pegue os três dados.")}</strong>{" "}
-            {t("O ID da conta do Instagram, um token de acesso com permissão de mensagens e o segredo do app (Configurações do app › Básico).")}
+            {t("O ID da conta do Instagram, o token gerado no passo anterior e o segredo do app (Configurações do app › Básico): use o segredo do mesmo app.")}
           </li>
           <li>
             <strong>{t("Cole aqui e conecte.")}</strong>{" "}
-            {t("O CRM testa o token na Meta antes de gravar. Se o ID não for o da conta do token, a conexão é recusada.")}
+            {t("O CRM testa o token na Meta antes de gravar e tenta assinar o campo messages sozinho. Se o ID não for o da conta do token, a conexão é recusada.")}
           </li>
           <li>
             <strong>{t("Ligue a volta.")}</strong>{" "}
-            {t("Cole a URL e o verify token abaixo no webhook do app e assine o campo de mensagens. Sem isso o CRM envia, mas não recebe.")}
+            {t("Cole a URL e o verify token abaixo no webhook do app. Se a tela avisar que a assinatura não foi confirmada, assine o campo messages no painel do app. Sem isso o CRM envia, mas não recebe.")}
           </li>
         </ol>
+        <p
+          role="note"
+          className="rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground"
+          data-testid="nota-modo-teste"
+        >
+          {t("Com o modo de teste do CRM ativo a IA não responde no Instagram (o contato não tem telefone liberado); ative o go-live para testar.")}
+        </p>
       </Card>
 
       <Card className="flex flex-col gap-4 p-4">
@@ -354,11 +375,21 @@ export function CanalInstagramForm() {
               {recemConectado ? t("Falta ligar a volta") : t("Webhook")}
             </h2>
             <p className="text-xs text-muted-foreground">
-              {t("Cole os dois valores no webhook do app na Meta e assine o campo de mensagens. Sem isso o CRM")}{" "}
+              {t("Cole os dois valores no webhook do app na Meta e assine o campo messages. Sem isso o CRM")}{" "}
               <strong>{t("envia mas não recebe")}</strong>
               {t(": a resposta do cliente não chega, e nada na tela avisa.")}
             </p>
           </div>
+          {recemConectado?.webhookSubscribed === false && (
+            <p role="alert" className="text-sm" data-testid="aviso-assinar-messages">
+              {t("A assinatura automática não foi confirmada pela Meta. No painel do app, assine o campo messages do webhook do Instagram.")}
+            </p>
+          )}
+          {recemConectado?.webhookSubscribed === true && (
+            <p className="text-xs text-muted-foreground" data-testid="assinatura-ok">
+              {t("O campo messages foi assinado automaticamente.")}
+            </p>
+          )}
           <ParaColar rotulo={t("URL de retorno")} valor={webhookUrl} />
           <ParaColar rotulo={t("Verify token")} valor={verifyToken} />
         </Card>

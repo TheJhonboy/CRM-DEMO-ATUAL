@@ -9305,6 +9305,16 @@ export const DICIONARIO: Traducoes = {
   "A Meta não respondeu ao teste agora. O estado mostrado é o da última conexão, não de um teste.": {
     es: "Meta no respondió a la prueba ahora. El estado mostrado es el de la última conexión, no el de una prueba.",
   },
+  "Com o modo de teste do CRM ativo a IA não responde no Instagram (o contato não tem telefone liberado); ative o go-live para testar.": {
+    es: "Con el modo de prueba del CRM activo la IA no responde en Instagram (el contacto no tiene teléfono habilitado); activa el go-live para probar.",
+  },
+  "Não foi possível ler a credencial gravada agora. Tente de novo em instantes.": {
+    es: "No se pudo leer la credencial guardada ahora. Inténtalo de nuevo en unos instantes.",
+  },
+  "A assinatura automática não foi confirmada pela Meta. No painel do app, assine o campo messages do webhook do Instagram.": {
+    es: "Meta no confirmó la suscripción automática. En el panel de la app, suscribe el campo messages del webhook de Instagram.",
+  },
+  "O campo messages foi assinado automaticamente.": { es: "El campo messages fue suscrito automáticamente." },
   "Conta conectada": { es: "Cuenta conectada" },
   "Token e segredo ficam guardados cifrados e não são mostrados de novo.": {
     es: "El token y el secreto se guardan cifrados y no se muestran de nuevo.",
@@ -9312,24 +9322,28 @@ export const DICIONARIO: Traducoes = {
   "Testar conexão": { es: "Probar conexión" },
   "Passo a passo": { es: "Paso a paso" },
   "Crie um app na Meta.": { es: "Crea una app en Meta." },
-  "Em developers.facebook.com, crie um app do tipo Empresa e adicione o produto Instagram com a permissão de mensagens.": {
-    es: "En developers.facebook.com, crea una app de tipo Empresa y agrega el producto Instagram con el permiso de mensajes.",
+  "Em developers.facebook.com, crie um app do tipo Empresa e adicione o produto Instagram API with Instagram Login. Não é o Facebook Login: nenhuma Página do Facebook é necessária.": {
+    es: "En developers.facebook.com, crea una app de tipo Empresa y agrega el producto Instagram API with Instagram Login. No es Facebook Login: no se necesita ninguna Página de Facebook.",
   },
-  "Ligue o Instagram à Página.": { es: "Vincula Instagram a la Página." },
-  "A conta precisa ser profissional (Empresa ou Criador) e estar vinculada a uma Página do Facebook, com acesso às mensagens liberado nas configurações do Instagram.": {
-    es: "La cuenta debe ser profesional (Empresa o Creador) y estar vinculada a una Página de Facebook, con el acceso a los mensajes habilitado en la configuración de Instagram.",
+  "Prepare a conta.": { es: "Prepara la cuenta." },
+  "A conta do Instagram precisa ser profissional (Empresa ou Criador), com o acesso às mensagens liberado nas configurações do Instagram. Enquanto o app estiver em modo de desenvolvimento, adicione essa conta como testadora do app.": {
+    es: "La cuenta de Instagram debe ser profesional (Empresa o Creador), con el acceso a los mensajes habilitado en la configuración de Instagram. Mientras la app esté en modo de desarrollo, agrega esa cuenta como probadora de la app.",
+  },
+  "Gere o token do Instagram.": { es: "Genera el token de Instagram." },
+  "No painel do app, em Instagram API with Instagram Login, gere o token de acesso da conta com as permissões instagram_business_basic e instagram_business_manage_messages.": {
+    es: "En el panel de la app, en Instagram API with Instagram Login, genera el token de acceso de la cuenta con los permisos instagram_business_basic e instagram_business_manage_messages.",
   },
   "Pegue os três dados.": { es: "Toma los tres datos." },
-  "O ID da conta do Instagram, um token de acesso com permissão de mensagens e o segredo do app (Configurações do app › Básico).": {
-    es: "El ID de la cuenta de Instagram, un token de acceso con permiso de mensajes y el secreto de la app (Configuración de la app › Básico).",
+  "O ID da conta do Instagram, o token gerado no passo anterior e o segredo do app (Configurações do app › Básico): use o segredo do mesmo app.": {
+    es: "El ID de la cuenta de Instagram, el token generado en el paso anterior y el secreto de la app (Configuración de la app › Básico): usa el secreto de la misma app.",
   },
   "Cole aqui e conecte.": { es: "Pega aquí y conecta." },
-  "O CRM testa o token na Meta antes de gravar. Se o ID não for o da conta do token, a conexão é recusada.": {
-    es: "El CRM prueba el token en Meta antes de guardar. Si el ID no es el de la cuenta del token, la conexión se rechaza.",
+  "O CRM testa o token na Meta antes de gravar e tenta assinar o campo messages sozinho. Se o ID não for o da conta do token, a conexão é recusada.": {
+    es: "El CRM prueba el token en Meta antes de guardar e intenta suscribir el campo messages solo. Si el ID no es el de la cuenta del token, la conexión se rechaza.",
   },
   "Ligue a volta.": { es: "Conecta la vuelta." },
-  "Cole a URL e o verify token abaixo no webhook do app e assine o campo de mensagens. Sem isso o CRM envia, mas não recebe.": {
-    es: "Pega la URL y el verify token de abajo en el webhook de la app y suscribe el campo de mensajes. Sin eso el CRM envía, pero no recibe.",
+  "Cole a URL e o verify token abaixo no webhook do app. Se a tela avisar que a assinatura não foi confirmada, assine o campo messages no painel do app. Sem isso o CRM envia, mas não recebe.": {
+    es: "Pega la URL y el verify token de abajo en el webhook de la app. Si la pantalla avisa que la suscripción no fue confirmada, suscribe el campo messages en el panel de la app. Sin eso el CRM envía, pero no recibe.",
   },
   "Trocar os dados da conexão": { es: "Cambiar los datos de la conexión" },
   "Dados da conta": { es: "Datos de la cuenta" },
@@ -9347,8 +9361,8 @@ export const DICIONARIO: Traducoes = {
     es: "El token se prueba en Meta antes de guardarse.",
   },
   Webhook: { es: "Webhook" },
-  "Cole os dois valores no webhook do app na Meta e assine o campo de mensagens. Sem isso o CRM": {
-    es: "Pega los dos valores en el webhook de la app en Meta y suscribe el campo de mensajes. Sin eso el CRM",
+  "Cole os dois valores no webhook do app na Meta e assine o campo messages. Sem isso o CRM": {
+    es: "Pega los dos valores en el webhook de la app en Meta y suscribe el campo messages. Sin eso el CRM",
   },
   ": a resposta do cliente não chega, e nada na tela avisa.": {
     es: ": la respuesta del cliente no llega y nada en la pantalla avisa.",
