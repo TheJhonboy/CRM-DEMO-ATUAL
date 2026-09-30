@@ -47,7 +47,7 @@ describe("envelope e parse", () => {
     const r = lerEnvelopeInstagram(msg());
     if (!r.ok) throw new Error("esperava ok");
     expect(parseInstagramInbound(r.envelope)).toEqual([{
-      kind: "message", externalId: "m_1", accountId: "IGACC", senderId: "IGSID1",
+      kind: "message", externalId: "m_1", accountId: "IGACC", senderId: "IGSID1", recipientId: "IGACC",
       text: "oi, tem orçamento?", attachments: [], timestamp: 1700000000000, isEcho: false,
     }]);
   });

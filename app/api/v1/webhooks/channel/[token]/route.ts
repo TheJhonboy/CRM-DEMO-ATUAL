@@ -36,12 +36,47 @@ import {
   abrirArquivoDoWebhook,
   fecharArquivoDoWebhook,
 } from "@/lib/channels/arquivo-de-webhook";
-import { acceptsInboundWebhook, handleInboundWebhook } from "@/lib/channels/inbound";
+import {
+  acceptsInboundWebhook,
+  COLUNAS_DA_SESSAO_DE_ENTRADA,
+  handleInboundWebhook,
+  type InboundWebhookInput,
+  verifyInboundHandshake,
+} from "@/lib/channels/inbound";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { decryptWebhookSecret } from "@/lib/webhooks/secrets";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+
+/**
+ * GET — handshake de verificação do webhook (Meta). Texto puro, não o JSON de
+ * `ok()`: a plataforma espera o `hub.challenge` cru no corpo. 404 para token
+ * desconhecido, 403 para verify token errado.
+ */
+export async function GET(
+  req: NextRequest,
+  ctx: { params: Promise<{ token: string }> },
+): Promise<Response> {
+  const { token } = await ctx.params;
+  if (!token || token.length < 8) return new Response("not found", { status: 404 });
+
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("channel_sessions")
+    .select("provider")
+    .eq("webhook_path_token", token)
+    .maybeSingle();
+  if (!data) return new Response("not found", { status: 404 });
+
+  const challenge = verifyInboundHandshake({
+    provider: (data as { provider: string }).provider,
+    params: req.nextUrl.searchParams,
+    pathToken: token,
+  });
+  if (challenge === null) return new Response("forbidden", { status: 403 });
+  return new Response(challenge, { status: 200, headers: { "content-type": "text/plain" } });
+}
 
 export async function POST(
   req: NextRequest,
@@ -63,26 +98,21 @@ export async function POST(
     () =>
       admin
         .from("channel_sessions")
-        .select(`id, organization_id, provider, display_name, phone_number, webhook_secret_encrypted, ${ARCHIVED_AT}`)
+        .select(`${COLUNAS_DA_SESSAO_DE_ENTRADA}, ${ARCHIVED_AT}`)
         .eq("webhook_path_token", token)
         .maybeSingle(),
     () =>
       admin
         .from("channel_sessions")
-        .select("id, organization_id, provider, display_name, phone_number, webhook_secret_encrypted")
+        .select(COLUNAS_DA_SESSAO_DE_ENTRADA)
         .eq("webhook_path_token", token)
         .maybeSingle(),
   );
 
-  const sessao = data as {
-    id: string;
-    organization_id: string;
-    provider: string;
-    display_name: string | null;
-    phone_number: string | null;
+  const sessao = data as (InboundWebhookInput["session"] & {
     webhook_secret_encrypted: unknown;
     archived_at?: string | null;
-  } | null;
+  }) | null;
 
   if (!sessao) return fail("not_found", "unknown webhook token", 404, { requestId });
 

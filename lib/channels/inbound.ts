@@ -18,7 +18,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { CHANNEL_PROVIDER_ZERNIO } from "./capabilities";
+import { CHANNEL_PROVIDER_INSTAGRAM, CHANNEL_PROVIDER_ZERNIO } from "./capabilities";
 import { sincronizarSaudeDaConexao } from "./health";
 import {
   atualizarEspelhoDoTemplate,
@@ -27,12 +27,26 @@ import {
   saudeDoEvento,
 } from "./zernio/avisos";
 import { aplicarEdicaoZernio, ingestZernioInbound } from "./zernio/ingest";
+import { ingestInstagramInbound } from "./instagram/ingest";
+import {
+  instagramChallenge,
+  lerEnvelopeInstagram,
+  parseInstagramInbound,
+  verifyInstagramSignature,
+} from "./instagram/webhook";
 import { lerEnvelopeZernio } from "./zernio/envelope";
 import { parseZernioEdicao, verifyZernioSignature } from "./zernio/webhook";
 import type { ChannelProvider } from "./types";
 
 /** Curto demais para ser segredo — placeholder ou lixo de decrypt. */
 const MIN_SECRET_LEN = 16;
+
+/**
+ * As colunas que a rota lê da sessão. Moram aqui porque algumas pertencem a um
+ * canal só (o id da conta do Instagram) e a rota não nomeia provider.
+ */
+export const COLUNAS_DA_SESSAO_DE_ENTRADA =
+  "id, organization_id, provider, display_name, phone_number, instagram_account_id, webhook_secret_encrypted";
 
 export interface InboundWebhookInput {
   session: {
@@ -43,6 +57,8 @@ export interface InboundWebhookInput {
      *  números ligados, "WhatsApp fora do ar" não diz QUAL. */
     display_name?: string | null;
     phone_number?: string | null;
+    /** IG User ID da sessão Instagram: quem o webhook diz ser o dono do evento. */
+    instagram_account_id?: string | null;
   };
   rawBody: string;
   /** Todos os headers da requisição — cada canal lê o SEU. */
@@ -70,7 +86,7 @@ export type InboundWebhookOutcome =
  * trabalho — e respondido sem nomear provider do lado de fora.
  */
 export function acceptsInboundWebhook(provider: string): boolean {
-  return provider === CHANNEL_PROVIDER_ZERNIO;
+  return provider === CHANNEL_PROVIDER_ZERNIO || provider === CHANNEL_PROVIDER_INSTAGRAM;
 }
 
 export async function handleInboundWebhook(
@@ -82,11 +98,73 @@ export async function handleInboundWebhook(
   switch (provider) {
     case CHANNEL_PROVIDER_ZERNIO:
       return zernioInbound(admin, input);
+    case CHANNEL_PROVIDER_INSTAGRAM:
+      return instagramInbound(admin, input);
     default:
       // Token de um canal que não entra por aqui. É configuração trocada, não
       // ataque — mas processar seria ler o payload com o parser errado.
       return { ok: false, code: "provider_mismatch", message: "canal não recebe por esta rota" };
   }
+}
+
+/**
+ * Handshake GET (verificação da assinatura do webhook pela Meta).
+ *
+ * O verify token é o `webhook_path_token` da própria sessão — já aleatório e
+ * secreto —, comparado em tempo constante por `instagramChallenge`. Provider
+ * que não faz handshake devolve `null`, e a rota responde 403.
+ */
+export function verifyInboundHandshake(input: {
+  provider: string;
+  params: URLSearchParams;
+  pathToken: string;
+}): string | null {
+  if (input.provider !== CHANNEL_PROVIDER_INSTAGRAM) return null;
+  return instagramChallenge(input.params, input.pathToken);
+}
+
+async function instagramInbound(
+  admin: SupabaseClient,
+  input: InboundWebhookInput,
+): Promise<InboundWebhookOutcome> {
+  // Mesma ordem do Zernio, fail-closed: segredo → assinatura → contrato → ingest.
+  if (!input.secret || input.secret.length < MIN_SECRET_LEN) {
+    return { ok: false, code: "unauthorized", message: "webhook_secret_unavailable" };
+  }
+  if (!verifyInstagramSignature(input.rawBody, input.headers.get("x-hub-signature-256"), input.secret)) {
+    return { ok: false, code: "unauthorized", message: "bad_signature" };
+  }
+
+  const leitura = lerEnvelopeInstagram(input.rawBody);
+  if (!leitura.ok) {
+    if (leitura.motivo === "json_invalido") {
+      return { ok: false, code: "invalid_json", message: "invalid_json" };
+    }
+    return {
+      ok: false,
+      code: "contrato_violado",
+      message: `payload fora do contrato do canal: ${leitura.campos.join(", ")}`,
+    };
+  }
+
+  const eventos = parseInstagramInbound(leitura.envelope);
+  // Organização e conta vêm da SESSÃO; o ingest ignora evento de outra conta.
+  const resultados = await ingestInstagramInbound(admin, {
+    organizationId: input.session.organization_id,
+    channelSessionId: input.session.id,
+    accountId: input.session.instagram_account_id ?? "",
+    events: eventos,
+  });
+  const primeiroIgnorado = resultados.find((r) => r.status === "ignored")?.reason;
+  return {
+    ok: true,
+    body: {
+      status: "processed",
+      eventos: eventos.length,
+      resultados,
+      ...(resultados.every((r) => r.status !== "ingested") && primeiroIgnorado ? { reason: primeiroIgnorado } : {}),
+    },
+  };
 }
 
 async function zernioInbound(

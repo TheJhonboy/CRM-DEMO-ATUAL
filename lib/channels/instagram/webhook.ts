@@ -14,6 +14,8 @@ export type InstagramMessage = {
   externalId: string;
   accountId: string;
   senderId: string;
+  /** Quem recebe. No eco (is_echo) o remetente e a NOSSA conta e o cliente e este. */
+  recipientId: string | null;
   text: string | null;
   attachments: { type: string; url: string | null }[];
   timestamp: number;
@@ -82,6 +84,7 @@ export function parseInstagramInbound(envelope: InstagramEnvelope): InstagramEve
             externalId: mid,
             accountId,
             senderId,
+            recipientId: str(m?.recipient?.id),
             text: str(m.message.text),
             attachments: anexos(m.message.attachments),
             timestamp,
