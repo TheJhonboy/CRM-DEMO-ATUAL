@@ -39,6 +39,7 @@ import {
 import {
   acceptsInboundWebhook,
   COLUNAS_DA_SESSAO_DE_ENTRADA,
+  CorpoIlegivelError,
   handleInboundWebhook,
   lerCorpoComLimite,
   type InboundWebhookInput,
@@ -102,7 +103,15 @@ export async function POST(
 
   // Corpo sem autenticação nunca chega ao banco acima do teto (em BYTES, limitado
   // durante a leitura): o string lido é o mesmo que o verificador assina.
-  const rawBody = await lerCorpoComLimite(req);
+  let rawBody: string | null;
+  try {
+    rawBody = await lerCorpoComLimite(req);
+  } catch (e) {
+    if (e instanceof CorpoIlegivelError) {
+      return fail("invalid_request", "invalid_request", 400, { requestId });
+    }
+    throw e;
+  }
   if (rawBody === null) {
     return fail("payload_too_large", "payload_too_large", 413, { requestId });
   }

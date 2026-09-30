@@ -28,7 +28,7 @@ vi.mock("@/lib/channels/inbound", async (orig) => ({
 }));
 
 import { POST } from "@/app/api/v1/webhooks/channel/[token]/route";
-import { LIMITE_CORPO_WEBHOOK_BYTES, lerCorpoComLimite } from "@/lib/channels/inbound";
+import { CorpoIlegivelError, LIMITE_CORPO_WEBHOOK_BYTES, lerCorpoComLimite } from "@/lib/channels/inbound";
 
 const TOKEN = "tok-secreto-1234";
 const chamar = (body: string, headers: Record<string, string> = {}) =>
@@ -107,6 +107,68 @@ describe("POST /webhooks/channel/[token]", () => {
     // limite = 4 pedacos de 256 KiB; o 5o ultrapassa e para a leitura (folga de 1 pedaco de pre-busca)
     expect(enviados).toBeLessThanOrEqual(6);
     expect(h.abrir).not.toHaveBeenCalled();
+  });
+
+  describe("leitura do corpo em stream", () => {
+    const enc = new TextEncoder();
+    const reqDe = (pedacos: Uint8Array[]) => {
+      let i = 0;
+      const stream = new ReadableStream<Uint8Array>({
+        pull(c) {
+          if (i < pedacos.length) c.enqueue(pedacos[i++]!);
+          else c.close();
+        },
+      });
+      return new Request("https://x.test/", { method: "POST", body: stream, duplex: "half" } as RequestInit);
+    };
+
+    it("multibyte SEM content-length acima do teto em bytes e rejeitado (7 caracteres, 14 bytes, teto 10)", async () => {
+      const bytes = enc.encode("ééééééé");
+      expect(bytes.byteLength).toBe(14);
+      const req = reqDe([bytes.slice(0, 7), bytes.slice(7)]);
+      expect(req.headers.get("content-length")).toBeNull();
+      expect(await lerCorpoComLimite(req, 10)).toBeNull();
+    });
+
+    it("corpo multibyte exatamente no teto em bytes passa", async () => {
+      const bytes = enc.encode("éééééé"); // 12
+      expect(await lerCorpoComLimite(reqDe([bytes]), 12)).toBe("éééééé");
+    });
+
+    it("caractere multibyte partido na fronteira de dois pedaços decodifica inteiro", async () => {
+      const bytes = enc.encode("a€b😀c"); // € = 3 bytes, 😀 = 4 bytes
+      // corta no meio do € e no meio do emoji
+      const pedacos = [bytes.slice(0, 2), bytes.slice(2, 4), bytes.slice(4, 7), bytes.slice(7)];
+      expect(await lerCorpoComLimite(reqDe(pedacos), 100)).toBe("a€b😀c");
+    });
+
+    it("leitura que aborta: lança CorpoIlegivelError, sem vazar a causa", async () => {
+      const stream = new ReadableStream<Uint8Array>({
+        pull(c) {
+          c.error(new Error("socket hang up 10.0.0.7:5432 segredo-interno"));
+        },
+      });
+      const req = new Request("https://x.test/", { method: "POST", body: stream, duplex: "half" } as RequestInit);
+      const e = await lerCorpoComLimite(req).catch((x) => x);
+      expect(e).toBeInstanceOf(CorpoIlegivelError);
+      expect(String(e.message)).not.toContain("segredo-interno");
+    });
+
+    it("rota: leitura abortada vira 400 generico, sem arquivo e sem detalhe", async () => {
+      const stream = new ReadableStream<Uint8Array>({
+        pull(c) {
+          c.error(new Error("socket hang up segredo-interno"));
+        },
+      });
+      const req = new Request(`https://crm.test/api/v1/webhooks/channel/${TOKEN}`, {
+        method: "POST", body: stream, duplex: "half",
+      } as RequestInit);
+      const r = await POST(req as never, { params: Promise.resolve({ token: TOKEN }) });
+      expect(r.status).toBe(400);
+      expect(await r.text()).not.toContain("segredo-interno");
+      expect(h.abrir).not.toHaveBeenCalled();
+      expect(h.tratar).not.toHaveBeenCalled();
+    });
   });
 
   it("excecao interna: resposta generica, detalhe so no arquivo e no log", async () => {

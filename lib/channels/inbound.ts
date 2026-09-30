@@ -48,12 +48,21 @@ const MIN_SECRET_LEN = 16;
 /** Teto do corpo aceito na rota de entrada ANTES de qualquer gravação (corpo não autenticado). */
 export const LIMITE_CORPO_WEBHOOK_BYTES = 1024 * 1024;
 
+/** A leitura do corpo falhou no meio (cliente abortou): erro do CLIENTE, sem detalhe. */
+export class CorpoIlegivelError extends Error {
+  constructor() {
+    super("corpo_ilegivel");
+    this.name = "CorpoIlegivelError";
+  }
+}
+
 /**
  * Lê o corpo da requisição com teto em BYTES, sem nunca acumular mais que o teto
  * mais um pedaço. `content-length` só serve de atalho (inválido, negativo ou
  * repetido vira "desconhecido"); quem manda a última palavra é a soma de
  * `byteLength` lida do stream, que é cancelado assim que passa do limite.
  * Devolve `null` quando o corpo excede o teto. Decodifica em UTF-8 só no fim.
+ * LANÇA `CorpoIlegivelError` quando a leitura do stream falha (aborto do cliente).
  */
 export async function lerCorpoComLimite(
   req: Request,
@@ -66,7 +75,16 @@ export async function lerCorpoComLimite(
   const pedacos: Uint8Array[] = [];
   let total = 0;
   for (;;) {
-    const { done, value } = await reader.read();
+    let lido: ReadableStreamReadResult<Uint8Array>;
+    try {
+      lido = await reader.read();
+    } catch {
+      // Cliente abortou / conexão caiu no meio do corpo. A causa (host, porta, mensagem
+      // do runtime) não sai daqui: quem chama responde 400 genérico.
+      await reader.cancel().catch(() => undefined);
+      throw new CorpoIlegivelError();
+    }
+    const { done, value } = lido;
     if (done) break;
     total += value.byteLength;
     if (total > limite) {
