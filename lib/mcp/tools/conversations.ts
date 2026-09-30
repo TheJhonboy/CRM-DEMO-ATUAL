@@ -12,9 +12,20 @@ import {
   getConversationHandler,
 } from "@/app/api/v1/conversations/_handler";
 import { listMessagesHandler } from "@/app/api/v1/messages/_handler";
+import { canalDaConversa } from "@/lib/channels/rotulo-do-canal";
 import { getQueuePositions } from "@/lib/routing/queue";
 import { resolveUserNames } from "./_users";
 import type { McpToolDefinition } from "../types";
+
+/**
+ * O meio da conversa pela SESSÃO: `conversations.channel` só aceita 'whatsapp'
+ * (CHECK), então lê-lo direto rotulava o Direct como WhatsApp. O rótulo neutro é
+ * de `lib/channels/` — esta tool não nomeia provider.
+ */
+function canalExposto(c: { channel: string }): string {
+  const sessao = (c as { channel_sessions?: { provider?: string | null } | null }).channel_sessions;
+  return canalDaConversa(sessao?.provider ?? null, c.channel);
+}
 
 /**
  * Conversa está na fila = sem dono ∧ status de espera.
@@ -91,7 +102,7 @@ export const crmListConversations: McpToolDefinition<typeof listInputShape> = {
       conversations: conversations.map((c) => ({
         id: c.id,
         contact_id: c.contact_id,
-        channel: c.channel,
+        channel: canalExposto(c),
         status: c.status,
         assigned_to_user_id: c.assigned_to_user_id,
         assignee_kind: c.assignee_kind,
@@ -142,7 +153,7 @@ export const crmGetConversation: McpToolDefinition<typeof getInputShape> = {
       id: conv.id,
       contact_id: conv.contact_id,
       channel_session_id: conv.channel_session_id,
-      channel: conv.channel,
+      channel: canalExposto(conv),
       status: conv.status,
       assigned_to_user_id: conv.assigned_to_user_id,
       assignee_kind: conv.assignee_kind,
