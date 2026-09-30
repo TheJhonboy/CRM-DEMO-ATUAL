@@ -643,17 +643,27 @@ export const messagingWindowGate: Gate = {
     if (caps.freeformOutsideWindow) return { pass: true, skipped: 'not_applicable' };
 
     // Template é a saída legítima fora da janela — é o que a `reason` do veto
-    // manda usar. Vetá-lo aqui fecharia a única porta que este gate abre.
-    if (ctx.messagingWindow?.isTemplate === true) return { pass: true };
+    // manda usar. Vetá-lo aqui fecharia a única porta que este gate abre. Só vale
+    // onde o canal TEM template: num canal sem definição aprovada a flag não
+    // descreve nada legítimo, e aceitá-la seria bypass de texto livre.
+    if (caps.requiresTemplates && ctx.messagingWindow?.isTemplate === true) return { pass: true };
 
     if (isWindowOpen(ctx.now, ctx.messagingWindow?.lastInboundAt ?? null)) return { pass: true };
 
+    // A `reason` diz a saída QUE EXISTE neste canal. Sem template, a ferramenta
+    // `send_template` nem entra no turno (inbound-turn a apaga por
+    // `requiresTemplates`), e mandar usá-la seria instrução impossível — o modelo
+    // tentaria de novo e o turno morreria calado. Nesse canal a própria cadeia
+    // registra a escalada (ver `escalarJanelaFechadaSemModelo`).
     return {
       pass: false,
       code: 'messaging_window_closed',
-      reason:
-        'a janela de 24 horas com este contato fechou; o canal vai recusar texto livre. ' +
-        'Use um template aprovado (ferramenta send_template) ou encerre o turno sem enviar.',
+      reason: caps.requiresTemplates
+        ? 'a janela de 24 horas com este contato fechou; o canal vai recusar texto livre. ' +
+          'Use um template aprovado (ferramenta send_template) ou encerre o turno sem enviar.'
+        : 'a janela de 24 horas com este contato fechou e este canal não tem template: ' +
+          'NÃO envie texto livre (o canal recusa). A conversa já foi sinalizada para um ' +
+          'atendente humano na Central; encerre o turno sem enviar nada.',
     };
   },
 };
@@ -1121,6 +1131,22 @@ export async function runBeforeSend(args: RunBeforeSendArgs): Promise<BeforeSend
       );
     }
 
+    // Janela fechada num canal SEM template: nenhuma forma de mensagem sai, então a
+    // única saída é uma pessoa. Registrada AQUI, e não confiada ao modelo, porque
+    // vale para todo chamador da cadeia — o follow-up determinístico não tem modelo,
+    // e a ferramenta de handoff pode estar desligada na tela.
+    if (
+      veto !== null &&
+      veto.code === 'messaging_window_closed' &&
+      !capabilitiesOf(provider).requiresTemplates
+    ) {
+      await escalarJanelaFechadaSemModelo(
+        args.pool,
+        { tenantId: args.tenantId, leadId: args.leadId },
+        args.log,
+      );
+    }
+
     if (veto !== null) {
       // Nada foi escrito: rollback fecha a tx e solta o lock. O envio NÃO acontece.
       await client.query('rollback');
@@ -1153,6 +1179,54 @@ export async function runBeforeSend(args: RunBeforeSendArgs): Promise<BeforeSend
     throw err;
   } finally {
     client.release();
+  }
+}
+
+/**
+ * Escala à Central a conversa cuja janela de 24h fechou num canal SEM template.
+ *
+ * Mesmo mecanismo da escalada de veto de LGPD (`escalateLgpdVeto`): item na Central
+ * (`agent_inbox_items`), `kind='other'` com `ref_kind` próprio e dedupe por episódio
+ * ABERTO do contato. NÃO usa `kind='handoff'` de propósito: o dedupe do handoff
+ * humano (`human-handoff.ts`) é por `kind='handoff'` + contato, e um aviso de janela
+ * aberto engoliria o handoff real (crítico, com resumo) que viesse depois — além de
+ * contar como handoff no painel de evolução. Sem `force_human` nem silêncio: quando
+ * o cliente voltar a escrever a janela reabre e o atendimento automático segue.
+ * Até lá nem a pessoa consegue mandar texto livre por este canal (a exceção de 7
+ * dias da plataforma não é modelada), e o aviso diz isso.
+ *
+ * Fire-and-forget como `escalateLgpdVeto`: o gate já barrou o envio; falhar aqui
+ * vira log, nunca exceção no message-plane.
+ */
+export async function escalarJanelaFechadaSemModelo(
+  db: pg.Pool,
+  input: { tenantId: string; leadId: string },
+  log: Logger,
+): Promise<void> {
+  try {
+    await db.query(
+      `insert into agent_inbox_items (organization_id, kind, severity, title, body, ref_kind, ref_id)
+       -- 'warn', não 'warning': o CHECK de agent_inbox_items.severity só aceita
+       -- info/warn/critical, e o insert inválido cairia no catch em silêncio.
+       select $1, 'other', 'warn', $2, $3, 'janela_fechada_sem_modelo', $4
+       where not exists (
+         select 1 from agent_inbox_items
+         where organization_id = $1 and ref_kind = 'janela_fechada_sem_modelo' and ref_id = $4 and status = 'open'
+       )`,
+      [
+        input.tenantId,
+        'Janela de 24h fechada — a IA não pode responder por este canal',
+        'O agente tentou responder, mas a janela de 24 horas deste contato fechou e o canal ' +
+          'não oferece modelo aprovado para reabri-la. Nenhuma mensagem foi enviada. Por este ' +
+          'canal ninguém consegue escrever até o cliente mandar uma nova mensagem; se for ' +
+          'urgente, procure-o por outro canal.',
+        input.leadId,
+      ],
+    );
+  } catch (err) {
+    log.error('falha ao escalar janela fechada à inbox (segue: o gate já barrou o envio)', {
+      error: err instanceof Error ? err.name : 'unknown',
+    });
   }
 }
 
