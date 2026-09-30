@@ -18,6 +18,14 @@ Deixar o Calixto AI pronto para, assim que o usuário conectar uma conta Zernio 
 - Instagram entra via provider `zernio` já existente (`lib/channels/adapters/zernio.ts`). Hoje o ingest recusa `platform: "instagram"` com `evento_sem_interesse` (`tests/unit/channel-ingest-zernio.test.ts`).
 - Se o Zernio não entregar Instagram DM como esperado, o fallback é Meta Graph direto (fora deste escopo; spec própria).
 
+## Achados da segunda opinião (Antigravity, 2026-09-30) e resposta
+- Suporte do Zernio a Instagram DM é premissa de alto risco. Resposta: primeira tarefa do plano é um spike que lê a documentação oficial do Zernio (envio, recebimento, assinatura do webhook). Se não sustentar Instagram DM, o trabalho de Instagram para e o usuário decide entre Meta Graph direto ou outro provedor. WhatsApp e agente administrador seguem independentes.
+- Regras diferentes por canal (janela de 24h, templates, limites de mídia, anti-spam). Resposta: um agente, mas política por canal via `capabilities.ts`; fora da janela o agente não envia texto livre, escala para humano.
+- Assinatura do webhook pode não existir para Instagram. Resposta: sem verificação criptográfica comprovada, o canal Instagram fica desligado por padrão (falha fechada).
+- Tenant: a organização é resolvida pela sessão de canal cadastrada no servidor (`channel_sessions`), nunca por campo do payload. Teste de isolamento entre duas organizações.
+- Injeção cruzada: texto de cliente gravado em nota/tarefa é marcado como dado não confiável; o agente administrador só lê campos estruturados e não segue instruções embutidas em notas.
+- Fluxo de envio (outbound) entra no escopo: envio pelo adapter, tratamento de erro e nova tentativa limitada, registro de falha entregue ao humano.
+
 ## Fora de escopo
 Importação de dados do pai; merge na `main`; deploy de produção; conexão real ao Instagram; Meta Graph direto.
 
