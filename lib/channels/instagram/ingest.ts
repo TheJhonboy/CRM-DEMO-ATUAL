@@ -33,7 +33,7 @@ import { CHANNEL_PROVIDER_INSTAGRAM } from "../capabilities";
 import { marcarConversaComMensagem } from "../marcar-conversa";
 import { aplicarEfeitosPosEntrada } from "../pos-entrada";
 
-import { LIMITE_DE_BYTES } from "./texto";
+import { dividirTextoEmPartes, LIMITE_DE_BYTES } from "./texto";
 import type { InstagramEvent, InstagramMessage, InstagramRead } from "./webhook";
 
 export interface InstagramIngestResult {
@@ -260,9 +260,10 @@ async function adotarMidDoEnvioEmVoo(
 }
 
 /**
- * Eco cujo texto está CONTIDO no corpo de uma saída nossa (`ai`/`user`) dos últimos 60 s
- * na mesma organização e conversa, e cujo corpo passa de 1000 bytes (só esse é enviado
- * em partes): é uma parte da resposta longa. Vale com a saída já com `external_id`
+ * Eco cujo texto é IGUAL (normalizado) a uma das partes em que o corpo de uma saída nossa
+ * (`ai`/`user`) dos últimos 60 s, na mesma organização e conversa, foi dividido (corpo
+ * acima de 1000 bytes, `dividirTextoEmPartes`, a mesma função do adapter): é uma parte
+ * da resposta longa. Vale com a saída já com `external_id`
  * (partes 2..n) e ainda sem ele (eco antes de o sender gravar o mid — inclusive a parte
  * 1, que não é igual ao corpo inteiro). Não escreve nada: o `external_id` da linha é o
  * da primeira parte e quem o grava é o sender. Corpo curto não entra: um humano que
@@ -279,7 +280,7 @@ async function ehEcoDeParteDeRespostaLonga(
   const desde = new Date(Date.now() - JANELA_ADOCAO_MS).toISOString();
   const { data } = await admin
     .from("messages")
-    .select("id, body, sent_via")
+    .select("id, body, sent_via, external_id")
     .eq("organization_id", organizationId)
     .eq("conversation_id", conversationId)
     .eq("direction", "outbound")
@@ -287,9 +288,16 @@ async function ehEcoDeParteDeRespostaLonga(
     .gte("created_at", desde)
     .order("created_at", { ascending: false })
     .limit(10);
-  return ((data ?? []) as { body: string | null }[]).some((m) => {
-    const corpo = normalizar(m.body);
-    return new TextEncoder().encode(corpo).length > LIMITE_DE_BYTES && corpo.includes(trecho);
+  return ((data ?? []) as { body: string | null; external_id: string | null }[]).some((m) => {
+    if (!m.body || new TextEncoder().encode(m.body).length <= LIMITE_DE_BYTES) return false;
+    // A MESMA função do adapter: as partes que saíram são as que voltam no eco. Igualdade,
+    // nunca `includes`: um "Ok" digitado no celular não pode virar "parte" da resposta.
+    const partes = dividirTextoEmPartes(m.body).map(normalizar);
+    const i = partes.indexOf(trecho);
+    if (i < 0) return false;
+    // Parte 1 tem mid conhecido depois que o sender grava (vira `midJaExiste`); só enquanto
+    // a linha não tem `external_id` o eco da parte 1 pode chegar aqui. Partes 2..n sempre.
+    return i >= 1 || !m.external_id;
   });
 }
 
@@ -315,7 +323,48 @@ async function contatoPeloIgsid(admin: SupabaseClient, organizationId: string, i
     .is("is_merged_into", null)
     .limit(1)
     .maybeSingle();
-  return (data as { id: string } | null)?.id ?? null;
+  const ativo = (data as { id: string } | null)?.id ?? null;
+  if (ativo) return ativo;
+  return sobreviventeDoContatoMesclado(admin, organizationId, igsid);
+}
+
+const MAX_SALTOS_DE_MESCLAGEM = 5;
+
+/**
+ * O índice único do IGSID é parcial (`is_merged_into is null`) e a função de mesclagem não
+ * leva o IGSID ao sobrevivente: sem isto, a próxima DM de um contato mesclado criaria um
+ * duplicado. Acha um contato MESCLADO com este IGSID (mesma organização) e segue o
+ * `is_merged_into` até o sobrevivente, com teto de saltos e guarda contra ciclo.
+ */
+async function sobreviventeDoContatoMesclado(
+  admin: SupabaseClient,
+  organizationId: string,
+  igsid: string,
+): Promise<string | null> {
+  const { data } = await admin
+    .from("contacts")
+    .select("id, is_merged_into")
+    .eq("organization_id", organizationId)
+    .eq("instagram_scoped_id", igsid)
+    .limit(5);
+  let atual = ((data ?? []) as { id: string; is_merged_into: string | null }[]).find((c) => c.is_merged_into)
+    ?.is_merged_into;
+  const vistos = new Set<string>();
+  for (let salto = 0; atual && salto < MAX_SALTOS_DE_MESCLAGEM; salto++) {
+    if (vistos.has(atual)) return null;
+    vistos.add(atual);
+    const { data: c } = await admin
+      .from("contacts")
+      .select("id, is_merged_into")
+      .eq("organization_id", organizationId)
+      .eq("id", atual)
+      .maybeSingle();
+    const linha = c as { id: string; is_merged_into: string | null } | null;
+    if (!linha) return null;
+    if (!linha.is_merged_into) return linha.id;
+    atual = linha.is_merged_into;
+  }
+  return null;
 }
 
 /**

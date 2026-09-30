@@ -145,6 +145,44 @@ beforeEach(() => {
   log.warn.mockClear();
 });
 
+describe("contato mesclado (B3)", () => {
+  const semear = (org: string, id: string, into: string | null) =>
+    db.contacts.push({ id, organization_id: org, source_metadata: { instagram_igsid: "IGSID_123456" }, instagram_scoped_id: "IGSID_123456", is_merged_into: into });
+
+  it("IGSID de contato mesclado resolve para o sobrevivente, sem criar contato novo", async () => {
+    semear(ORG_A, "c-velho", "c-novo");
+    db.contacts.push({ id: "c-novo", organization_id: ORG_A, source_metadata: {}, instagram_scoped_id: null, is_merged_into: null });
+    const r = await um([msg()]);
+    expect(r.status).toBe("ingested");
+    expect(db.contacts).toHaveLength(2);
+    expect(db.messages[0]!.contact_id).toBe("c-novo");
+  });
+
+  it("segue a cadeia de mesclagens (ate 5 saltos)", async () => {
+    semear(ORG_A, "c1", "c2");
+    db.contacts.push({ id: "c2", organization_id: ORG_A, source_metadata: {}, instagram_scoped_id: null, is_merged_into: "c3" });
+    db.contacts.push({ id: "c3", organization_id: ORG_A, source_metadata: {}, instagram_scoped_id: null, is_merged_into: null });
+    await um([msg()]);
+    expect(db.messages[0]!.contact_id).toBe("c3");
+  });
+
+  it("ciclo de mesclagem nao trava: cai no contato novo", async () => {
+    semear(ORG_A, "c1", "c2");
+    db.contacts.push({ id: "c2", organization_id: ORG_A, source_metadata: {}, instagram_scoped_id: null, is_merged_into: "c1" });
+    const r = await um([msg()]);
+    expect(["ingested", "ignored"]).toContain(r.status);
+  });
+
+  it("outra organizacao nunca casa", async () => {
+    semear(ORG_B, "b-velho", "b-novo");
+    db.contacts.push({ id: "b-novo", organization_id: ORG_B, source_metadata: {}, instagram_scoped_id: null, is_merged_into: null });
+    await um([msg()]);
+    const gravada = db.messages.find((m) => m.external_id === "mid.1");
+    expect(gravada?.contact_id).not.toBe("b-novo");
+    expect(db.messages.every((m) => m.organization_id === ORG_A)).toBe(true);
+  });
+});
+
 describe("ingestInstagramInbound", () => {
   it("texto novo cria contato (sem telefone), conversa com thread = IGSID e mensagem, e chama os efeitos", async () => {
     const r = await um([msg()]);
@@ -520,6 +558,24 @@ ${P3}`;
         await comRespostaLonga({ id: "l2", conversation_id: "outra" });
         await comRespostaLonga({ id: "l3", sent_via: "external_device" });
         expect((await um([ecoDe(P2, "mid.parte2")])).status).toBe("ingested");
+      });
+
+      it.each(["Ok", "Olá", "Primeira", "parte da resposta", "Segunda parte da resposta."])(
+        "B1: humano digitou %j no celular logo depois da resposta longa: grava e PAUSA a IA (nao e 'parte')",
+        async (texto) => {
+          await comRespostaLonga();
+          const r = await um([ecoDe(texto, "mid.humano")]);
+          expect(r.status).toBe("ingested");
+          expect(db.messages.find((m) => m.external_id === "mid.humano")).toMatchObject({ sent_via: "external_device" });
+          expect(pos.pausa).toHaveBeenCalledTimes(1);
+        },
+      );
+
+      it("B1: parte 1 so vale enquanto a linha ainda nao tem external_id (com mid gravado, o eco da parte 1 e um mid conhecido; texto igual a parte 1 sem mid conhecido e humano)", async () => {
+        await comRespostaLonga();
+        const r = await um([ecoDe(P1, "mid.outro")]);
+        expect(r.status).toBe("ingested");
+        expect(pos.pausa).toHaveBeenCalledTimes(1);
       });
 
       it("corrida: resposta longa ainda sem external_id (envio em voo): parte 2 e duplicate sem adotar", async () => {
