@@ -67,7 +67,7 @@ export async function auditMcpToolCall(input: AuditMcpToolCallInput): Promise<vo
     // como actorUserId estourava a FK api_audit_log_actor_user_id_fkey. O ator
     // já fica registrado em actorApiTokenId e em metadata.actor_id.
     actorUserId: null,
-    actorApiTokenId: ctx.apiTokenId,
+    actorApiTokenId: ctx.apiTokenId || null,
     organizationId: ctx.organizationId,
     resourceType: "mcp_tool",
     // `resource_id` é uuid no banco; o nome da tool ia aqui como texto e o

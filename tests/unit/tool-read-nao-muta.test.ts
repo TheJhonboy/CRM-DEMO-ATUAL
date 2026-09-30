@@ -52,6 +52,8 @@ const DIR = path.join(RAIZ, "lib/mcp/tools");
 const NAO_SAO_DOMINIO = new Set([
   "index.ts", "catalog.ts", "catalogo-servido.ts", "pacotes.ts",
   "selecao-por-pacote.ts", "types.ts", "audit.ts", "recusa-para-o-modelo.ts", "tipos.ts",
+  // Registro próprio do agente administrador (fora do catálogo de propósito; ver o cabeçalho do arquivo).
+  "administracao.ts",
 ]);
 
 const MUTA = /\.(insert|update|delete|upsert)\s*\(/;
