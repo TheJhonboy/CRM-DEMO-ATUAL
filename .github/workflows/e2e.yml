@@ -638,6 +638,7 @@ jobs:
         suporte-temporario.spec.ts
         i18n-espanhol-na-tela.spec.ts
         inbox-abas-espelham-o-comando.spec.ts
+        canal-instagram.spec.ts
         moeda-da-organizacao.spec.ts
         zona-de-perigo-apaga-dados-de-teste.spec.ts
         central-avisos-resolver-em-lote.spec.ts

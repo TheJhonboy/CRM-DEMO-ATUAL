@@ -1,6 +1,9 @@
 "use client";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { CanalOficialClient } from "./CanalOficialClient";
@@ -52,7 +55,9 @@ export function ConexoesShell({
         ? "parceiro"
         : abaParam === "voz"
           ? "voz"
-          : "numeros";
+          : abaParam === "instagram"
+            ? "instagram"
+            : "numeros";
   const sub = params.get("sub") === "templates" ? "templates" : "conexao";
 
   const irPara = (proximaAba: string, proximaSub?: string): void => {
@@ -85,11 +90,30 @@ export function ConexoesShell({
             porque no dia em que houver um segundo parceiro esta aba não muda.
             Aqui fica o CONCEITO; lá dentro o cartão diz de quem se trata. */}
         <TabsTrigger value="parceiro">{t("Provedor parceiro")}</TabsTrigger>
+        <TabsTrigger value="instagram">{t("Instagram")}</TabsTrigger>
         <TabsTrigger value="voz">{t("Chamada de voz")}</TabsTrigger>
       </TabsList>
 
       <TabsContent value="numeros" className="mt-0">
         <ConnectionsClient wahaConfigured={wahaConfigured} />
+      </TabsContent>
+
+      <TabsContent value="instagram" className="mt-0">
+        {/* A conexão do Instagram tem tela própria (passo a passo + webhook): esta
+            aba é a porta, e não uma segunda cópia do formulário. */}
+        <Card className="flex flex-col gap-3 p-4">
+          <div>
+            <h3 className="text-sm font-semibold">{t("Instagram")}</h3>
+            <p className="text-xs text-muted-foreground">
+              {t("Receba e responda mensagens diretas da conta profissional do Instagram da empresa.")}
+            </p>
+          </div>
+          <div>
+            <Button asChild>
+              <Link href="/app/settings/canal-instagram">{t("Abrir conexão do Instagram")}</Link>
+            </Button>
+          </div>
+        </Card>
       </TabsContent>
 
       <TabsContent value="voz" className="mt-0">

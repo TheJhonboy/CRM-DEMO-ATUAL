@@ -38,6 +38,8 @@ const NAV_ALLOWLIST: Record<string, string> = {
   "/app/settings/tenant/whatsapp": "redirect legado para /app/connections; mantido por links salvos",
   "/app/settings/canal-oficial":
     "redirect para /app/connections?aba=oficial desde o PR #105 — conectar canal passou a ter um lugar só. Conexões é a porta; a aba é navegação interna dela",
+  "/app/settings/canal-instagram":
+    "tela de conexão do Instagram (passo a passo + webhook). A porta é a aba Instagram de Conexões (ConexoesShell), que leva até aqui; não é item de menu porque conectar canal tem um lugar só",
   "/app/settings/templates":
     "redirect para /app/connections?aba=oficial&sub=templates — template da Meta só existe por causa do canal oficial, e vive como sub-aba dele",
   "/app/settings/atualizacao":
