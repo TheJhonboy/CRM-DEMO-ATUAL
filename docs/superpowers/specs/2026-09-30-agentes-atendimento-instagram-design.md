@@ -4,7 +4,7 @@ Data: 2026-09-30. Branch: `feat/agentes-atendimento-instagram` (sobre `feature/v
 Status: aprovado pelo usuário por delegação (2026-09-30); revisão v2 troca Zernio por Meta Graph direto.
 
 ## Objetivo
-Deixar o Calixto AI pronto para, assim que o usuário conectar uma conta Zernio com o Instagram da empresa, atender clientes no Instagram e no WhatsApp com um agente de IA, e manter o CRM organizado com um agente administrador.
+Deixar o Calixto AI pronto para, assim que o usuário conectar o Instagram da empresa (Meta Graph), atender clientes no Instagram e no WhatsApp com um agente de IA, e manter o CRM organizado com um agente administrador.
 
 ## Entendimento (dito pelo usuário)
 - Bot 1: atende clientes no Instagram (DM) e WhatsApp.
@@ -20,7 +20,7 @@ Deixar o Calixto AI pronto para, assim que o usuário conectar uma conta Zernio 
 - Só é possível afirmar 'funciona de ponta a ponta no Instagram real' depois que o usuário conectar; antes disso a entrega é 'pronto e testado com simulação'.
 
 ## Achados da segunda opinião (Antigravity, 2026-09-30) e resposta
-- Suporte do Zernio a Instagram DM é premissa de alto risco. Resposta: primeira tarefa do plano é um spike que lê a documentação oficial do Zernio (envio, recebimento, assinatura do webhook). Se não sustentar Instagram DM, o trabalho de Instagram para e o usuário decide entre Meta Graph direto ou outro provedor. WhatsApp e agente administrador seguem independentes.
+- Suporte do Zernio a Instagram DM era premissa de alto risco. Resposta: o usuário informou que o Zernio não atende Instagram; adotado Meta Graph direto (provider `meta_instagram`), que tem assinatura HMAC documentada.
 - Regras diferentes por canal (janela de 24h, templates, limites de mídia, anti-spam). Resposta: um agente, mas política por canal via `capabilities.ts`; fora da janela o agente não envia texto livre, escala para humano.
 - Assinatura do webhook pode não existir para Instagram. Resposta: sem verificação criptográfica comprovada, o canal Instagram fica desligado por padrão (falha fechada).
 - Tenant: a organização é resolvida pela sessão de canal cadastrada no servidor (`channel_sessions`), nunca por campo do payload. Teste de isolamento entre duas organizações.
