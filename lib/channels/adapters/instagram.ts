@@ -77,8 +77,13 @@ async function chamar(
       if (res.status >= 500 && tentativa === 0) continue;
       const body = (await res.json().catch(() => ({}))) as GraphBody;
       return { status: res.status, ok: res.ok, body };
-    } catch {
-      // rede/timeout: tenta de novo uma vez
+    } catch (e) {
+      // Timeout: o pedido pode ter chegado à Meta — re-tentar duplicaria a mensagem.
+      const nome = (e as { name?: string } | null)?.name;
+      if (nome === "TimeoutError" || nome === "AbortError") {
+        throw new InstagramSendError("timeout", false);
+      }
+      // Erro de conexão: tenta de novo uma vez.
     }
   }
   throw new InstagramSendError("rede_indisponivel", true);

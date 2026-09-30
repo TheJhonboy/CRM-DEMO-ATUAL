@@ -174,8 +174,9 @@ const JANELA_ADOCAO_MS = 60_000;
  * conversa, uma saída assim nos últimos 60 s é o eco dela: adota o mid e devolve
  * `true` (sem nova linha, sem pausar a IA). Sem candidata, é resposta humana.
  *
- * Várias candidatas: prefere a de corpo idêntico ao do eco; sem correspondência,
- * só adota se houver UMA (o texto pode voltar normalizado). O `update` exige
+ * Adota só corpo idêntico ao do eco (trim + espaços colapsados), a mais antiga se
+ * houver várias; eco só de anexo adota só com UMA candidata. Sem correspondência é
+ * resposta humana (uma mensagem digitada no celular com envio em voo NÃO é adotada). O `update` exige
  * `external_id is null`, então o sender que grava o mesmo mid em seguida é inócuo.
  */
 async function adotarMidDoEnvioEmVoo(
@@ -187,17 +188,25 @@ async function adotarMidDoEnvioEmVoo(
   const desde = new Date(Date.now() - JANELA_ADOCAO_MS).toISOString();
   const { data } = await admin
     .from("messages")
-    .select("id, body")
+    .select("id, body, sent_via")
     .eq("organization_id", organizationId)
     .eq("conversation_id", conversationId)
     .eq("direction", "outbound")
     .is("external_id", null)
     .in("status", ["queued", "sending"])
     .gte("created_at", desde)
-    .order("created_at", { ascending: false })
+    .order("created_at", { ascending: true })
     .limit(5);
-  const candidatas = (data ?? []) as { id: string; body: string | null }[];
-  const alvo = candidatas.find((c) => c.body === ev.text) ?? (candidatas.length === 1 ? candidatas[0] : undefined);
+  const candidatas = (data ?? []) as { id: string; body: string | null; sent_via: string | null }[];
+  const norm = (t: string | null | undefined) => (t ?? "").trim().replace(/\s+/g, " ");
+  const doCrm = (c: { sent_via: string | null }) => c.sent_via === "ai" || c.sent_via === "user";
+  // Com texto: só adota corpo idêntico (normalizado); várias iguais → a mais antiga
+  // (ordem ascendente). Só anexo: só adota se houver UMA candidata, do CRM.
+  const alvo = ev.text
+    ? candidatas.find((c) => doCrm(c) && norm(c.body) === norm(ev.text))
+    : candidatas.length === 1 && doCrm(candidatas[0]!)
+      ? candidatas[0]
+      : undefined;
   if (!alvo) return false;
 
   const { data: adotadas, error } = await admin

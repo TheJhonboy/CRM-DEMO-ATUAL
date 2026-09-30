@@ -147,6 +147,15 @@ describe("adapter instagram", () => {
     expect(spy).toHaveBeenCalledTimes(2);
   });
 
+  it("timeout NAO re-tenta (o pedido pode ter chegado): uma chamada, detalhe timeout", async () => {
+    const spy = vi.fn().mockRejectedValue(new DOMException("timed out", "TimeoutError"));
+    vi.stubGlobal("fetch", spy);
+    const e = await erroDe(a().send(envio()));
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(e.message).toBe("instagram_send_failed: timeout");
+    expect(e).toMatchObject({ retryable: false });
+  });
+
   it("rede caindo duas vezes: rede_indisponivel, sem vazar a mensagem original", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError(`boom ${TOKEN}`)));
     const e = await erroDe(a().send(envio()));

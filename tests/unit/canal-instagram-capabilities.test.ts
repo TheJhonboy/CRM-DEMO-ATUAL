@@ -28,7 +28,7 @@ describe("canal instagram — matriz", () => {
     ).toBe("17841400000000000");
     expect(CHANNEL_SESSION_REF_COLUMNS).toContain("instagram_account_id");
   });
-  it("registra o adapter real: sem endereco pelo contato e inutilizavel sem credencial", async () => {
+  it("registra o adapter real: sem endereço pelo contato e inutilizável sem credencial", async () => {
     const a = getAdapter("instagram");
     expect(a.provider).toBe("instagram");
     expect(

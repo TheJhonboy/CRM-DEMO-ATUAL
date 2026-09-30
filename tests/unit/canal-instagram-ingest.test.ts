@@ -39,6 +39,7 @@ function builder(tabela: string) {
   let op: "select" | "insert" | "update" = "select";
   let payload: Row = {};
   const filtros: ((r: Row) => boolean)[] = [];
+  let ord: { c: string; asc: boolean } | null = null;
   const b: Record<string, unknown> = {};
   const exec = async (): Promise<{ data: unknown; error: { code?: string; message: string } | null }> => {
     await Promise.resolve(); // cede a vez: permite a corrida entre dois webhooks
@@ -49,6 +50,7 @@ function builder(tabela: string) {
       return { data: [row], error: null };
     }
     const alvo = tabelaDe(tabela).filter((r) => filtros.every((f) => f(r)));
+    if (ord) alvo.sort((x, y) => (String(x[ord!.c]) < String(y[ord!.c]) ? -1 : 1) * (ord!.asc ? 1 : -1));
     if (op === "update") {
       alvo.forEach((r) => Object.assign(r, payload));
       return { data: alvo.map((r) => ({ id: r.id })), error: null };
@@ -68,7 +70,7 @@ function builder(tabela: string) {
     },
     in: (c: string, vs: unknown[]) => (filtros.push((r) => vs.includes(r[c])), b),
     gte: (c: string, v: string) => (filtros.push((r) => String(r[c]) >= v), b),
-    order: () => b,
+    order: (c: string, o?: { ascending?: boolean }) => ((ord = { c, asc: o?.ascending !== false }), b),
     limit: () => b,
     maybeSingle: async () => {
       const r = await exec();
@@ -356,10 +358,45 @@ describe("ingestInstagramInbound", () => {
         expect(errada.external_id).toBeNull();
       });
 
-      it("linha de corpo diferente, unica, ainda e adotada (o texto pode voltar normalizado)", async () => {
-        const row = await comEnvioEmVoo({ body: "resposta do bot  " });
+      it("corpo so difere em espacos: adotada (normalizado)", async () => {
+        const row = await comEnvioEmVoo({ body: "  resposta   do bot " });
         expect((await um([eco()])).status).toBe("duplicate");
         expect(row.external_id).toBe("mid.bot");
+      });
+
+      it("corpo diferente (humano digitou com envio em voo): nao adota, grava e pausa a IA", async () => {
+        const row = await comEnvioEmVoo();
+        const r = await um([eco({ externalId: "mid.humano", text: "digitei no celular" })]);
+        expect(r.status).toBe("ingested");
+        expect(row.external_id).toBeNull();
+        expect(db.messages.find((m) => m.external_id === "mid.humano")).toMatchObject({ sent_via: "external_device" });
+        expect(pos.pausa).toHaveBeenCalledTimes(1);
+      });
+
+      it("duas candidatas de corpo identico: adota a mais antiga", async () => {
+        const nova = await comEnvioEmVoo({ id: "saida-nova", created_at: new Date(Date.now() - 1_000).toISOString() });
+        const velha = await comEnvioEmVoo({ id: "saida-velha", created_at: new Date(Date.now() - 20_000).toISOString() });
+        await um([eco()]);
+        expect(velha.external_id).toBe("mid.bot");
+        expect(nova.external_id).toBeNull();
+      });
+
+      it("so anexo, uma candidata: adotada", async () => {
+        const row = await comEnvioEmVoo({ body: null });
+        const r = await um([eco({ text: null, attachments: [{ type: "image", url: "https://cdn.exemplo/x.jpg" }] })]);
+        expect(r.status).toBe("duplicate");
+        expect(row.external_id).toBe("mid.bot");
+        expect(pos.pausa).not.toHaveBeenCalled();
+      });
+
+      it("so anexo, duas candidatas: nao adota (humano)", async () => {
+        const a1 = await comEnvioEmVoo({ id: "s1", body: null });
+        const a2 = await comEnvioEmVoo({ id: "s2", body: null });
+        const r = await um([eco({ text: null, attachments: [{ type: "image", url: "https://cdn.exemplo/x.jpg" }] })]);
+        expect(r.status).toBe("ingested");
+        expect(a1.external_id).toBeNull();
+        expect(a2.external_id).toBeNull();
+        expect(pos.pausa).toHaveBeenCalledTimes(1);
       });
     });
 
