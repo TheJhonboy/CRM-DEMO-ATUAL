@@ -345,6 +345,13 @@ describe("ingestInstagramInbound", () => {
         expect(rpcs.some((x) => x.nome === "fn_mark_conversation_message" && x.args.p_direction === "outbound")).toBe(false);
       });
 
+      it.each(["delivered", "read"])("linha ja %s nao e rebaixada para sent pela adocao do eco", async (status) => {
+        const row = await comEnvioEmVoo({ status });
+        await um([eco()]);
+        expect(row.status).toBe(status);
+        expect(row.external_id).toBeNull();
+      });
+
       it("adotar promove o status para sent junto com o external_id", async () => {
         const row = await comEnvioEmVoo();
         await um([eco()]);
