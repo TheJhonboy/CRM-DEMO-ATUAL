@@ -28,10 +28,9 @@ describe("canal instagram — matriz", () => {
     ).toBe("17841400000000000");
     expect(CHANNEL_SESSION_REF_COLUMNS).toContain("instagram_account_id");
   });
-  it("registra o adapter (stub até a Task 6): fail-closed, sem endereço e sem envio", async () => {
+  it("registra o adapter real: sem endereco pelo contato e inutilizavel sem credencial", async () => {
     const a = getAdapter("instagram");
     expect(a.provider).toBe("instagram");
-    expect(a.isConfigured()).toBe(false);
     expect(
       a.resolveRecipient({
         isGroup: false,
@@ -40,8 +39,9 @@ describe("canal instagram — matriz", () => {
         waIdentity: null,
       }),
     ).toBeNull();
+    // Sem thread nao ha endereco: lanca antes de qualquer rede ou banco.
     await expect(
       a.send({ organizationId: "org-1", sessionRef: "17841400000000000", to: "x", kind: "text", body: "oi" }),
-    ).rejects.toThrow("instagram_adapter_not_implemented");
+    ).rejects.toThrow("sem_thread_do_instagram");
   });
 });

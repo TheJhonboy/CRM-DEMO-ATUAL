@@ -66,6 +66,9 @@ function builder(tabela: string) {
       filtros.push((r) => !lista.includes(String(r[c])));
       return b;
     },
+    in: (c: string, vs: unknown[]) => (filtros.push((r) => vs.includes(r[c])), b),
+    gte: (c: string, v: string) => (filtros.push((r) => String(r[c]) >= v), b),
+    order: () => b,
     limit: () => b,
     maybeSingle: async () => {
       const r = await exec();
@@ -270,6 +273,94 @@ describe("ingestInstagramInbound", () => {
       expect(pos.pausa.mock.calls[0]).toMatchObject([expect.anything(), { organizationId: ORG_A, canal: CHANNEL_PROVIDER_INSTAGRAM }]);
       expect(pos.entrada).not.toHaveBeenCalled();
       expect(rpcs.some((x) => x.nome === "emit_event" && x.args.p_event_type === "ai_agent.dispatch_requested")).toBe(false);
+    });
+
+    describe("corrida: eco antes de o sender gravar o mid", () => {
+      const agora = () => new Date().toISOString();
+      /** Conversa ja existente com uma saida nossa em voo (queued, sem external_id). */
+      async function comEnvioEmVoo(over: Row = {}) {
+        await ingerir([msg({ externalId: "mid.cli" })]); // cria contato e conversa
+        pos.entrada.mockClear();
+        const conv = db.conversations[0]!.id;
+        const row: Row = {
+          id: "saida-1", organization_id: ORG_A, conversation_id: conv, direction: "outbound",
+          status: "queued", external_id: null, body: "resposta do bot", sent_via: "ai", created_at: agora(), ...over,
+        };
+        db.messages.push(row);
+        return row;
+      }
+      const eco = (over: Partial<InstagramMessage> = {}) =>
+        msg({ isEcho: true, senderId: "IGACC_A", recipientId: "IGSID_123456", externalId: "mid.bot", text: "resposta do bot", ...over });
+
+      it("adota o mid na linha queued: sem nova linha, sem pausar a IA, sem efeitos", async () => {
+        const row = await comEnvioEmVoo();
+        const r = await um([eco()]);
+        expect(r.status).toBe("duplicate");
+        expect(row.external_id).toBe("mid.bot");
+        expect(db.messages).toHaveLength(2); // a do cliente + a nossa, nenhuma nova
+        expect(pos.pausa).not.toHaveBeenCalled();
+        expect(pos.entrada).not.toHaveBeenCalled();
+        expect(rpcs.some((x) => x.nome === "fn_mark_conversation_message" && x.args.p_direction === "outbound")).toBe(false);
+      });
+
+      it("status sending tambem e adotavel", async () => {
+        const row = await comEnvioEmVoo({ status: "sending" });
+        expect((await um([eco()])).status).toBe("duplicate");
+        expect(row.external_id).toBe("mid.bot");
+      });
+
+      it("depois de adotado, a reentrega do mesmo eco segue duplicate (mid conhecido)", async () => {
+        await comEnvioEmVoo();
+        await ingerir([eco()]);
+        expect((await um([eco()])).status).toBe("duplicate");
+        expect(pos.pausa).not.toHaveBeenCalled();
+      });
+
+      it("sem linha pendente: e resposta humana — grava, pausa a IA", async () => {
+        await ingerir([msg({ externalId: "mid.cli" })]);
+        const r = await um([eco({ externalId: "mid.humano", text: "digitei no celular" })]);
+        expect(r.status).toBe("ingested");
+        expect(pos.pausa).toHaveBeenCalledTimes(1);
+        expect(db.messages.find((m) => m.external_id === "mid.humano")).toMatchObject({ sent_via: "external_device" });
+      });
+
+      it("linha pendente com mais de 60 s: nao adota — humano", async () => {
+        const row = await comEnvioEmVoo({ created_at: new Date(Date.now() - 61_000).toISOString() });
+        const r = await um([eco()]);
+        expect(r.status).toBe("ingested");
+        expect(row.external_id).toBeNull();
+        expect(pos.pausa).toHaveBeenCalledTimes(1);
+      });
+
+      it("linha ja enviada/falhada nao e pendente: humano", async () => {
+        await comEnvioEmVoo({ status: "failed" });
+        expect((await um([eco()])).status).toBe("ingested");
+        expect(pos.pausa).toHaveBeenCalledTimes(1);
+      });
+
+      it("escopo: linha pendente de OUTRA organizacao ou de OUTRA conversa nao e adotada", async () => {
+        const row = await comEnvioEmVoo({ organization_id: ORG_B });
+        const outra = await comEnvioEmVoo({ id: "saida-2", conversation_id: "conversa-de-outro-cliente" });
+        const r = await um([eco()]);
+        expect(r.status).toBe("ingested");
+        expect(row.external_id).toBeNull();
+        expect(outra.external_id).toBeNull();
+        expect(pos.pausa).toHaveBeenCalledTimes(1);
+      });
+
+      it("duas pendentes: adota a de corpo igual, nao a primeira da fila", async () => {
+        const errada = await comEnvioEmVoo({ id: "saida-x", body: "outra coisa" });
+        const certa = await comEnvioEmVoo({ id: "saida-y" });
+        await um([eco()]);
+        expect(certa.external_id).toBe("mid.bot");
+        expect(errada.external_id).toBeNull();
+      });
+
+      it("linha de corpo diferente, unica, ainda e adotada (o texto pode voltar normalizado)", async () => {
+        const row = await comEnvioEmVoo({ body: "resposta do bot  " });
+        expect((await um([eco()])).status).toBe("duplicate");
+        expect(row.external_id).toBe("mid.bot");
+      });
     });
 
     it("eco sem destinatario e ignorado", async () => {

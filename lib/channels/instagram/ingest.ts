@@ -118,6 +118,13 @@ async function ingerirMensagem(admin: SupabaseClient, input: Base, ev: Instagram
   const conversationId = await garantirConversa(admin, input, contactId, igsid);
   if (!conversationId) return { status: "ignored", reason: "conversa_nao_resolvida" };
 
+  // Corrida do nosso próprio envio: o eco pode chegar ANTES de o sender gravar o
+  // `mid` que a Graph devolveu. Sem isto, a resposta da IA seria tomada por resposta
+  // humana (gravada de novo, IA pausada) e o `23505` viria depois, tarde demais.
+  if (ev.isEcho && (await adotarMidDoEnvioEmVoo(admin, input.organizationId, conversationId, ev))) {
+    return { status: "duplicate", conversationId };
+  }
+
   const inserida = await inserirMensagem(admin, input, { conversationId, contactId, ev, anexos });
   if (inserida === "duplicate") return { status: "duplicate", conversationId };
 
@@ -155,6 +162,56 @@ async function ingerirMensagem(admin: SupabaseClient, input: Base, ev: Instagram
   }
 
   return { status: "ingested", conversationId, messageId: inserida };
+}
+
+/** Janela em que uma saída nossa, ainda sem `external_id`, pode ser a dona do eco. */
+const JANELA_ADOCAO_MS = 60_000;
+
+/**
+ * O pipeline de envio (`app/api/v1/messages/_handler.ts`) insere a saída como
+ * `queued` com `external_id` NULL ANTES de falar com a Graph e só grava o `mid`
+ * depois. Um eco de mid desconhecido que encontra, na MESMA organização e
+ * conversa, uma saída assim nos últimos 60 s é o eco dela: adota o mid e devolve
+ * `true` (sem nova linha, sem pausar a IA). Sem candidata, é resposta humana.
+ *
+ * Várias candidatas: prefere a de corpo idêntico ao do eco; sem correspondência,
+ * só adota se houver UMA (o texto pode voltar normalizado). O `update` exige
+ * `external_id is null`, então o sender que grava o mesmo mid em seguida é inócuo.
+ */
+async function adotarMidDoEnvioEmVoo(
+  admin: SupabaseClient,
+  organizationId: string,
+  conversationId: string,
+  ev: InstagramMessage,
+): Promise<boolean> {
+  const desde = new Date(Date.now() - JANELA_ADOCAO_MS).toISOString();
+  const { data } = await admin
+    .from("messages")
+    .select("id, body")
+    .eq("organization_id", organizationId)
+    .eq("conversation_id", conversationId)
+    .eq("direction", "outbound")
+    .is("external_id", null)
+    .in("status", ["queued", "sending"])
+    .gte("created_at", desde)
+    .order("created_at", { ascending: false })
+    .limit(5);
+  const candidatas = (data ?? []) as { id: string; body: string | null }[];
+  const alvo = candidatas.find((c) => c.body === ev.text) ?? (candidatas.length === 1 ? candidatas[0] : undefined);
+  if (!alvo) return false;
+
+  const { data: adotadas, error } = await admin
+    .from("messages")
+    .update({ external_id: ev.externalId })
+    .eq("id", alvo.id)
+    .eq("organization_id", organizationId)
+    .is("external_id", null)
+    .select("id");
+  // 23505: o mid já está em outra linha — é duplicata, não mensagem nova.
+  if (error?.code === "23505") return true;
+  if ((adotadas ?? []).length > 0) return true;
+  // Perdeu a corrida para o sender: se o mid já está gravado, é o mesmo eco.
+  return midJaExiste(admin, organizationId, ev.externalId);
 }
 
 async function midJaExiste(admin: SupabaseClient, organizationId: string, externalId: string): Promise<boolean> {
