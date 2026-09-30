@@ -97,6 +97,7 @@ Detalham schema SQL e payloads exatos. **Consulte antes de modelar qualquer cois
 | [`adr/0002-tabelas-de-modulo-num-banco-so.md`](adr/0002-tabelas-de-modulo-num-banco-so.md) | **Aceita em 17/09/2026.** Tabelas de módulo opcional: um banco só, `public`, criadas por função provisionadora fixa quando o módulo é instalado |
 | [`architecture/agent-turn.html`](architecture/agent-turn.html) | Diagrama do turno do agente (inbound → guardrails → outbound) |
 | [`specs/pre-go-live-whatsapp.md`](specs/pre-go-live-whatsapp.md) | Modo de teste do WhatsApp por canal: lista de telefones, abertura ao público e compatibilidade com autorização por origem |
+| [`instagram-canal.md`](instagram-canal.md) | Canal Instagram (DM): pré-requisitos, 6 passos para conectar, como testar, limites (janela de 24 h, texto em partes de 1000 bytes, modo de teste) e o agente administrador opt-in |
 | [`specs/19`](specs/19-spec-console-de-agencia.md) | **Console de Agência** — operar N organizações clientes; unidade de cobrança decidida (retainer por cliente operado). Lei em [`doctrine/operacao-de-agentes.md`](doctrine/operacao-de-agentes.md) |
 | [`architecture/pre-go-live-whatsapp.architecture.json`](architecture/pre-go-live-whatsapp.architecture.json) | Mapa do pré-go-live, configuração administrativa e gate compartilhado |
 | [`architecture/extensoes-declarativas.architecture.json`](architecture/extensoes-declarativas.architecture.json) | Mapa vivo das extensões declarativas — admissão, download, recibos, ativação por organização e guia no CRM |
