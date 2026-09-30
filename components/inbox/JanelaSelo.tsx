@@ -8,6 +8,7 @@ import {
   formatarDecorrido,
   formatarRestante,
   LIMIAR_URGENTE_MS,
+  saidaDaJanelaFechada,
 } from "@/lib/channels/janela";
 import { cn } from "@/lib/utils";
 
@@ -53,6 +54,9 @@ export function JanelaSelo({
 
   const estado = estadoDaJanela(provider, lastInboundAt, agora);
   if (estado.tipo === "sem_restricao") return null;
+  // Canal sem modelo aprovado: fora da janela a saída é esperar o cliente, e o
+  // selo não pode prometer um modelo que este canal não tem.
+  const semModelo = saidaDaJanelaFechada(provider) === "aguardar_cliente";
 
   if (estado.tipo === "fechada") {
     // "Fechada há 3d" responde o que o operador realmente pergunta — "passei
@@ -66,11 +70,17 @@ export function JanelaSelo({
       <Badge
         variant="outline"
         className="h-4 border-amber-400 px-1.5 text-[10px] text-amber-700 dark:border-amber-700 dark:text-amber-300"
-        title={t(
-          "Passaram 24h desde a última mensagem do cliente. Só um modelo aprovado sai daqui — texto livre é recusado pela plataforma.",
-        )}
+        title={
+          semModelo
+            ? t(
+                "Passaram 24h desde a última mensagem do cliente. Este canal não tem modelo aprovado: dá para responder quando o cliente escrever de novo.",
+              )
+            : t(
+                "Passaram 24h desde a última mensagem do cliente. Só um modelo aprovado sai daqui — texto livre é recusado pela plataforma.",
+              )
+        }
       >
-        {quanto} · {t("só modelo")}
+        {quanto} · {semModelo ? t("aguarde o cliente") : t("só modelo")}
       </Badge>
     );
   }
@@ -83,7 +93,11 @@ export function JanelaSelo({
         "h-4 px-1.5 text-[10px]",
         urgente && "border-amber-400 text-amber-700 dark:border-amber-700 dark:text-amber-300",
       )}
-      title={t("Tempo restante para escrever texto livre. Depois disso, só modelo aprovado.")}
+      title={
+        semModelo
+          ? t("Tempo restante para escrever texto livre. Depois disso, só quando o cliente escrever de novo.")
+          : t("Tempo restante para escrever texto livre. Depois disso, só modelo aprovado.")
+      }
     >
       {t("Janela")} {formatarRestante(estado.restanteMs)}
     </Badge>

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useT } from "@/hooks/i18n/useT";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/auth/AuthProvider";
-import { estadoDaJanela, formatarDecorrido } from "@/lib/channels/janela";
+import { estadoDaJanela, formatarDecorrido, saidaDaJanelaFechada } from "@/lib/channels/janela";
 import { JanelaFechadaAviso } from "@/components/inbox/JanelaFechadaAviso";
 import { useClaimConversation } from "@/hooks/inbox/useClaimConversation";
 import { useCloseConversation } from "@/hooks/inbox/useCloseConversation";
@@ -318,11 +318,22 @@ export function InboxLayout({ initialSelectedId = null }: InboxLayoutProps = {})
     selectedConversation?.last_inbound_at ?? null,
     agoraJanela,
   );
+  // A saída que existe vem do seam: num canal sem modelo aprovado, prometer
+  // "só um modelo sai daqui" mandaria o operador procurar o que não existe.
+  const semModelo =
+    saidaDaJanelaFechada(selectedConversation?.channel_sessions?.provider ?? null) ===
+    "aguardar_cliente";
   const motivoDaJanela =
     janela.tipo === "fechada"
       ? janela.fechadaHaMs === null
-        ? t("O cliente ainda não escreveu — a janela de 24h nunca abriu. Só um modelo aprovado sai daqui.")
-        : `${t("A janela de 24h fechou há")} ${formatarDecorrido(janela.fechadaHaMs)}. ${t("Só um modelo aprovado sai daqui — texto livre é recusado pela plataforma.")}`
+        ? semModelo
+          ? t("O cliente ainda não escreveu — a janela de 24h nunca abriu. Este canal só permite responder depois que o cliente escrever.")
+          : t("O cliente ainda não escreveu — a janela de 24h nunca abriu. Só um modelo aprovado sai daqui.")
+        : `${t("A janela de 24h fechou há")} ${formatarDecorrido(janela.fechadaHaMs)}. ${
+            semModelo
+              ? t("Este canal recusa texto livre fora dela e não tem modelo — aguarde o cliente escrever de novo.")
+              : t("Só um modelo aprovado sai daqui — texto livre é recusado pela plataforma.")
+          }`
       : null;
 
   const blockedReason = selectedConversation?.contacts?.is_blocked

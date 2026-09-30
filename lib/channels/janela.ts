@@ -78,6 +78,28 @@ export function estadoDaJanela(
 }
 
 /**
+ * A saída que EXISTE quando a janela fecha.
+ *
+ * - `modelo` — o canal tem definição aprovada (`requiresTemplates`): manda-se um
+ *   modelo, e a tela oferece o seletor.
+ * - `aguardar_cliente` — o canal restringe a janela e NÃO tem modelo: por ele
+ *   ninguém escreve até o cliente mandar uma nova mensagem. A exceção humana de
+ *   7 dias que a plataforma do Instagram oferece NÃO é modelada, de propósito
+ *   (ver `capabilities.ts`); prometê-la aqui seria oferecer um envio que falha.
+ *
+ * Mora aqui pelo mesmo motivo de `estadoDaJanela`: a tela recebe a decisão, não
+ * o nome do canal. Só faz sentido para canal com janela; perguntar por um canal
+ * sem restrição devolve `modelo`, que a tela nunca chega a consultar.
+ */
+export function saidaDaJanelaFechada(
+  provider: string | null | undefined,
+): "modelo" | "aguardar_cliente" {
+  if (!provider) return "modelo";
+  const caps = capabilitiesOf(provider as ChannelProvider);
+  return !caps.freeformOutsideWindow && !caps.requiresTemplates ? "aguardar_cliente" : "modelo";
+}
+
+/**
  * "23h 40m", "40m", "3m".
  *
  * Sem segundos: um número que muda sozinho na tela puxa o olho para o relógio

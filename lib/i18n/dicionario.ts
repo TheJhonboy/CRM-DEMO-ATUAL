@@ -4737,6 +4737,23 @@ export const DICIONARIO: Traducoes = {
   "Tempo restante para escrever texto livre. Depois disso, só modelo aprovado.": {
     es: "Tiempo restante para escribir texto libre. Después de eso, solo modelo aprobado.",
   },
+  // Canal com janela e sem modelo aprovado: a saída é esperar o cliente.
+  "aguarde o cliente": { es: "espera al cliente" },
+  "Passaram 24h desde a última mensagem do cliente. Este canal não tem modelo aprovado: dá para responder quando o cliente escrever de novo.": {
+    es: "Pasaron 24h desde el último mensaje del cliente. Este canal no tiene modelo aprobado: podrás responder cuando el cliente vuelva a escribir.",
+  },
+  "Tempo restante para escrever texto livre. Depois disso, só quando o cliente escrever de novo.": {
+    es: "Tiempo restante para escribir texto libre. Después de eso, solo cuando el cliente vuelva a escribir.",
+  },
+  "Este canal não tem modelo aprovado para reabrir a conversa. Dá para responder quando o cliente escrever de novo.": {
+    es: "Este canal no tiene modelo aprobado para reabrir la conversación. Podrás responder cuando el cliente vuelva a escribir.",
+  },
+  "O cliente ainda não escreveu — a janela de 24h nunca abriu. Este canal só permite responder depois que o cliente escrever.": {
+    es: "El cliente todavía no escribió — la ventana de 24h nunca se abrió. Este canal solo permite responder después de que el cliente escriba.",
+  },
+  "Este canal recusa texto livre fora dela e não tem modelo — aguarde o cliente escrever de novo.": {
+    es: "Este canal rechaza texto libre fuera de ella y no tiene modelo — espera a que el cliente vuelva a escribir.",
+  },
   Janela: { es: "Ventana" },
   "Lembrete ativo": { es: "Recordatorio activo" },
   "Cancelar lembrete": { es: "Cancelar recordatorio" },

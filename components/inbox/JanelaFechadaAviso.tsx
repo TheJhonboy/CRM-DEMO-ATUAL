@@ -127,7 +127,14 @@ export function JanelaFechadaAviso({
     <div className="border-t border-amber-300 bg-amber-50/60 px-4 py-3 dark:border-amber-800/60 dark:bg-amber-950/30">
       <p className="mb-2 text-xs text-amber-900 dark:text-amber-200">{motivo}</p>
 
-      {aprovados.length === 0 ? (
+      {fonte === null ? (
+        // Canal sem definição aprovada: não há modelo a escolher nem a criar.
+        // Mandar criar um em "Conexões → Templates" seria apontar um caminho que
+        // não existe para este canal — a saída real é esperar o cliente.
+        <p className="text-xs text-amber-900/80 dark:text-amber-200/80">
+          {t("Este canal não tem modelo aprovado para reabrir a conversa. Dá para responder quando o cliente escrever de novo.")}
+        </p>
+      ) : aprovados.length === 0 ? (
         // Sem modelo aprovado não há saída por aqui, e dizer isso é melhor que
         // um seletor vazio que se lê como "ainda não carregou".
         <p className="text-xs text-amber-900/80 dark:text-amber-200/80">
