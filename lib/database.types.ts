@@ -2981,6 +2981,8 @@ export type Database = {
           display_name: string | null
           engine: string
           id: string
+          instagram_account_id: string | null
+          instagram_token_encrypted: string | null
           is_warmup_complete: boolean | null
           last_health_check_at: string | null
           last_status_change_at: string
@@ -3014,6 +3016,8 @@ export type Database = {
           display_name?: string | null
           engine?: string
           id?: string
+          instagram_account_id?: string | null
+          instagram_token_encrypted?: string | null
           is_warmup_complete?: boolean | null
           last_health_check_at?: string | null
           last_status_change_at?: string
@@ -3047,6 +3051,8 @@ export type Database = {
           display_name?: string | null
           engine?: string
           id?: string
+          instagram_account_id?: string | null
+          instagram_token_encrypted?: string | null
           is_warmup_complete?: boolean | null
           last_health_check_at?: string | null
           last_status_change_at?: string
@@ -3202,6 +3208,7 @@ export type Database = {
           force_human: boolean
           first_service_at: string | null
           id: string
+          instagram_scoped_id: string | null
           is_anonymized: boolean
           is_blocked: boolean
           is_merged_into: string | null
@@ -3242,6 +3249,7 @@ export type Database = {
           force_human?: boolean
           first_service_at?: string | null
           id?: string
+          instagram_scoped_id?: string | null
           is_anonymized?: boolean
           is_blocked?: boolean
           is_merged_into?: string | null
@@ -3282,6 +3290,7 @@ export type Database = {
           force_human?: boolean
           first_service_at?: string | null
           id?: string
+          instagram_scoped_id?: string | null
           is_anonymized?: boolean
           is_blocked?: boolean
           is_merged_into?: string | null
