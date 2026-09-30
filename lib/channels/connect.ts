@@ -12,11 +12,15 @@
  * descobrir depois é o que faz o operador achar que conectou e só entender que
  * não na primeira mensagem que não sai — com o lead do outro lado esperando.
  */
+import { randomBytes } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { metadataInicialDoCanal } from "@/lib/ai/elegibilidade/pre-go-live";
+import { encryptWebhookSecret } from "@/lib/webhooks/secrets";
 
+import { instagramAdapter } from "./adapters/instagram";
 import { ARCHIVED_AT, queryTolerantToMissingArchived } from "./archived";
-import { CHANNEL_PROVIDER_ZERNIO } from "./capabilities";
+import { CHANNEL_PROVIDER_INSTAGRAM, CHANNEL_PROVIDER_ZERNIO } from "./capabilities";
+import { instagramBaseUrl } from "./instagram/credentials";
 import { zernioBaseUrl } from "./zernio/credentials";
 import type { ChannelProvider } from "./types";
 
@@ -222,4 +226,263 @@ export async function savePartnerSession(
         .insert({ ...linha, metadata: metadataInicialDoCanal() });
 
   return { error: error?.message ?? null };
+}
+
+// ---------------------------------------------------------------------------
+// Instagram (DM pela Meta Graph, direto) — conexão por credencial própria
+// ---------------------------------------------------------------------------
+
+/**
+ * O canal de Instagram como valor, para rota e tela não escreverem a string.
+ *
+ * Diferente do parceiro, aqui a credencial é POR ORGANIZAÇÃO e sem reserva de
+ * `.env`: o operador cola o token da SUA conta profissional e o segredo do SEU
+ * app Meta. Nada é global — um token global enviaria pela conta errada.
+ */
+export const INSTAGRAM_CHANNEL_PROVIDER: ChannelProvider = CHANNEL_PROVIDER_INSTAGRAM;
+
+export interface InstagramConnectInput {
+  organizationId: string;
+  /** O que o operador digitou. Só é aceito se a Graph confirmar o MESMO id. */
+  accountId: string;
+  accessToken: string;
+  /** Segredo do app Meta: é com ele que a assinatura do webhook é conferida. */
+  appSecret: string;
+  displayName?: string;
+}
+
+export type InstagramConnectResult =
+  | {
+      ok: true;
+      /** Token do path do webhook — também é o verify token do handshake GET. */
+      webhookPathToken: string;
+      username: string | null;
+      status: string;
+    }
+  | {
+      ok: false;
+      /** `rejeitada` = a Meta disse não (422); `indisponivel` = não deu para perguntar (502);
+       * `cifra` = sem chave de cifra (422); `banco` = falha ao gravar (500). */
+      kind: "rejeitada" | "indisponivel" | "cifra" | "banco";
+      /** Mensagem pronta para o operador. NUNCA carrega token, segredo nem texto da Meta. */
+      reason: string;
+    };
+
+const GRAPH_TIMEOUT_MS = 8_000;
+
+/**
+ * A credencial presta e a conta é a que o operador disse?
+ *
+ * Guarda o id que a GRAPH devolve, e só aceita se for igual ao digitado: o que
+ * chega no webhook em `entry.id` é esse id, e a ingestão descarta (em silêncio)
+ * evento de conta diferente da gravada. Gravar o digitado sem conferir criaria
+ * um canal "conectado" que nunca recebe.
+ */
+export async function validateInstagramAccount(input: {
+  accountId: string;
+  accessToken: string;
+}): Promise<
+  | { ok: true; accountId: string; username: string | null }
+  | { ok: false; kind: "rejeitada" | "indisponivel"; reason: string }
+> {
+  let res: Response;
+  try {
+    // O token vai no cabeçalho, nunca na URL (URL vai para log de proxy).
+    res = await fetch(`${instagramBaseUrl()}/me?fields=id,username`, {
+      headers: { Authorization: `Bearer ${input.accessToken}` },
+      signal: AbortSignal.timeout(GRAPH_TIMEOUT_MS),
+    });
+  } catch {
+    return {
+      ok: false,
+      kind: "indisponivel",
+      reason: "Não foi possível falar com a Meta agora. Tente de novo em instantes.",
+    };
+  }
+
+  const json = (await res.json().catch(() => null)) as {
+    id?: unknown;
+    username?: unknown;
+    error?: { code?: unknown };
+  } | null;
+
+  if (res.status >= 500) {
+    return {
+      ok: false,
+      kind: "indisponivel",
+      reason: `A Meta respondeu ${res.status}. Tente de novo.`,
+    };
+  }
+  if (!res.ok || json?.error) {
+    const code = json?.error?.code;
+    return {
+      ok: false,
+      kind: "rejeitada",
+      reason:
+        code === 190 || res.status === 401
+          ? "Token recusado ou expirado pela Meta. Gere um novo e cole de novo."
+          : "A Meta recusou o token. Confira se ele tem permissão de mensagens do Instagram.",
+    };
+  }
+
+  const idDaMeta = typeof json?.id === "string" ? json.id : null;
+  if (!idDaMeta) {
+    return { ok: false, kind: "rejeitada", reason: "A Meta não devolveu a conta deste token." };
+  }
+  if (idDaMeta !== input.accountId) {
+    return {
+      ok: false,
+      kind: "rejeitada",
+      reason:
+        "O ID informado não é o da conta deste token. Use o ID que a Meta associa ao token (o mesmo que chega nos webhooks).",
+    };
+  }
+  return {
+    ok: true,
+    accountId: idDaMeta,
+    username: typeof json?.username === "string" ? json.username : null,
+  };
+}
+
+export interface InstagramSession {
+  id: string;
+  accountId: string | null;
+  displayName: string | null;
+  status: string | null;
+  webhookPathToken: string | null;
+  hasToken: boolean;
+  archivedAt: string | null;
+}
+
+const COLUNAS_INSTAGRAM =
+  "id, instagram_account_id, display_name, status, webhook_path_token, instagram_token_encrypted";
+
+export async function findInstagramSession(
+  admin: SupabaseClient,
+  organizationId: string,
+): Promise<InstagramSession | null> {
+  const buscar = (colunas: string) =>
+    admin
+      .from("channel_sessions")
+      .select(colunas)
+      .eq("organization_id", organizationId)
+      .eq("provider", INSTAGRAM_CHANNEL_PROVIDER)
+      .maybeSingle();
+
+  const { data } = await queryTolerantToMissingArchived(
+    () => buscar(`${COLUNAS_INSTAGRAM}, ${ARCHIVED_AT}`),
+    () => buscar(COLUNAS_INSTAGRAM),
+  );
+  const row = data as Record<string, unknown> | null;
+  if (!row) return null;
+  return {
+    id: row.id as string,
+    accountId: (row.instagram_account_id as string) ?? null,
+    displayName: (row.display_name as string) ?? null,
+    status: (row.status as string) ?? null,
+    webhookPathToken: (row.webhook_path_token as string) ?? null,
+    hasToken: !!row.instagram_token_encrypted,
+    archivedAt: (row.archived_at as string) ?? null,
+  };
+}
+
+/**
+ * Valida na Graph, cifra e grava — nessa ordem, e nada é gravado se um passo falha.
+ *
+ * Reconectar preserva o `webhook_path_token` (é o verify token já colado na Meta)
+ * e ressuscita a linha arquivada, como o parceiro.
+ */
+export async function connectInstagram(
+  admin: SupabaseClient,
+  input: InstagramConnectInput,
+): Promise<InstagramConnectResult> {
+  const v = await validateInstagramAccount({
+    accountId: input.accountId,
+    accessToken: input.accessToken,
+  });
+  if (!v.ok) return { ok: false, kind: v.kind, reason: v.reason };
+
+  const tokenCifrado = await encryptWebhookSecret(admin, input.accessToken);
+  const segredoCifrado = await encryptWebhookSecret(admin, input.appSecret);
+  if (!tokenCifrado || !segredoCifrado) {
+    // Sem a GUC de cifra, gravar em claro seria pior que recusar.
+    return {
+      ok: false,
+      kind: "cifra",
+      reason: "Cifra indisponível nesta instalação — nada foi gravado.",
+    };
+  }
+
+  const existente = await findInstagramSession(admin, input.organizationId);
+  const webhookPathToken = existente?.webhookPathToken ?? randomBytes(16).toString("hex");
+  const status = "WORKING";
+  const linha = {
+    organization_id: input.organizationId,
+    provider: INSTAGRAM_CHANNEL_PROVIDER,
+    instagram_account_id: v.accountId,
+    instagram_token_encrypted: tokenCifrado,
+    webhook_path_token: webhookPathToken,
+    webhook_secret_encrypted: segredoCifrado,
+    display_name: input.displayName?.trim() || (v.username ? `@${v.username}` : "Instagram"),
+    status,
+    archived_at: null,
+  };
+
+  const { error } = existente
+    ? await admin.from("channel_sessions").update(linha).eq("id", existente.id)
+    : await admin.from("channel_sessions").insert({ ...linha, metadata: metadataInicialDoCanal() });
+  if (error) {
+    return { ok: false, kind: "banco", reason: "Não foi possível gravar a conexão. Tente de novo." };
+  }
+  return { ok: true, webhookPathToken, username: v.username, status };
+}
+
+export type InstagramEstado = "conectado" | "nao_conectado" | "token_invalido";
+
+export interface InstagramEstadoDaConexao {
+  estado: InstagramEstado;
+  webhookPathToken: string | null;
+  username: string | null;
+  /** `sem_resposta` = a Meta não respondeu no prazo: o estado vem da existência da conexão, não de um teste. */
+  saude: "ok" | "falhou" | "sem_resposta" | null;
+}
+
+const SAUDE_TETO_MS = 5_000;
+
+/**
+ * Estado da conexão, com UMA ida à Graph (via `checkHealth` do adapter) sob teto de 5 s.
+ * Sem sessão → `nao_conectado`, sem chamar a Graph.
+ */
+export async function estadoDoInstagram(
+  admin: SupabaseClient,
+  organizationId: string,
+): Promise<InstagramEstadoDaConexao> {
+  const sessao = await findInstagramSession(admin, organizationId);
+  if (!sessao || sessao.archivedAt || !sessao.accountId || !sessao.hasToken) {
+    return { estado: "nao_conectado", webhookPathToken: null, username: null, saude: null };
+  }
+  const base = {
+    webhookPathToken: sessao.webhookPathToken,
+    username: sessao.displayName?.startsWith("@") ? sessao.displayName.slice(1) : null,
+  };
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const prazo = new Promise<"timeout">((resolve) => {
+    timer = setTimeout(() => resolve("timeout"), SAUDE_TETO_MS);
+  });
+  try {
+    const r = await Promise.race([
+      instagramAdapter.checkHealth!({ organizationId, sessionRef: sessao.accountId }),
+      prazo,
+    ]);
+    if (r === "timeout" || !r.reachable) {
+      return { estado: "conectado", ...base, saude: "sem_resposta" };
+    }
+    if (r.status === "WORKING") return { estado: "conectado", ...base, saude: "ok" };
+    return { estado: "token_invalido", ...base, saude: "falhou" };
+  } catch {
+    return { estado: "conectado", ...base, saude: "sem_resposta" };
+  } finally {
+    clearTimeout(timer);
+  }
 }
