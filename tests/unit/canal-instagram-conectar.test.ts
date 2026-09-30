@@ -41,7 +41,9 @@ let escritas = 0;
 let seq = 0;
 
 /** Banco em memória: só o que a conexão usa, com `organization_id` de verdade no filtro. */
-function bancoFalso(opts: { cifraOk?: boolean } = {}) {
+function bancoFalso(
+  opts: { cifraOk?: boolean; erroNaConsulta?: boolean; decifraFalha?: boolean } = {},
+) {
   const cifraOk = opts.cifraOk ?? true;
   const builder = (filtros: Array<[string, unknown]> = []) => {
     const api = {
@@ -51,6 +53,9 @@ function bancoFalso(opts: { cifraOk?: boolean } = {}) {
         const achadas = linhas.filter((l) =>
           filtros.every(([c, v]) => (v === null ? l[c] == null : l[c] === v)),
         );
+        if (opts.erroNaConsulta) {
+          return { data: null, error: { code: "57014", message: "statement timeout" } };
+        }
         return { data: achadas[0] ?? null, error: null };
       },
     };
@@ -64,6 +69,7 @@ function bancoFalso(opts: { cifraOk?: boolean } = {}) {
           : { data: null, error: { message: "sem chave" } };
       }
       if (nome === "fn_decrypt_oauth") {
+        if (opts.decifraFalha) return { data: null, error: { message: "sem chave" } };
         const hex = args.ciphertext!.replace(/^\\x/, "");
         return { data: Buffer.from(hex, "hex").toString().replace(/^ENC:/, ""), error: null };
       }
@@ -93,11 +99,11 @@ function bancoFalso(opts: { cifraOk?: boolean } = {}) {
 
 /** A Graph de mentira: responde por token. */
 function graphFalsa(
-  resposta: (token: string) => { status?: number; body: unknown } | "rede",
+  resposta: (token: string, url: string) => { status?: number; body: unknown } | "rede",
 ): ReturnType<typeof vi.fn> {
-  const f = vi.fn(async (_url: string, init?: RequestInit) => {
+  const f = vi.fn(async (url: string, init?: RequestInit) => {
     const auth = String((init?.headers as Record<string, string>)?.Authorization ?? "");
-    const r = resposta(auth.replace("Bearer ", ""));
+    const r = resposta(auth.replace("Bearer ", ""), String(url));
     if (r === "rede") throw new Error("ECONNRESET");
     return new Response(JSON.stringify(r.body), { status: r.status ?? 200 });
   });
@@ -105,7 +111,12 @@ function graphFalsa(
   return f;
 }
 
-const graphBoa = () => graphFalsa(() => ({ body: { id: CONTA, username: "loja_da_ana" } }));
+const graphBoa = () =>
+  graphFalsa((_t, url) =>
+    url.includes("/subscribed_apps")
+      ? { body: { success: true } }
+      : { body: { user_id: CONTA, username: "loja_da_ana" } },
+  );
 
 function pedido(corpo: unknown, metodo = "POST"): NextRequest {
   return new NextRequest("https://crm.exemplo/api/v1/channels/instagram", {
@@ -210,7 +221,7 @@ describe("POST — validação na Graph antes de gravar", () => {
   });
 
   it("id digitado diferente do que a Meta devolve ⇒ 422 claro e nada gravado", async () => {
-    graphFalsa(() => ({ body: { id: "17841499999999999", username: "outra" } }));
+    graphFalsa(() => ({ body: { user_id: "17841499999999999", username: "outra" } }));
     const r = await POST(pedido(corpoValido));
     expect(r.status).toBe(422);
     expect(escritas).toBe(0);
@@ -242,6 +253,111 @@ describe("POST — validação na Graph antes de gravar", () => {
   });
 });
 
+describe("POST — validação: id do /me e mensagens fixas", () => {
+  const corpoMe = (url: string, me: Record<string, unknown>) =>
+    url.includes("subscribed_apps") ? { body: { success: true } } : { body: me };
+
+  it("a Graph devolve `id` em vez de `user_id`: usa o id (compatibilidade)", async () => {
+    graphFalsa((_t, url) => corpoMe(url, { id: CONTA, username: "x" }));
+    expect((await POST(pedido(corpoValido))).status).toBe(200);
+    expect(linhas[0]!.instagram_account_id).toBe(CONTA);
+  });
+
+  it("user_id numerico tambem serve (String)", async () => {
+    graphFalsa((_t, url) => corpoMe(url, { user_id: Number(CONTA), username: "x" }));
+    const r = await connectInstagram(bancoFalso() as never, {
+      organizationId: ORG_A,
+      ...corpoValido,
+      accountId: "17841400000000001",
+    });
+    // 17841400000000001 perde precisao como number: o id nao bate e nada e gravado
+    expect(r.ok).toBe(false);
+    graphFalsa((_t, url) => corpoMe(url, { user_id: 1784140000, username: "x" }));
+    const ok = await connectInstagram(bancoFalso() as never, {
+      organizationId: ORG_A,
+      ...corpoValido,
+      accountId: "1784140000",
+    });
+    expect(ok.ok).toBe(true);
+  });
+
+  it("user_id vence id quando a Graph manda os dois", async () => {
+    graphFalsa((_t, url) => corpoMe(url, { id: "999999999", user_id: CONTA }));
+    expect((await POST(pedido(corpoValido))).status).toBe(200);
+    expect(linhas[0]!.instagram_account_id).toBe(CONTA);
+  });
+
+  it("Meta 5xx: razao FIXA (sem o status interpolado), status em campo separado", async () => {
+    graphFalsa(() => ({ status: 503, body: {} }));
+    const r = await POST(pedido(corpoValido));
+    const j = await r.json();
+    expect(r.status).toBe(502);
+    expect(j.error.message).not.toMatch(/503/);
+    expect(j.error.details).toEqual({ meta_status: 503 });
+  });
+
+  it("falha na consulta da sessao existente: kind banco, nada gravado (nao insere linha duplicada)", async () => {
+    graphBoa();
+    const r = await connectInstagram(bancoFalso({ erroNaConsulta: true }) as never, {
+      organizationId: ORG_A,
+      ...corpoValido,
+    });
+    expect(r).toMatchObject({ ok: false, kind: "banco" });
+    expect(escritas).toBe(0);
+  });
+});
+
+describe("POST — assinatura do webhook (best-effort)", () => {
+  it("assina messages e messaging_seen em /me/subscribed_apps, com o token no cabecalho", async () => {
+    const f = graphBoa();
+    const r = await POST(pedido(corpoValido));
+    const { data } = await r.json();
+    expect(data.webhookSubscribed).toBe(true);
+    const [url, init] = f.mock.calls[1]! as [string, RequestInit];
+    expect(url).toContain("/me/subscribed_apps?subscribed_fields=messages,messaging_seen");
+    expect(url).not.toContain(TOKEN);
+    expect(init.method).toBe("POST");
+    expect((init.headers as Record<string, string>).Authorization).toBe(`Bearer ${TOKEN}`);
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("so roda depois da validacao: token recusado nao assina", async () => {
+    const f = graphFalsa(() => ({ status: 400, body: { error: { code: 190 } } }));
+    await POST(pedido(corpoValido));
+    expect(f).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["a Meta recusa", (u: string) => (u.includes("subscribed_apps") ? { status: 400, body: { error: { code: 100 } } } : null)],
+    ["success false", (u: string) => (u.includes("subscribed_apps") ? { body: { success: false } } : null)],
+    ["a rede cai", (u: string) => (u.includes("subscribed_apps") ? ("rede" as const) : null)],
+  ])("%s: conecta mesmo assim, webhookSubscribed=false, linha gravada", async (_n, falha) => {
+    graphFalsa((_t, url) => falha(url) ?? { body: { user_id: CONTA, username: "loja" } });
+    const r = await POST(pedido(corpoValido));
+    expect(r.status).toBe(200);
+    expect((await r.json()).data.webhookSubscribed).toBe(false);
+    expect(linhas).toHaveLength(1);
+  });
+
+  it("a assinatura que trava tem teto de 5 s e nao impede a conexao", async () => {
+    vi.useFakeTimers();
+    const f = vi.fn((url: string, init?: RequestInit) => {
+      if (String(url).includes("subscribed_apps")) {
+        return new Promise((_ok, ko) => {
+          init?.signal?.addEventListener("abort", () => ko(new DOMException("t", "TimeoutError")));
+        });
+      }
+      return Promise.resolve(new Response(JSON.stringify({ user_id: CONTA, username: "l" }), { status: 200 }));
+    });
+    vi.stubGlobal("fetch", f);
+    const p = connectInstagram(bancoFalso() as never, { organizationId: ORG_A, ...corpoValido });
+    await vi.advanceTimersByTimeAsync(5_100);
+    const r = await p;
+    vi.useRealTimers();
+    expect(r).toMatchObject({ ok: true, webhookSubscribed: false });
+  });
+});
+
 describe("POST — sucesso", () => {
   it("grava token e segredo CIFRADOS, com o id que a Graph devolveu", async () => {
     const f = graphBoa();
@@ -249,9 +365,9 @@ describe("POST — sucesso", () => {
     expect(r.status).toBe(200);
 
     // Uma ida à Graph, no endpoint certo, com o token no cabeçalho (nunca na URL).
-    expect(f).toHaveBeenCalledTimes(1);
+    expect(f).toHaveBeenCalledTimes(2); // /me e subscribed_apps
     const url = String(f.mock.calls[0]![0]);
-    expect(url).toContain("/me?fields=id,username");
+    expect(url).toContain("/me?fields=user_id,username");
     expect(url).not.toContain(TOKEN);
 
     expect(linhas).toHaveLength(1);
@@ -280,7 +396,7 @@ describe("POST — sucesso", () => {
     graphBoa();
     const r = await POST(pedido(corpoValido));
     const { data } = await r.json();
-    expect(Object.keys(data).sort()).toEqual(["status", "username", "verifyToken", "webhookUrl"]);
+    expect(Object.keys(data).sort()).toEqual(["status", "username", "verifyToken", "webhookSubscribed", "webhookUrl"]);
     expect(data.username).toBe("loja_da_ana");
     expect(data.status).toBe("WORKING");
     expect(data.verifyToken).toBe(linhas[0]!.webhook_path_token);
@@ -355,6 +471,29 @@ describe("GET — estado", () => {
   it("quem não pode configurar canal recebe 403", async () => {
     comoOrg("negado");
     expect((await GET(pedido(null, "GET"))).status).toBe(403);
+  });
+
+  it("credencial que nao decifra (sem_credencial_para_a_sessao): token_invalido, nao 'Meta nao respondeu'", async () => {
+    graphBoa();
+    await POST(pedido(corpoValido));
+    vi.mocked(createAdminClient).mockImplementation(() => bancoFalso({ decifraFalha: true }) as never);
+    const { data } = await (await GET(pedido(null, "GET"))).json();
+    expect(data.state).toBe("token_invalido");
+  });
+
+  it("banco falhando ao ler a credencial (credenciais_indisponiveis): saude propria, nao 'Meta nao respondeu'", async () => {
+    graphBoa();
+    const admin = bancoFalso() as never;
+    await connectInstagram(admin, { organizationId: ORG_A, ...corpoValido });
+    // o adapter abre o seu proprio cliente: e esse que falha
+    vi.mocked(createAdminClient).mockImplementation(() => bancoFalso({ erroNaConsulta: true }) as never);
+    const r = await estadoDoInstagram(admin, ORG_A);
+    expect(r.estado).toBe("conectado");
+    expect(r.saude).toBe("credencial_indisponivel");
+  });
+
+  it("consulta da sessao falha: o estado lanca (nao finge 'nao conectado')", async () => {
+    await expect(estadoDoInstagram(bancoFalso({ erroNaConsulta: true }) as never, ORG_A)).rejects.toThrow();
   });
 });
 

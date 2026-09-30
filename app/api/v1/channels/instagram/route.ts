@@ -97,7 +97,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (!r.ok) {
     const status = r.kind === "indisponivel" ? 502 : r.kind === "banco" ? 500 : 422;
     const code = r.kind === "banco" ? "internal_error" : "invalid_request";
-    return fail(code, t(r.reason), status, { requestId });
+    return fail(code, t(r.reason), status, {
+      requestId,
+      ...(r.metaStatus ? { details: { meta_status: r.metaStatus } } : {}),
+    });
   }
 
   return ok(
@@ -106,6 +109,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       verifyToken: r.webhookPathToken,
       username: r.username,
       status: r.status,
+      webhookSubscribed: r.webhookSubscribed,
     },
     { requestId },
   );

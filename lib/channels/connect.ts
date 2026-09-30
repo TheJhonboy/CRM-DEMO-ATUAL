@@ -258,6 +258,11 @@ export type InstagramConnectResult =
       webhookPathToken: string;
       username: string | null;
       status: string;
+      /**
+       * A assinatura dos campos do webhook na Meta (`messages`, `messaging_seen`) foi aceita?
+       * Best-effort: `false` NÃO impede a conexão — a tela manda o operador assinar no painel.
+       */
+      webhookSubscribed: boolean;
     }
   | {
       ok: false;
@@ -266,9 +271,15 @@ export type InstagramConnectResult =
       kind: "rejeitada" | "indisponivel" | "cifra" | "banco";
       /** Mensagem pronta para o operador. NUNCA carrega token, segredo nem texto da Meta. */
       reason: string;
+      /** Status HTTP da Meta quando ela respondeu 5xx (a razão é texto FIXO e traduzível). */
+      metaStatus?: number;
     };
 
 const GRAPH_TIMEOUT_MS = 8_000;
+/** Teto da assinatura do webhook: best-effort, não pode segurar a conexão. */
+const SUBSCRIBE_TIMEOUT_MS = 5_000;
+/** Campos que o canal precisa receber (Instagram API com Instagram Login). */
+const CAMPOS_DO_WEBHOOK = "messages,messaging_seen";
 
 /**
  * A credencial presta e a conta é a que o operador disse?
@@ -283,12 +294,12 @@ export async function validateInstagramAccount(input: {
   accessToken: string;
 }): Promise<
   | { ok: true; accountId: string; username: string | null }
-  | { ok: false; kind: "rejeitada" | "indisponivel"; reason: string }
+  | { ok: false; kind: "rejeitada" | "indisponivel"; reason: string; metaStatus?: number }
 > {
   let res: Response;
   try {
     // O token vai no cabeçalho, nunca na URL (URL vai para log de proxy).
-    res = await fetch(`${instagramBaseUrl()}/me?fields=id,username`, {
+    res = await fetch(`${instagramBaseUrl()}/me?fields=user_id,username`, {
       headers: { Authorization: `Bearer ${input.accessToken}` },
       signal: AbortSignal.timeout(GRAPH_TIMEOUT_MS),
     });
@@ -301,6 +312,7 @@ export async function validateInstagramAccount(input: {
   }
 
   const json = (await res.json().catch(() => null)) as {
+    user_id?: unknown;
     id?: unknown;
     username?: unknown;
     error?: { code?: unknown };
@@ -310,7 +322,8 @@ export async function validateInstagramAccount(input: {
     return {
       ok: false,
       kind: "indisponivel",
-      reason: `A Meta respondeu ${res.status}. Tente de novo.`,
+      reason: "A Meta está com instabilidade agora. Tente de novo em instantes.",
+      metaStatus: res.status,
     };
   }
   if (!res.ok || json?.error) {
@@ -325,7 +338,11 @@ export async function validateInstagramAccount(input: {
     };
   }
 
-  const idDaMeta = typeof json?.id === "string" ? json.id : null;
+  // Com Instagram Login o id da conta profissional é `user_id`; `id` é o reserva (os
+  // nomes do /me nesse caminho não estão confirmados na documentação da Meta).
+  const bruto = json?.user_id ?? json?.id;
+  const idDaMeta =
+    typeof bruto === "string" || typeof bruto === "number" ? String(bruto).trim() : "";
   if (!idDaMeta) {
     return { ok: false, kind: "rejeitada", reason: "A Meta não devolveu a conta deste token." };
   }
@@ -344,6 +361,30 @@ export async function validateInstagramAccount(input: {
   };
 }
 
+/**
+ * Assina, na Meta, os campos que o canal recebe. Best-effort: nunca lança e nunca
+ * devolve o token; `false` = não deu (o operador assina no painel do app).
+ * Token no cabeçalho (nunca na URL). `subscribed_apps` com Instagram Login age sobre
+ * `/me` — a própria conta profissional do token.
+ */
+export async function subscribeInstagramWebhooks(accessToken: string): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `${instagramBaseUrl()}/me/subscribed_apps?subscribed_fields=${CAMPOS_DO_WEBHOOK}`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
+        signal: AbortSignal.timeout(SUBSCRIBE_TIMEOUT_MS),
+      },
+    );
+    if (!res.ok) return false;
+    const json = (await res.json().catch(() => null)) as { success?: unknown; error?: unknown } | null;
+    return !json?.error && json?.success !== false;
+  } catch {
+    return false;
+  }
+}
+
 export interface InstagramSession {
   id: string;
   accountId: string | null;
@@ -357,6 +398,7 @@ export interface InstagramSession {
 const COLUNAS_INSTAGRAM =
   "id, instagram_account_id, display_name, status, webhook_path_token, instagram_token_encrypted";
 
+/** LANÇA quando a consulta falha: o chamador decide (conectar → `banco`; estado → erro). */
 export async function findInstagramSession(
   admin: SupabaseClient,
   organizationId: string,
@@ -369,10 +411,15 @@ export async function findInstagramSession(
       .eq("provider", INSTAGRAM_CHANNEL_PROVIDER)
       .maybeSingle();
 
-  const { data } = await queryTolerantToMissingArchived(
+  const { data, error } = await queryTolerantToMissingArchived(
     () => buscar(`${COLUNAS_INSTAGRAM}, ${ARCHIVED_AT}`),
     () => buscar(COLUNAS_INSTAGRAM),
   );
+  // Erro NÃO é "não achei": tratar como ausente faria o conectar inserir uma linha
+  // duplicada (o índice parcial único 0276 a barraria com 23505, tarde e com erro cru).
+  if (error) {
+    throw new Error(`instagram_session_lookup_failed: ${error.code ?? "sem_codigo"}`);
+  }
   const row = data as Record<string, unknown> | null;
   if (!row) return null;
   return {
@@ -400,7 +447,7 @@ export async function connectInstagram(
     accountId: input.accountId,
     accessToken: input.accessToken,
   });
-  if (!v.ok) return { ok: false, kind: v.kind, reason: v.reason };
+  if (!v.ok) return { ok: false, kind: v.kind, reason: v.reason, metaStatus: v.metaStatus };
 
   const tokenCifrado = await encryptWebhookSecret(admin, input.accessToken);
   const segredoCifrado = await encryptWebhookSecret(admin, input.appSecret);
@@ -413,7 +460,13 @@ export async function connectInstagram(
     };
   }
 
-  const existente = await findInstagramSession(admin, input.organizationId);
+  let existente: InstagramSession | null;
+  try {
+    existente = await findInstagramSession(admin, input.organizationId);
+  } catch {
+    // Sem saber se já há linha, inserir poderia duplicar: não grava nada.
+    return { ok: false, kind: "banco", reason: "Não foi possível gravar a conexão. Tente de novo." };
+  }
   const webhookPathToken = existente?.webhookPathToken ?? randomBytes(16).toString("hex");
   const status = "WORKING";
   const linha = {
@@ -434,7 +487,9 @@ export async function connectInstagram(
   if (error) {
     return { ok: false, kind: "banco", reason: "Não foi possível gravar a conexão. Tente de novo." };
   }
-  return { ok: true, webhookPathToken, username: v.username, status };
+  // Só depois de gravar: uma assinatura sem linha correspondente seria efeito sem conexão.
+  const webhookSubscribed = await subscribeInstagramWebhooks(input.accessToken);
+  return { ok: true, webhookPathToken, username: v.username, status, webhookSubscribed };
 }
 
 export type InstagramEstado = "conectado" | "nao_conectado" | "token_invalido";
@@ -444,7 +499,7 @@ export interface InstagramEstadoDaConexao {
   webhookPathToken: string | null;
   username: string | null;
   /** `sem_resposta` = a Meta não respondeu no prazo: o estado vem da existência da conexão, não de um teste. */
-  saude: "ok" | "falhou" | "sem_resposta" | null;
+  saude: "ok" | "falhou" | "sem_resposta" | "credencial_indisponivel" | null;
 }
 
 const SAUDE_TETO_MS = 5_000;
@@ -475,6 +530,15 @@ export async function estadoDoInstagram(
       instagramAdapter.checkHealth!({ organizationId, sessionRef: sessao.accountId }),
       prazo,
     ]);
+    if (r !== "timeout" && !r.reachable) {
+      // Falhas NOSSAS (credencial), não da Meta: não são "Meta não respondeu".
+      if (r.detail === "sem_credencial_para_a_sessao") {
+        return { estado: "token_invalido", ...base, saude: "falhou" };
+      }
+      if (r.detail === "credenciais_indisponiveis") {
+        return { estado: "conectado", ...base, saude: "credencial_indisponivel" };
+      }
+    }
     if (r === "timeout" || !r.reachable) {
       return { estado: "conectado", ...base, saude: "sem_resposta" };
     }

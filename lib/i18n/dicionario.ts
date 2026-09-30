@@ -9377,6 +9377,9 @@ export const DICIONARIO: Traducoes = {
   "Não foi possível falar com a Meta agora. Tente de novo em instantes.": {
     es: "No se pudo hablar con Meta ahora. Inténtalo de nuevo en unos instantes.",
   },
+  "A Meta está com instabilidade agora. Tente de novo em instantes.": {
+    es: "Meta tiene inestabilidad ahora. Inténtalo de nuevo en unos instantes.",
+  },
   "A Meta não devolveu a conta deste token.": { es: "Meta no devolvió la cuenta de este token." },
   "Cifra indisponível nesta instalação — nada foi gravado.": {
     es: "Cifrado no disponible en esta instalación — no se guardó nada.",
