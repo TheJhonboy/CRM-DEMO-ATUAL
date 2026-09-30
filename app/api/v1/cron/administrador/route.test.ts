@@ -126,7 +126,7 @@ describe("/api/v1/cron/administrador", () => {
     const res = await GET(req("segredo"));
     expect(res.status).toBe(200);
     expect(executar.mock.calls.map((c) => (c[1] as { organizationId: string }).organizationId)).toEqual(["org-00001", "org-00008"]);
-    expect(executar.mock.calls[0]![1]).toEqual({ organizationId: "org-00001", limite: LIMITE_POR_ORGANIZACAO });
+    expect(executar.mock.calls[0]![1]).toMatchObject({ organizationId: "org-00001", limite: LIMITE_POR_ORGANIZACAO });
     const pagina = db.consultas.find((c) => c.range)!;
     expect(pagina.order).toBe("id");
     expect(pagina.filtros).toEqual(
@@ -196,5 +196,17 @@ describe("/api/v1/cron/administrador", () => {
       expect.stringContaining("administrador"),
       expect.objectContaining({ interrompidoPorTempo: true, elegiveis: 450 }),
     );
+  });
+  it("A4: passa o prazo da rodada ao administrador e pára de avançar quando ele avisa que estourou", async () => {
+    envMock.ADMIN_AGENT_ENABLED = true;
+    criarAdmin.mockReturnValue(bancoDeOrganizacoes([org(1), org(2), org(3)]).client);
+    const inicio = Date.now();
+    executar.mockResolvedValueOnce({ executadas: 1, falhas: 0 }).mockResolvedValueOnce({ executadas: 0, falhas: 0, interrompidoPorTempo: true });
+    const res = await GET(req("segredo"));
+    const corpo = (await res.json()) as { data: { interrompidoPorTempo: boolean; organizacoes: number } };
+    expect(executar).toHaveBeenCalledTimes(2);
+    expect((executar.mock.calls[0]![1] as { prazo: number }).prazo).toBe(inicio + ORCAMENTO_MS - 10_000);
+    expect(corpo.data.interrompidoPorTempo).toBe(true);
+    expect(corpo.data.organizacoes).toBe(2);
   });
 });

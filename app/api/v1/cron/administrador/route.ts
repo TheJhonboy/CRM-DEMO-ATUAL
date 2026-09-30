@@ -31,7 +31,10 @@
  * nos últimos 7 dias em qualquer status; etiqueta só se o contato ainda não a
  * tem). Duas rodadas simultâneas no mesmo lead podem, no pior caso, criar duas
  * tarefas na mesma janela de milissegundos; aceito na v1 (tarefa interna, sem
- * efeito externo).
+ * efeito externo). Isso é RISCO RESIDUAL conhecido: o dedupe de 7 dias o torna
+ * autolimitado (a duplicata não se repete), e NÃO há advisory lock porque o
+ * supabase-js não consegue manter uma transação/sessão aberta entre chamadas
+ * (adiado; exigiria RPC/SQL dedicado).
  *
  * Auth: mesmo contrato dos demais crons (`autorizaCron`: Bearer ou x-cron-secret,
  * comparação em tempo constante com INTERNAL_CRON_SECRET|INTERNAL_SECRET).
@@ -126,10 +129,18 @@ async function handle(req: NextRequest): Promise<Response> {
         break rodada;
       }
       try {
-        const r = await executarAdministrador({ supabase: admin }, { organizationId: org.id, limite: LIMITE_POR_ORGANIZACAO });
+        const r = await executarAdministrador({ supabase: admin }, {
+          organizationId: org.id,
+          limite: LIMITE_POR_ORGANIZACAO,
+          prazo: inicio + ORCAMENTO_MS - MARGEM_MS,
+        });
         processadas++;
         executadas += r.executadas;
         falhas += r.falhas;
+        if (r.interrompidoPorTempo) {
+          interrompidoPorTempo = true;
+          break rodada;
+        }
       } catch (err) {
         processadas++;
         // Uma organização com problema não pode parar as outras.

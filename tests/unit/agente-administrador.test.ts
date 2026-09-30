@@ -45,7 +45,7 @@ import {
   ferramentasAdministrador,
   executarFerramentaAdministrador,
 } from "@/lib/mcp/tools/administracao";
-import { decidirAcoes, executarAdministrador } from "@/lib/agent-engine/cron/administrador";
+import { decidirAcoes, emLotes, executarAdministrador } from "@/lib/agent-engine/cron/administrador";
 
 type Linha = Record<string, unknown>;
 
@@ -84,6 +84,11 @@ function bancoEmMemoria(seed: Record<string, Linha[]>) {
       in: (c: string, vs: unknown[]) => (filtros.push((r) => vs.includes(r[c])), b),
       is: (c: string, v: unknown) => (filtros.push((r) => (r[c] ?? null) === v), b),
       not: (c: string, _o: string, v: unknown) => (filtros.push((r) => (r[c] ?? null) !== v), b),
+      like: (c: string, v: string) => {
+        const prefixo = v.replace(/%$/, "");
+        filtros.push((r) => typeof r[c] === "string" && (r[c] as string).startsWith(prefixo));
+        return b;
+      },
       gte: (c: string, v: string) => (filtros.push((r) => String(r[c] ?? "") >= v), b),
       gt: (c: string, v: string) => (filtros.push((r) => String(r[c] ?? "") > v), b),
       lt: (c: string, v: string) => (filtros.push((r) => r[c] != null && String(r[c]) < v), b),
@@ -491,5 +496,131 @@ describe("decidirAcoes (pura)", () => {
   it("é determinística", () => {
     const s = { leads: [lead({ ultimaAtividadeEm: diasAtras(9) }), lead({ id: "l2", ultimaAtividadeEm: diasAtras(9) })], conversas: [conversa()] };
     expect(decidirAcoes(s, AGORA)).toEqual(decidirAcoes(s, AGORA));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Rodada 2 de correções (A1-A5)
+// ---------------------------------------------------------------------------
+const SLOT = 900_000;
+const hex = (p: string, n: number) => `${p}0000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+const vazio = () => ({ conversations: [] as Linha[], contacts: [] as Linha[], crm_leads: [] as Linha[], crm_tasks: [] as Linha[] });
+
+describe("A1: listas em .in() vão em lotes de no máximo 100", () => {
+  it("emLotes divide e preserva tudo, em ordem", () => {
+    const ids = Array.from({ length: 250 }, (_, i) => `id${i}`);
+    const lotes = emLotes(ids, 100);
+    expect(lotes.map((l) => l.length)).toEqual([100, 100, 50]);
+    expect(lotes.flat()).toEqual(ids);
+    expect(emLotes([], 100)).toEqual([]);
+  });
+
+  it("250 conversas pedindo etiqueta: nenhuma chamada .in() passa de 100 ids e todas são consideradas", async () => {
+    const base = vazio();
+    for (let i = 0; i < 250; i++) {
+      base.contacts.push({ id: hex("2", i), organization_id: ORG_A, tags: [] });
+      base.conversations.push({ id: hex("3", i), organization_id: ORG_A, contact_id: hex("2", i), status: "open", assigned_to_user_id: null, last_inbound_at: diasAtras(3) });
+    }
+    const db = bancoEmMemoria(base);
+    const tamanhos: number[] = [];
+    const real = db.client as unknown as { from: (t: string) => Record<string, (...a: unknown[]) => unknown> };
+    const original = real.from.bind(real);
+    real.from = (t: string) => {
+      const b = original(t);
+      const f = b.in as (...a: unknown[]) => unknown;
+      b.in = (...a: unknown[]) => (Array.isArray(a[1]) && tamanhos.push((a[1] as unknown[]).length), f(...a));
+      return b;
+    };
+    const rel = await executarAdministrador(adminDe(db), { organizationId: ORG_A, limite: 100 });
+    expect(Math.max(...tamanhos)).toBeLessThanOrEqual(100);
+    expect(rel.decididas).toBe(250);
+  });
+});
+
+describe("A2: conversa já etiquetada não tranca as novas (R3)", () => {
+  it("600 etiquetadas e antigas + 5 novas sem etiqueta: as novas recebem a etiqueta", async () => {
+    const base = vazio();
+    for (let i = 0; i < 600; i++) {
+      base.contacts.push({ id: hex("2", i), organization_id: ORG_A, tags: ["sem-responsavel"] });
+      base.conversations.push({ id: hex("3", i), organization_id: ORG_A, contact_id: hex("2", i), status: "open", assigned_to_user_id: null, last_inbound_at: diasAtras(30) });
+    }
+    for (let i = 0; i < 5; i++) {
+      base.contacts.push({ id: hex("4", i), organization_id: ORG_A, tags: [] });
+      base.conversations.push({ id: hex("5", i), organization_id: ORG_A, contact_id: hex("4", i), status: "open", assigned_to_user_id: null, last_inbound_at: diasAtras(2) });
+    }
+    const db = bancoEmMemoria(base);
+    const rel = await executarAdministrador(adminDe(db), { organizationId: ORG_A, limite: 20 });
+    expect(rel.executadas).toBe(5);
+    for (let i = 0; i < 5; i++) {
+      expect(db.tabelas.contacts!.find((c) => c.id === hex("4", i))!.tags).toContain("sem-responsavel");
+    }
+  });
+});
+
+describe("A3: leads não acionáveis além do teto de páginas não trancam os acionáveis", () => {
+  it("1200 parados com tarefa aberta + 3 acionáveis depois do teto: os 3 recebem tarefa", async () => {
+    const T8 = new Date((8 + 16 * 100_000) * SLOT); // slot % 16 === 8
+    const dias = (d: number) => new Date(T8.getTime() - d * 86_400_000).toISOString();
+    const base = vazio();
+    for (let i = 0; i < 1200; i++) {
+      base.crm_leads.push({ id: hex("1", i), organization_id: ORG_A, contact_id: null, status: "open", last_activity_at: dias(20), created_at: dias(40) });
+      base.crm_tasks.push({ id: `t${i}`, organization_id: ORG_A, lead_id: hex("1", i), status: "pending", description: null, created_by: null, created_at: dias(5) });
+    }
+    for (let i = 0; i < 3; i++) {
+      base.crm_leads.push({ id: hex("a", i), organization_id: ORG_A, contact_id: null, status: "open", last_activity_at: dias(20), created_at: dias(40) });
+    }
+    const db = bancoEmMemoria(base);
+    const rel = await executarAdministrador({ id: ADMIN_ID, supabase: db.client, agora: () => T8 }, { organizationId: ORG_A, limite: 5 });
+    expect(rel.executadas).toBe(3);
+    expect(db.tabelas.crm_tasks!.filter((t) => String(t.lead_id).startsWith("a"))).toHaveLength(3);
+  });
+});
+
+describe("A4: prazo da rodada", () => {
+  it("passou do prazo: pára de tentar, marca interrompidoPorTempo e o resto fica para depois", async () => {
+    const base = cenario();
+    for (let i = 0; i < 30; i++) {
+      base.crm_leads!.push({ id: uuid(1000 + i), organization_id: ORG_A, pipeline_id: uuid(100), stage_id: uuid(2), contact_id: uuid(51), status: "open", last_activity_at: diasAtras(20), created_at: diasAtras(40) });
+    }
+    const db = bancoEmMemoria(base);
+    let relogio = 1_000_000;
+    const spy = vi.spyOn(Date, "now").mockImplementation(() => relogio);
+    auditSpy.mockImplementation(() => {
+      relogio += 1000;
+    });
+    try {
+      const rel = await executarAdministrador(adminDe(db), { organizationId: ORG_A, limite: 50, prazo: 1_000_000 + 2500 });
+      expect(rel.interrompidoPorTempo).toBe(true);
+      expect(rel.executadas).toBeGreaterThan(0);
+      expect(rel.executadas).toBeLessThan(5);
+    } finally {
+      spy.mockRestore();
+      auditSpy.mockReset();
+    }
+  });
+
+  it("sem estourar o prazo, a flag é false", async () => {
+    const db = bancoEmMemoria(cenario());
+    const rel = await executarAdministrador(adminDe(db), { organizationId: ORG_A, limite: 50, prazo: Date.now() + 60_000 });
+    expect(rel.interrompidoPorTempo).toBe(false);
+  });
+});
+
+describe("A5: marcador por prefixo e só de quem não tem autor humano", () => {
+  it("descrição editada pelo operador (prefixo mantido) continua deduplicando", async () => {
+    const db = bancoEmMemoria(cenario());
+    await executarAdministrador(adminDe(db), { organizationId: ORG_A, limite: 50 });
+    db.tabelas.crm_tasks![0]!.description = `${db.tabelas.crm_tasks![0]!.description} (ajustada pelo gerente)`;
+    db.tabelas.crm_tasks![0]!.status = "done";
+    const rel2 = await executarAdministrador(adminDe(db), { organizationId: ORG_A, limite: 50 });
+    expect(rel2.executadas).toBe(0);
+  });
+
+  it("tarefa criada por uma pessoa com o mesmo texto NÃO vale como marcador", async () => {
+    const base = cenario();
+    base.crm_tasks!.push({ id: "t-humana", organization_id: ORG_A, lead_id: uuid(22), status: "done", description: "origem:agente-administrador", created_by: "user-1", created_at: AGORA.toISOString() });
+    const db = bancoEmMemoria(base);
+    const rel = await executarAdministrador(adminDe(db), { organizationId: ORG_A, limite: 50 });
+    expect(rel.acoes.some((a) => a.ferramenta === "admin_criar_tarefa" && a.ok)).toBe(true);
   });
 });

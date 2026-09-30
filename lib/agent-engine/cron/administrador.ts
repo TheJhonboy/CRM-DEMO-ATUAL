@@ -52,12 +52,14 @@ export const DIAS_PARA_LEAD_PARADO = 7;
 /** Janela em que uma tarefa do administrador (aberta ou fechada) impede outra igual. */
 export const DIAS_DE_DEDUPE_DA_TAREFA = 7;
 export const HORAS_PARA_CONVERSA_SEM_RESPONSAVEL = 24;
-/** Teto do que uma rodada LÊ de conversas — o limite de AÇÕES é outro. */
-const TETO_DE_LEITURA = 500;
 const TETO_DO_LIMITE = 100;
-/** Candidatos de lead por página (keyset por id) e quantas páginas no máximo. */
-const PAGINA_DE_LEADS = 100;
-const MAX_PAGINAS_DE_LEADS = 10;
+/** Itens por página (keyset por id) e quantas páginas no máximo, por tabela. */
+const PAGINA = 100;
+const MAX_PAGINAS = 10;
+/** Máximo de ids numa chamada `.in()`: 500 uuids ~ 18 KB de URL estouram proxies (414/431). */
+export const MAX_IDS_POR_CONSULTA = 100;
+/** Intervalo do scheduler; o slot gira o ponto inicial das varreduras. */
+const SLOT_MS = 15 * 60_000;
 /** Tentativas por rodada = este fator x o limite de sucessos. */
 export const FATOR_DE_TENTATIVAS = 3;
 
@@ -178,11 +180,84 @@ interface LinhaLead {
   created_at: string;
 }
 
+/** Divide uma lista em lotes (URL do PostgREST tem limite de tamanho: `.in()` com 500 uuids estoura). */
+export function emLotes<T>(itens: readonly T[], tamanho = MAX_IDS_POR_CONSULTA): T[][] {
+  const lotes: T[][] = [];
+  for (let i = 0; i < itens.length; i += tamanho) lotes.push(itens.slice(i, i + tamanho));
+  return lotes;
+}
+
+/** `.in()` em lotes, juntando os resultados. `consultar` recebe no máximo 100 ids. */
+async function lerPorIds<T>(ids: readonly string[], consultar: (lote: string[]) => Leitura): Promise<T[]> {
+  const saida: T[] = [];
+  for (const lote of emLotes(ids)) saida.push(...(await ler<T>(consultar(lote))));
+  return saida;
+}
+
+/**
+ * Inicia a varredura por id num ponto que GIRA a cada 15 min: o primeiro dígito
+ * hexadecimal do uuid é o slot % 16. Sem isso, um bloco grande de itens não
+ * acionáveis no começo da ordem por id ocuparia sempre o teto de páginas e os
+ * de trás nunca seriam vistos.
+ */
+export function inicioDaVarredura(agora: Date): string {
+  const slot = Math.floor(agora.getTime() / SLOT_MS) % 16;
+  return `${slot.toString(16)}0000000-0000-0000-0000-000000000000`;
+}
+
+interface FiltroDeId {
+  /** Primeira passada: id >= gte, depois id > gt. Segunda: id < lt. */
+  gte?: string;
+  gt?: string;
+  lt?: string;
+}
+
+/**
+ * Varredura por cursor (keyset) sobre `id`, começando no ponto rotativo e dando
+ * a volta até ele. Pára ao reunir acionáveis o bastante ou ao gastar o teto de
+ * páginas. `processar` devolve quantos itens do lote são acionáveis.
+ */
+async function varrerPorId<T extends { id: string }>(opcoes: {
+  agora: Date;
+  alvoDeAcionaveis: number;
+  buscar: (f: FiltroDeId) => Promise<T[]>;
+  processar: (lote: T[]) => Promise<number>;
+}): Promise<void> {
+  const inicio = inicioDaVarredura(opcoes.agora);
+  let paginas = 0;
+  let acionaveis = 0;
+
+  const passada = async (filtroInicial: FiltroDeId) => {
+    let filtro = filtroInicial;
+    while (paginas < MAX_PAGINAS && acionaveis < opcoes.alvoDeAcionaveis) {
+      paginas++;
+      const lote = await opcoes.buscar(filtro);
+      if (lote.length === 0) return;
+      acionaveis += await opcoes.processar(lote);
+      if (lote.length < PAGINA) return;
+      filtro = { ...filtroInicial, gte: undefined, gt: lote[lote.length - 1]!.id };
+    }
+  };
+
+  await passada({ gte: inicio });
+  if (paginas < MAX_PAGINAS && acionaveis < opcoes.alvoDeAcionaveis) await passada({ lt: inicio });
+}
+
+function aplicarFiltroDeId<Q extends { gte(c: string, v: string): Q; gt(c: string, v: string): Q; lt(c: string, v: string): Q }>(
+  q: Q,
+  f: FiltroDeId,
+): Q {
+  let r = q;
+  if (f.gte) r = r.gte("id", f.gte);
+  if (f.gt) r = r.gt("id", f.gt);
+  if (f.lt) r = r.lt("id", f.lt);
+  return r;
+}
+
 /**
  * Leads candidatos a R2. O predicado "parado há 7+ dias" vai para o SQL
- * (limite + ordem por id, paginação por cursor), e o dedupe olha SÓ os ids do
- * lote. Pára quando já reuniu candidatos acionáveis o bastante ou acabaram os
- * leads parados.
+ * (limite + ordem por id, varredura por cursor rotativo), e o dedupe olha SÓ os
+ * ids do lote, em lotes de no máximo 100.
  */
 async function carregarLeads(
   sb: SupabaseClient,
@@ -193,58 +268,130 @@ async function carregarLeads(
   const corte = new Date(agora.getTime() - DIAS_PARA_LEAD_PARADO * DIA_MS).toISOString();
   const corteDoDedupe = new Date(agora.getTime() - DIAS_DE_DEDUPE_DA_TAREFA * DIA_MS).toISOString();
   const resultado: LeadParaAvaliar[] = [];
-  let acionaveis = 0;
-  let cursor: string | null = null;
 
-  for (let pagina = 0; pagina < MAX_PAGINAS_DE_LEADS && acionaveis < alvoDeAcionaveis; pagina++) {
-    let q = sb
-      .from("crm_leads")
-      .select("id, contact_id, last_activity_at, created_at")
-      .eq("organization_id", organizationId)
-      .eq("status", "open")
-      .or(`last_activity_at.lt.${corte},and(last_activity_at.is.null,created_at.lt.${corte})`)
-      .order("id", { ascending: true })
-      .limit(PAGINA_DE_LEADS);
-    if (cursor) q = q.gt("id", cursor);
-    const lote = await ler<LinhaLead>(q);
-    if (lote.length === 0) break;
-    cursor = lote[lote.length - 1]!.id;
-    const ids = lote.map((l) => l.id);
+  await varrerPorId<LinhaLead>({
+    agora,
+    alvoDeAcionaveis,
+    buscar: (f) =>
+      ler<LinhaLead>(
+        aplicarFiltroDeId(
+          sb
+            .from("crm_leads")
+            .select("id, contact_id, last_activity_at, created_at")
+            .eq("organization_id", organizationId)
+            .eq("status", "open")
+            .or(`last_activity_at.lt.${corte},and(last_activity_at.is.null,created_at.lt.${corte})`),
+          f,
+        )
+          .order("id", { ascending: true })
+          .limit(PAGINA),
+      ),
+    processar: async (lote) => {
+      const ids = lote.map((l) => l.id);
+      const abertas = await lerPorIds<{ lead_id: string }>(ids, (parte) =>
+        sb
+          .from("crm_tasks")
+          .select("lead_id")
+          .eq("organization_id", organizationId)
+          .in("lead_id", parte)
+          .in("status", ["pending", "in_progress"]),
+      );
+      // Marcador do administrador: prefixo em `description` E sem autor humano.
+      const recentes = await lerPorIds<{ lead_id: string }>(ids, (parte) =>
+        sb
+          .from("crm_tasks")
+          .select("lead_id")
+          .eq("organization_id", organizationId)
+          .in("lead_id", parte)
+          .like("description", `${MARCADOR_TAREFA_ADMINISTRADOR}%`)
+          .is("created_by", null)
+          .gte("created_at", corteDoDedupe),
+      );
+      const comAberta = new Set(abertas.map((t) => t.lead_id));
+      const comRecente = new Set(recentes.map((t) => t.lead_id));
+      let acionaveis = 0;
+      for (const l of lote) {
+        const aberta = comAberta.has(l.id);
+        const recente = comRecente.has(l.id);
+        if (!aberta && !recente) acionaveis++;
+        resultado.push({
+          id: l.id,
+          contactId: l.contact_id,
+          ultimaAtividadeEm: l.last_activity_at,
+          criadoEm: l.created_at,
+          temTarefaAberta: aberta,
+          tarefaRecenteDoAdministrador: recente,
+        });
+      }
+      return acionaveis;
+    },
+  });
+  return resultado;
+}
 
-    const abertas = await ler<{ lead_id: string }>(
-      sb
-        .from("crm_tasks")
-        .select("lead_id")
-        .eq("organization_id", organizationId)
-        .in("lead_id", ids)
-        .in("status", ["pending", "in_progress"]),
-    );
-    const recentes = await ler<{ lead_id: string }>(
-      sb
-        .from("crm_tasks")
-        .select("lead_id")
-        .eq("organization_id", organizationId)
-        .in("lead_id", ids)
-        .eq("description", MARCADOR_TAREFA_ADMINISTRADOR)
-        .gte("created_at", corteDoDedupe),
-    );
-    const comAberta = new Set(abertas.map((t) => t.lead_id));
-    const comRecente = new Set(recentes.map((t) => t.lead_id));
+interface LinhaConversa {
+  id: string;
+  contact_id: string | null;
+  status: string;
+  assigned_to_user_id: string | null;
+  last_inbound_at: string | null;
+}
 
-    for (const l of lote) {
-      const leadParaAvaliar: LeadParaAvaliar = {
-        id: l.id,
-        contactId: l.contact_id,
-        ultimaAtividadeEm: l.last_activity_at,
-        criadoEm: l.created_at,
-        temTarefaAberta: comAberta.has(l.id),
-        tarefaRecenteDoAdministrador: comRecente.has(l.id),
-      };
-      if (!leadParaAvaliar.temTarefaAberta && !leadParaAvaliar.tarefaRecenteDoAdministrador) acionaveis++;
-      resultado.push(leadParaAvaliar);
-    }
-    if (lote.length < PAGINA_DE_LEADS) break;
-  }
+/**
+ * Conversas candidatas a R3, pela mesma varredura rotativa por id. A exclusão de
+ * contatos que já têm a etiqueta é feita por lote (tags lidas em lotes de 100),
+ * e só as NÃO etiquetadas contam para o alvo; assim um bloco grande de conversas
+ * já etiquetadas não tranca as novas.
+ */
+async function carregarConversas(
+  sb: SupabaseClient,
+  organizationId: string,
+  agora: Date,
+  alvoDeAcionaveis: number,
+): Promise<ConversaParaAvaliar[]> {
+  const corte = new Date(agora.getTime() - HORAS_PARA_CONVERSA_SEM_RESPONSAVEL * HORA_MS).toISOString();
+  const resultado: ConversaParaAvaliar[] = [];
+
+  await varrerPorId<LinhaConversa>({
+    agora,
+    alvoDeAcionaveis,
+    buscar: (f) =>
+      ler<LinhaConversa>(
+        aplicarFiltroDeId(
+          sb
+            .from("conversations")
+            .select("id, contact_id, status, assigned_to_user_id, last_inbound_at")
+            .eq("organization_id", organizationId)
+            .in("status", ["open", "pending"])
+            .is("assigned_to_user_id", null)
+            .lte("last_inbound_at", corte),
+          f,
+        )
+          .order("id", { ascending: true })
+          .limit(PAGINA),
+      ),
+    processar: async (lote) => {
+      const idsDeContato = [...new Set(lote.map((c) => c.contact_id).filter((x): x is string => !!x))];
+      const contatos = await lerPorIds<{ id: string; tags: string[] | null }>(idsDeContato, (parte) =>
+        sb.from("contacts").select("id, tags").eq("organization_id", organizationId).in("id", parte),
+      );
+      const tagsPorContato = new Map(contatos.map((c) => [c.id, c.tags ?? []] as const));
+      let acionaveis = 0;
+      for (const c of lote) {
+        const tags = c.contact_id ? (tagsPorContato.get(c.contact_id) ?? []) : [];
+        if (c.contact_id && !tags.includes("sem-responsavel")) acionaveis++;
+        resultado.push({
+          id: c.id,
+          contactId: c.contact_id,
+          status: c.status,
+          atribuidaA: c.assigned_to_user_id,
+          ultimaEntradaEm: c.last_inbound_at,
+          tagsDoContato: tags,
+        });
+      }
+      return acionaveis;
+    },
+  });
   return resultado;
 }
 
@@ -255,46 +402,8 @@ async function carregarRetrato(
   alvoDeAcionaveis: number,
 ): Promise<RetratoDaOrganizacao> {
   const leads = await carregarLeads(sb, organizationId, agora, alvoDeAcionaveis);
-
-  const corteDaConversa = new Date(agora.getTime() - HORAS_PARA_CONVERSA_SEM_RESPONSAVEL * HORA_MS).toISOString();
-  const conversas = await ler<{
-    id: string;
-    contact_id: string | null;
-    status: string;
-    assigned_to_user_id: string | null;
-    last_inbound_at: string | null;
-  }>(
-    sb
-      .from("conversations")
-      .select("id, contact_id, status, assigned_to_user_id, last_inbound_at")
-      .eq("organization_id", organizationId)
-      .in("status", ["open", "pending"])
-      .is("assigned_to_user_id", null)
-      .lte("last_inbound_at", corteDaConversa)
-      .order("last_inbound_at", { ascending: true })
-      .limit(TETO_DE_LEITURA),
-  );
-
-  const idsDeContato = [...new Set(conversas.map((c) => c.contact_id).filter((x): x is string => !!x))];
-  const tagsPorContato = new Map<string, string[]>();
-  if (idsDeContato.length > 0) {
-    const contatos = await ler<{ id: string; tags: string[] | null }>(
-      sb.from("contacts").select("id, tags").eq("organization_id", organizationId).in("id", idsDeContato),
-    );
-    for (const c of contatos) tagsPorContato.set(c.id, c.tags ?? []);
-  }
-
-  return {
-    leads,
-    conversas: conversas.map((c) => ({
-      id: c.id,
-      contactId: c.contact_id,
-      status: c.status,
-      atribuidaA: c.assigned_to_user_id,
-      ultimaEntradaEm: c.last_inbound_at,
-      tagsDoContato: c.contact_id ? (tagsPorContato.get(c.contact_id) ?? []) : [],
-    })),
-  };
+  const conversas = await carregarConversas(sb, organizationId, agora, alvoDeAcionaveis);
+  return { leads, conversas };
 }
 
 // ---------------------------------------------------------------------------
@@ -316,6 +425,8 @@ export interface RelatorioDoAdministrador {
   /** Ações bem-sucedidas (o limite conta estas). */
   executadas: number;
   falhas: number;
+  /** A rodada parou porque passou do prazo recebido da rota. */
+  interrompidoPorTempo: boolean;
   /** Ações decididas que não chegaram a ser tentadas (limite ou teto de tentativas). */
   adiadasPeloLimite: number;
   acoes: Array<{ ferramenta: string; ok: boolean; erro?: string }>;
@@ -323,7 +434,7 @@ export interface RelatorioDoAdministrador {
 
 export async function executarAdministrador(
   admin: AdministradorAgente,
-  opcoes: { organizationId: string; limite: number },
+  opcoes: { organizationId: string; limite: number; /** epoch ms; passou disso, pára de agir */ prazo?: number },
 ): Promise<RelatorioDoAdministrador> {
   const { organizationId } = opcoes;
   const limite = Number.isFinite(opcoes.limite)
@@ -334,11 +445,13 @@ export async function executarAdministrador(
     decididas: 0,
     executadas: 0,
     falhas: 0,
+    interrompidoPorTempo: false,
     adiadasPeloLimite: 0,
     acoes: [],
   };
   if (limite === 0) return relatorio;
 
+  const passouDoPrazo = () => opcoes.prazo !== undefined && Date.now() >= opcoes.prazo;
   const agora = admin.agora?.() ?? new Date();
   const tetoDeTentativas = limite * FATOR_DE_TENTATIVAS;
   const retrato = await carregarRetrato(admin.supabase, organizationId, agora, tetoDeTentativas);
@@ -358,6 +471,10 @@ export async function executarAdministrador(
   let tentativas = 0;
   for (const acao of decididas) {
     if (relatorio.executadas >= limite || tentativas >= tetoDeTentativas) break;
+    if (passouDoPrazo()) {
+      relatorio.interrompidoPorTempo = true;
+      break;
+    }
     tentativas++;
     try {
       await executarFerramentaAdministrador(acao.ferramenta, acao.args, ctx);
