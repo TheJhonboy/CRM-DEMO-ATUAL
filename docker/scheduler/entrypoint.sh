@@ -96,6 +96,9 @@ CRONS="
 30 3 * * *|120|api/v1/cron/kb-conversations-batch
 15 4 * * *|60|api/v1/cron/sync-model-catalog
 40 4 * * *|120|api/v1/cron/data-retention
+# O ADMINISTRADOR. A cada 15 min; a rota responde desligado enquanto
+# ADMIN_AGENT_ENABLED nao for true, entao agendar aqui nao liga nada por si so.
+*/15 * * * *|90|api/v1/cron/administrador
 "
 
 # CRONTAB_PATH é ponto de injeção do teste (tests/shell/scheduler-entrypoint.test.sh).

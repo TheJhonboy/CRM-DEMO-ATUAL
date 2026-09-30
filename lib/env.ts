@@ -332,6 +332,14 @@ const schema = z.object({
     .default("false")
     .transform((v) => v === "true"),
 
+  // Agente administrador (cron `administrador`): mantém o CRM organizado com
+  // ações seguras e auditadas. DESLIGADO por padrão — o dono liga quando quiser.
+  ADMIN_AGENT_ENABLED: z
+    .enum(["true", "false"])
+    .optional()
+    .default("false")
+    .transform((v) => v === "true"),
+
   // App URLs
   NEXT_PUBLIC_APP_URL: z
     .string()
