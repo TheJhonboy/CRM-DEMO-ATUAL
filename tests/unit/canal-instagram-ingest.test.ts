@@ -456,6 +456,86 @@ describe("ingestInstagramInbound", () => {
       });
     });
 
+    describe("eco das partes seguintes de uma resposta longa (>1000 bytes)", () => {
+      const agora = () => new Date().toISOString();
+      const P1 = "Primeira parte da resposta. ".repeat(25).trim();
+      const P2 = "Segunda parte da resposta. ".repeat(25).trim();
+      const P3 = "Terceira parte da resposta. ".repeat(25).trim();
+      const LONGO = `${P1}
+
+${P2}
+
+${P3}`;
+      async function comRespostaLonga(over: Row = {}) {
+        await ingerir([msg({ externalId: "mid.cli" })]);
+        pos.entrada.mockClear();
+        const row: Row = {
+          id: "longa-1", organization_id: ORG_A, conversation_id: db.conversations[0]!.id, direction: "outbound",
+          status: "sent", external_id: "mid.parte1", body: LONGO, sent_via: "ai", created_at: agora(), ...over,
+        };
+        db.messages.push(row);
+        return row;
+      }
+      const ecoDe = (text: string, externalId: string) =>
+        msg({ isEcho: true, senderId: "IGACC_A", recipientId: "IGSID_123456", externalId, text });
+
+      it("eco da parte 2 e da parte 3: duplicate, sem nova linha, sem pausar a IA", async () => {
+        await comRespostaLonga();
+        const n = db.messages.length;
+        expect((await um([ecoDe(P2, "mid.parte2")])).status).toBe("duplicate");
+        expect((await um([ecoDe(P3, "mid.parte3")])).status).toBe("duplicate");
+        expect(db.messages).toHaveLength(n);
+        expect(pos.pausa).not.toHaveBeenCalled();
+        expect(pos.entrada).not.toHaveBeenCalled();
+      });
+
+      it("sent_via user (resposta do atendente no CRM) tambem vale", async () => {
+        await comRespostaLonga({ sent_via: "user" });
+        expect((await um([ecoDe(P2, "mid.parte2")])).status).toBe("duplicate");
+        expect(pos.pausa).not.toHaveBeenCalled();
+      });
+
+      it("humano digitando texto que NAO esta no corpo: grava e pausa a IA", async () => {
+        await comRespostaLonga();
+        const r = await um([ecoDe("eu assumo daqui, um momento", "mid.h")]);
+        expect(r.status).toBe("ingested");
+        expect(pos.pausa).toHaveBeenCalledTimes(1);
+      });
+
+      it("humano repetindo um trecho de resposta CURTA (<=1000 bytes) continua pausando a IA", async () => {
+        await comRespostaLonga({ body: "resposta do bot com orcamento" });
+        const r = await um([ecoDe("orcamento", "mid.h2")]);
+        expect(r.status).toBe("ingested");
+        expect(pos.pausa).toHaveBeenCalledTimes(1);
+      });
+
+      it("resposta longa com mais de 60 s: o eco tardio e humano", async () => {
+        await comRespostaLonga({ created_at: new Date(Date.now() - 61_000).toISOString() });
+        expect((await um([ecoDe(P2, "mid.parte2")])).status).toBe("ingested");
+        expect(pos.pausa).toHaveBeenCalledTimes(1);
+      });
+
+      it("resposta de OUTRA conversa ou organizacao ou sent_via humano: nao vale", async () => {
+        await comRespostaLonga({ organization_id: ORG_B });
+        await comRespostaLonga({ id: "l2", conversation_id: "outra" });
+        await comRespostaLonga({ id: "l3", sent_via: "external_device" });
+        expect((await um([ecoDe(P2, "mid.parte2")])).status).toBe("ingested");
+      });
+
+      it("corrida: resposta longa ainda sem external_id (envio em voo): parte 2 e duplicate sem adotar", async () => {
+        const row = await comRespostaLonga({ status: "sending", external_id: null });
+        expect((await um([ecoDe(P2, "mid.parte2")])).status).toBe("duplicate");
+        expect(row.external_id).toBeNull();
+        expect(pos.pausa).not.toHaveBeenCalled();
+      });
+
+      it("corrida: a parte 1 (prefixo do corpo) tambem nao e tomada por humano", async () => {
+        await comRespostaLonga({ status: "sending", external_id: null });
+        expect((await um([ecoDe(P1, "mid.parte1")])).status).toBe("duplicate");
+        expect(pos.pausa).not.toHaveBeenCalled();
+      });
+    });
+
     it("eco sem destinatario e ignorado", async () => {
       const r = await um([eco({ recipientId: null })]);
       expect(r.status).toBe("ignored");

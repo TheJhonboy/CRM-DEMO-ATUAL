@@ -33,6 +33,7 @@ import { CHANNEL_PROVIDER_INSTAGRAM } from "../capabilities";
 import { marcarConversaComMensagem } from "../marcar-conversa";
 import { aplicarEfeitosPosEntrada } from "../pos-entrada";
 
+import { LIMITE_DE_BYTES } from "./texto";
 import type { InstagramEvent, InstagramMessage, InstagramRead } from "./webhook";
 
 export interface InstagramIngestResult {
@@ -152,6 +153,12 @@ async function ingerirMensagem(admin: SupabaseClient, input: Base, ev: Instagram
     return { status: "duplicate", conversationId };
   }
 
+  // Resposta longa enviada em partes (<= 1000 bytes cada): cada parte volta como um eco
+  // com mid próprio e texto = um TRECHO do corpo gravado. É nosso, não humano.
+  if (ev.isEcho && (await ehEcoDeParteDeRespostaLonga(admin, input.organizationId, conversationId, ev))) {
+    return { status: "duplicate", conversationId };
+  }
+
   const inserida = await inserirMensagem(admin, input, { conversationId, contactId, ev, anexos });
   if (inserida === "duplicate") return { status: "duplicate", conversationId };
 
@@ -251,6 +258,42 @@ async function adotarMidDoEnvioEmVoo(
   // Perdeu a corrida para o sender: se o mid já está gravado, é o mesmo eco.
   return midJaExiste(admin, organizationId, ev.externalId);
 }
+
+/**
+ * Eco cujo texto está CONTIDO no corpo de uma saída nossa (`ai`/`user`) dos últimos 60 s
+ * na mesma organização e conversa, e cujo corpo passa de 1000 bytes (só esse é enviado
+ * em partes): é uma parte da resposta longa. Vale com a saída já com `external_id`
+ * (partes 2..n) e ainda sem ele (eco antes de o sender gravar o mid — inclusive a parte
+ * 1, que não é igual ao corpo inteiro). Não escreve nada: o `external_id` da linha é o
+ * da primeira parte e quem o grava é o sender. Corpo curto não entra: um humano que
+ * repete um trecho de resposta curta continua sendo humano (pausa a IA).
+ */
+async function ehEcoDeParteDeRespostaLonga(
+  admin: SupabaseClient,
+  organizationId: string,
+  conversationId: string,
+  ev: InstagramMessage,
+): Promise<boolean> {
+  const trecho = normalizar(ev.text);
+  if (!trecho) return false;
+  const desde = new Date(Date.now() - JANELA_ADOCAO_MS).toISOString();
+  const { data } = await admin
+    .from("messages")
+    .select("id, body, sent_via")
+    .eq("organization_id", organizationId)
+    .eq("conversation_id", conversationId)
+    .eq("direction", "outbound")
+    .in("sent_via", ["ai", "user"])
+    .gte("created_at", desde)
+    .order("created_at", { ascending: false })
+    .limit(10);
+  return ((data ?? []) as { body: string | null }[]).some((m) => {
+    const corpo = normalizar(m.body);
+    return new TextEncoder().encode(corpo).length > LIMITE_DE_BYTES && corpo.includes(trecho);
+  });
+}
+
+const normalizar = (t: string | null | undefined) => (t ?? "").trim().replace(/\s+/g, " ");
 
 async function midJaExiste(admin: SupabaseClient, organizationId: string, externalId: string): Promise<boolean> {
   const { data } = await admin
