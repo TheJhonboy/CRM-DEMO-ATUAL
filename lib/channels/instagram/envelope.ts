@@ -37,12 +37,12 @@ const instagramMessagingSchema = z.looseObject({
 const instagramEntrySchema = z.looseObject({
   id: texto,
   time: numero,
-  messaging: z.array(instagramMessagingSchema).nullish(),
+  messaging: z.array(instagramMessagingSchema).max(50).nullish(),
 });
 
 export const instagramEnvelopeSchema = z.looseObject({
   object: texto,
-  entry: z.array(instagramEntrySchema).nullish(),
+  entry: z.array(instagramEntrySchema).max(20).nullish(),
 });
 
 export type InstagramEnvelope = z.infer<typeof instagramEnvelopeSchema>;

@@ -10,6 +10,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  */
 
 const pos = vi.hoisted(() => ({ entrada: vi.fn(async () => undefined), pausa: vi.fn(async () => true) }));
+const log = vi.hoisted(() => ({ warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn() }));
+vi.mock("@/lib/logger", () => ({ logger: log }));
 vi.mock("@/lib/channels/pos-entrada", () => ({ aplicarEfeitosPosEntrada: pos.entrada }));
 vi.mock("@/lib/escalacao/atendimento-manual", () => ({ pausarIaPorAtendimentoManual: pos.pausa }));
 
@@ -140,6 +142,7 @@ beforeEach(() => {
   rpcs.length = 0;
   pos.entrada.mockClear();
   pos.pausa.mockClear();
+  log.warn.mockClear();
 });
 
 describe("ingestInstagramInbound", () => {
@@ -213,19 +216,19 @@ describe("ingestInstagramInbound", () => {
   });
 
   it("so anexo: ingerido com media", async () => {
-    const r = await um([msg({ text: null, attachments: [{ type: "image", url: "https://cdn.exemplo/x.jpg" }] })]);
+    const r = await um([msg({ text: null, attachments: [{ type: "image", url: "https://scontent.cdninstagram.com/x.jpg" }] })]);
     expect(r.status).toBe("ingested");
-    expect(db.messages[0]!).toMatchObject({ type: "image", media_url: "https://cdn.exemplo/x.jpg", body: null });
+    expect(db.messages[0]!).toMatchObject({ type: "image", media_url: "https://scontent.cdninstagram.com/x.jpg", body: null });
     expect(rpcs.filter((x) => x.nome === "emit_event").map((x) => x.args.p_event_type)).toContain("media.persist_requested");
   });
 
   describe("seguranca dos anexos", () => {
     it.each([
-      ["http simples", "http://cdn.exemplo/x.jpg"],
+      ["http simples", "http://scontent.cdninstagram.com/x.jpg"],
       ["javascript:", "javascript:alert(1)"],
       ["data:", "data:image/png;base64,AAAA"],
       ["relativa", "/etc/passwd"],
-      ["longa demais", "https://cdn.exemplo/" + "a".repeat(2050)],
+      ["longa demais", "https://scontent.cdninstagram.com/" + "a".repeat(2050)],
     ])("url %s: guarda so o tipo, sem url e sem pedir persistencia", async (_n, url) => {
       const r = await um([msg({ text: "veja", attachments: [{ type: "image", url }] })]);
       expect(r.status).toBe("ingested");
@@ -236,18 +239,55 @@ describe("ingestInstagramInbound", () => {
     });
 
     it("url https dentro do limite de 2048 e mantida", async () => {
-      const url = "https://cdn.exemplo/" + "a".repeat(2048 - "https://cdn.exemplo/".length);
+      const base = "https://scontent.cdninstagram.com/";
+      const url = base + "a".repeat(2048 - base.length);
       expect(url.length).toBe(2048);
       await ingerir([msg({ attachments: [{ type: "image", url }] })]);
       expect(db.messages[0]!.media_url).toBe(url);
     });
 
+    it.each([
+      "https://scontent.cdninstagram.com/v/x.jpg",
+      "https://lookaside.fbsbx.com/ig/x",
+      "https://scontent-gru1-1.xx.fbcdn.net/v/x.jpg",
+      "https://fbcdn.net/x.jpg",
+    ])("host permitido %s: url mantida", async (url) => {
+      await ingerir([msg({ attachments: [{ type: "image", url }] })]);
+      expect(db.messages[0]!.media_url).toBe(url);
+    });
+
+    it.each([
+      ["sufixo colado", "https://evilfbcdn.net/x.jpg"],
+      ["apex como subdominio do atacante", "https://fbcdn.net.evil.com/x.jpg"],
+      ["userinfo disfarcando host", "https://cdninstagram.com@evil.com/x.jpg"],
+      ["userinfo com host permitido", "https://user:pw@scontent.cdninstagram.com/x.jpg"],
+      ["porta nao padrao", "https://scontent.cdninstagram.com:8443/x.jpg"],
+      ["http em host permitido", "http://scontent.cdninstagram.com/x.jpg"],
+      ["url invalida", "https://"],
+    ])("host/forma invalida (%s): so o tipo, sem pedir persistencia", async (_n, url) => {
+      await um([msg({ text: "veja", attachments: [{ type: "image", url }] })]);
+      const m = db.messages[0]!;
+      expect(m.media_url).toBeUndefined();
+      expect(m.metadata).toEqual({ provider_attachments: [{ type: "image" }] });
+      expect(JSON.stringify(rpcs)).not.toContain("media.persist_requested");
+    });
+
     it("no maximo 10 anexos por mensagem", async () => {
-      const anexos = Array.from({ length: 14 }, (_, i) => ({ type: "image", url: `https://cdn.exemplo/${i}.jpg` }));
+      const anexos = Array.from({ length: 14 }, (_, i) => ({ type: "image", url: `https://scontent.cdninstagram.com/${i}.jpg` }));
       await ingerir([msg({ attachments: anexos })]);
       const guardados = (db.messages[0]!.metadata as { provider_attachments: unknown[] }).provider_attachments;
       expect(guardados).toHaveLength(10);
     });
+  });
+
+  it("processa no maximo 100 eventos por requisicao e avisa sem texto do cliente", async () => {
+    const eventos = Array.from({ length: 130 }, (_, i) => msg({ externalId: `mid.lote.${i}`, text: `segredo-do-cliente-${i}` }));
+    const rs = await ingerir(eventos);
+    expect(rs).toHaveLength(100);
+    expect(db.messages).toHaveLength(100);
+    const avisos = JSON.stringify(log.warn.mock.calls);
+    expect(avisos).toContain("instagram");
+    expect(avisos).not.toContain("segredo-do-cliente");
   });
 
   describe("eco (is_echo)", () => {
@@ -303,6 +343,15 @@ describe("ingestInstagramInbound", () => {
         expect(pos.pausa).not.toHaveBeenCalled();
         expect(pos.entrada).not.toHaveBeenCalled();
         expect(rpcs.some((x) => x.nome === "fn_mark_conversation_message" && x.args.p_direction === "outbound")).toBe(false);
+      });
+
+      it("adotar promove o status para sent junto com o external_id", async () => {
+        const row = await comEnvioEmVoo();
+        await um([eco()]);
+        expect(row.status).toBe("sent");
+        const r2 = await comEnvioEmVoo({ id: "saida-2", status: "sending", body: "outra" });
+        await um([eco({ externalId: "mid.outra", text: "outra" })]);
+        expect(r2.status).toBe("sent");
       });
 
       it("status sending tambem e adotavel", async () => {
@@ -383,7 +432,7 @@ describe("ingestInstagramInbound", () => {
 
       it("so anexo, uma candidata: adotada", async () => {
         const row = await comEnvioEmVoo({ body: null });
-        const r = await um([eco({ text: null, attachments: [{ type: "image", url: "https://cdn.exemplo/x.jpg" }] })]);
+        const r = await um([eco({ text: null, attachments: [{ type: "image", url: "https://scontent.cdninstagram.com/x.jpg" }] })]);
         expect(r.status).toBe("duplicate");
         expect(row.external_id).toBe("mid.bot");
         expect(pos.pausa).not.toHaveBeenCalled();
@@ -392,7 +441,7 @@ describe("ingestInstagramInbound", () => {
       it("so anexo, duas candidatas: nao adota (humano)", async () => {
         const a1 = await comEnvioEmVoo({ id: "s1", body: null });
         const a2 = await comEnvioEmVoo({ id: "s2", body: null });
-        const r = await um([eco({ text: null, attachments: [{ type: "image", url: "https://cdn.exemplo/x.jpg" }] })]);
+        const r = await um([eco({ text: null, attachments: [{ type: "image", url: "https://scontent.cdninstagram.com/x.jpg" }] })]);
         expect(r.status).toBe("ingested");
         expect(a1.external_id).toBeNull();
         expect(a2.external_id).toBeNull();
