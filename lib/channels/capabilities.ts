@@ -76,9 +76,21 @@ export const CHANNEL_CAPABILITIES: Record<ProviderDeMensagem, ChannelCapabilitie
     groups: "limited",
     costPerMessage: true,
   },
-  // Hetero-restrição: a Meta impõe janela de 24h para resposta livre (mensagem
-  // fora dela é recusada na hora, com código). Sem templates como no WhatsApp.
-  // Mídia de voz: só opus não se aplica aqui; áudio vai como anexo comum.
+  // ORIGEM: hetero-restrição, imposta pela Meta (a plataforma te proíbe).
+  // FÍSICA: determinística, verificável no retorno da API — mensagem livre fora
+  // da janela de 24h é recusada na hora, com código. A janela de 24h é regra
+  // documentada pela Meta, ainda não medida neste repo. Sem templates como no
+  // WhatsApp (requiresTemplates/canManageTemplates false). A tag HUMAN_AGENT
+  // (resposta humana até 7 dias) NÃO é modelada ainda, de propósito.
+  // `banRisk: false`: não há auto-restrição a impor por risco de ban.
+  // `minIntervalMs: null`: a Meta limita o volume de envios do Instagram, mas
+  // não há intervalo fixo por destinatário como na Cloud API; erro de rate limit
+  // é tratado no adapter.
+  // `voiceNote: "opus-only"` é placeholder CONSERVADOR: o campo só tem dois
+  // valores e nenhum descreve o Instagram (que não aceita ogg/opus e não
+  // converte por nós; os formatos reais de áudio são outros). O adapter
+  // (Task 6) deve portanto RECUSAR os kinds de nota de voz que não consegue
+  // entregar, em vez de confiar neste campo.
   instagram: {
     freeformOutsideWindow: false,
     requiresTemplates: false,

@@ -28,9 +28,20 @@ describe("canal instagram — matriz", () => {
     ).toBe("17841400000000000");
     expect(CHANNEL_SESSION_REF_COLUMNS).toContain("instagram_account_id");
   });
-  it("registra o adapter (stub até a Task 6): não configurado e sem endereço", () => {
+  it("registra o adapter (stub até a Task 6): fail-closed, sem endereço e sem envio", async () => {
     const a = getAdapter("instagram");
     expect(a.provider).toBe("instagram");
     expect(a.isConfigured()).toBe(false);
+    expect(
+      a.resolveRecipient({
+        isGroup: false,
+        groupChatId: null,
+        phoneNumber: "+5511999999999",
+        waIdentity: null,
+      }),
+    ).toBeNull();
+    await expect(
+      a.send({ organizationId: "org-1", sessionRef: "17841400000000000", to: "x", kind: "text", body: "oi" }),
+    ).rejects.toThrow("instagram_adapter_not_implemented");
   });
 });

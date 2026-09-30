@@ -69,6 +69,7 @@ describe("fronteira do padrão de nome de provider", () => {
     ["Wahalla", "idem, em PascalCase — `Waha` seguido de minúscula não é segmento"],
     ["metacloud", "sem o separador, não é o termo do vocabulário"],
     ["graphxfacebookxcom", "o ponto do host é literal, não coringa"],
+    ["graphxinstagramxcom", "idem para o host do Instagram: o ponto é literal"],
     ["instagram", "a palavra nua é plataforma de anúncio/prosa — uso legítimo"],
     ["Instagram Ads", "idem, em prosa"],
     ["xinstagram_account_idx", "colado em alfanumérico não é menção"],
