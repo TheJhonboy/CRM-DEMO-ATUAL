@@ -7,7 +7,10 @@
  * ─── O que este adapter não é ────────────────────────────────────────────────
  *
  * - Endereço: `envelope.providerConversationId` (o IGSID). `resolveRecipient` devolve
- *   `null` porque o endereço não sai do contato — não há telefone neste canal.
+ *   a MESMA thread (vinda de `RecipientInput.providerConversationId`) e ignora o
+ *   contato — não há telefone neste canal. Sem thread, `null`: não há endereço, e o
+ *   handler falha a mensagem antes de tocar a rede. Devolver `null` sempre (a versão
+ *   anterior) fazia o handler gravar `missing_phone_number` em TODA resposta.
  * - Credencial: SEMPRE por sessão (`resolveInstagramCredentials`), sem `.env`.
  * - O token nunca entra em erro, log ou detalhe de saúde. Mensagens de erro são
  *   montadas só com códigos nossos e o `code` numérico da Meta — nunca o texto da
@@ -122,7 +125,7 @@ async function credenciais(
 export const instagramAdapter: ChannelAdapter = {
   provider: "instagram",
 
-  resolveRecipient: () => null,
+  resolveRecipient: (input) => input.providerConversationId || null,
 
   isConfigured: () => true,
 

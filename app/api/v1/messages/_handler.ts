@@ -594,12 +594,18 @@ export async function sendMessageHandler(
   // (`conversations.channel_session_id` é NOT NULL com FK ON DELETE RESTRICT),
   // e ainda assim mantido para não trocar o desfecho desse ramo defensivo.
   const adapter = getAdapter(c.channel_sessions?.provider ?? DEFAULT_CHANNEL_PROVIDER);
+  // A thread do provider vai junto: canal que endereça por thread (sem telefone)
+  // não tem endereço no contato, e sem ela toda resposta dele caía em
+  // `missing_phone_number`. Quem endereça pelo contato a ignora — quem decide é o
+  // ADAPTER, não um fallback aqui (um fallback genérico mandaria a thread como
+  // destinatário também a canal que endereça por telefone).
   const chatId = adapter.resolveRecipient({
     isGroup: c.is_group,
     groupChatId: c.group_chat_id,
     phoneNumber: c.contacts?.phone_number,
     waIdentity: c.contacts?.wa_identity,
     waLid: c.contacts?.wa_lid,
+    providerConversationId: c.provider_conversation_id,
   });
 
   // Releitura no sink: o operador pode ter fechado o canal enquanto o modelo

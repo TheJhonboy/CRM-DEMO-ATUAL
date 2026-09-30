@@ -78,6 +78,15 @@ export interface RecipientInput {
    * `waIdentity.startsWith("lid:")` — justo o caso que a regra protege.
    */
   waLid?: string | null | undefined;
+  /**
+   * `conversations.provider_conversation_id` — a thread que o PROVIDER deu a esta
+   * conversa, para o canal cujo endereço não sai do contato (não há telefone).
+   *
+   * OPCIONAL e ignorado por quem endereça pelo contato. Sem ele, o canal que
+   * endereça por thread não tinha como dizer "há endereço", e o handler gravava
+   * `missing_phone_number` antes de o envio tocar o adapter.
+   */
+  providerConversationId?: string | null | undefined;
 }
 
 /** Contato compartilhado (vcard) — só `kind: "contact"`. */
