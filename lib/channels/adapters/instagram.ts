@@ -22,6 +22,7 @@
  */
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveInstagramCredentials } from "../instagram/credentials";
+import { baixarMidiaDoInstagram } from "../instagram/midia";
 import { dividirTextoEmPartes } from "../instagram/texto";
 import type { InstagramCredentials } from "../instagram/credentials";
 import type {
@@ -30,6 +31,7 @@ import type {
   ChannelTenantScope,
   OutboundEnvelope,
 } from "../types";
+import type { FetchedMedia } from "@/lib/messaging/media/types";
 
 const CODES = {
   notConfigured: "instagram_not_configured",
@@ -186,6 +188,14 @@ export const instagramAdapter: ChannelAdapter = {
       if (i === 0) primeiro = r.body.message_id ?? null;
     }
     return { externalId: primeiro };
+  },
+
+  /**
+   * Baixa o anexo que o cliente mandou. As URLs são assinadas do CDN da Meta: sem token, sem
+   * redirect, só hosts da allowlist (ver `../instagram/midia.ts`). Não precisa de credencial.
+   */
+  async fetchInboundMedia(input): Promise<FetchedMedia> {
+    return baixarMidiaDoInstagram(input.url, input.hintMime);
   },
 
   async checkHealth(

@@ -33,6 +33,7 @@ import { CHANNEL_PROVIDER_INSTAGRAM } from "../capabilities";
 import { marcarConversaComMensagem } from "../marcar-conversa";
 import { aplicarEfeitosPosEntrada } from "../pos-entrada";
 
+import { urlDeMidiaPermitida } from "./midia";
 import { dividirTextoEmPartes, LIMITE_DE_BYTES } from "./texto";
 import type { InstagramEvent, InstagramMessage, InstagramRead } from "./webhook";
 
@@ -44,27 +45,10 @@ export interface InstagramIngestResult {
 }
 
 const MAX_ANEXOS = 10;
-const MAX_URL = 2048;
 /** Teto de eventos tratados por requisição (defesa contra corpo inflado). */
 const MAX_EVENTOS = 100;
 
 type Anexo = { type: string; url?: string };
-
-/** Hosts de mídia da Meta: o host precisa ser igual ao domínio ou terminar em `.domínio`. */
-const DOMINIOS_DE_MIDIA = ["cdninstagram.com", "fbcdn.net", "fbsbx.com"];
-
-function urlDeMidiaPermitida(url: unknown): url is string {
-  if (typeof url !== "string" || url.length > MAX_URL || !url.startsWith("https://")) return false;
-  let u: URL;
-  try {
-    u = new URL(url);
-  } catch {
-    return false;
-  }
-  if (u.protocol !== "https:" || u.username || u.password || u.port) return false;
-  const host = u.hostname.toLowerCase();
-  return DOMINIOS_DE_MIDIA.some((d) => host === d || host.endsWith(`.${d}`));
-}
 
 /**
  * Anexo seguro: a URL só sobrevive se for `https://`, curta, sem userinfo nem
