@@ -52,19 +52,23 @@ describe("resolveInstagramCredentials", () => {
     expect(calls).toContainEqual(["is", "archived_at", null]);
   });
 
-  it("erro do banco devolve null e NÃO cai em env", async () => {
+  it("erro do banco LANÇA, não decifra e NÃO cai em env", async () => {
     vi.stubEnv("INSTAGRAM_ACCESS_TOKEN", "GLOBAL");
     vi.stubEnv("INSTAGRAM_ACCOUNT_ID", "1784");
     const { admin, rpc } = fakeAdmin({
       result: { data: null, error: { code: "PGRST116", message: "duas linhas" } },
     });
-    expect(await resolveInstagramCredentials(admin, LOOKUP)).toBeNull();
+    await expect(resolveInstagramCredentials(admin, LOOKUP)).rejects.toThrow(
+      /instagram_creds_lookup_failed: PGRST116/,
+    );
     expect(rpc).not.toHaveBeenCalled();
   });
 
-  it("canal arquivado (a consulta recortada não o devolve) dá null", async () => {
-    const { admin } = fakeAdmin({ result: { data: null, error: null } });
+  it("canal arquivado: a consulta aplica o recorte e o resultado vazio dá null", async () => {
+    const { admin, calls, rpc } = fakeAdmin({ result: { data: null, error: null } });
     expect(await resolveInstagramCredentials(admin, LOOKUP)).toBeNull();
+    expect(calls).toContainEqual(["is", "archived_at", null]);
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it("token ausente, decifra que falha ou token vazio dão null", async () => {

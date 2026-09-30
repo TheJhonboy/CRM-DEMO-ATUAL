@@ -11,14 +11,14 @@
  * A busca leva `organization_id` junto e recorta `archived_at is null` (issue
  * #236): o client é de service role, que bypassa RLS, e o identificador do
  * provider não é único entre organizações. O `error` NUNCA é descartado — mas,
- * ao contrário do molde, aqui ele vira `null` (falha fechada: não há env para
- * onde cair) e é logado sem segredo.
+ * como no molde, a consulta que falha LANÇA (falha transitória do banco se
+ * distingue de "não conectado", e o envio pode tentar de novo). A mensagem não
+ * carrega segredo.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { ARCHIVED_AT, queryTolerantToMissingArchived } from "../archived";
 import { graphVersion } from "@/lib/graph-version";
-import { logger } from "@/lib/logger";
 import { decryptWebhookSecret } from "@/lib/webhooks/secrets";
 
 export interface InstagramCredentials {
@@ -46,7 +46,8 @@ export function instagramBaseUrl(): string {
   );
 }
 
-/** `null` = sem credencial utilizável (linha ausente/arquivada, erro, decifra falhou). */
+/** `null` = sem credencial utilizável (linha ausente/arquivada, decifra falhou, token vazio).
+ * LANÇA quando a consulta falha. */
 export async function resolveInstagramCredentials(
   admin: SupabaseClient,
   lookup: InstagramCredsLookup,
@@ -65,11 +66,9 @@ export async function resolveInstagramCredentials(
     () => base().maybeSingle(),
   );
   if (error) {
-    logger.error("[instagram-creds] consulta falhou", {
-      code: error.code ?? "sem_codigo",
-      message: error.message ?? "",
-    });
-    return null;
+    throw new Error(
+      `instagram_creds_lookup_failed: ${error.code ?? "sem_codigo"} ${error.message ?? ""}`.trim(),
+    );
   }
 
   const cifrado = data?.instagram_token_encrypted;
