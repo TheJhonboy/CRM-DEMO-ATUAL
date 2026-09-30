@@ -83,3 +83,30 @@ Ferramentas: **criar tarefa** (retomar lead parado), **registrar nota** e **etiq
 (`sem-responsavel` em conversa sem dono há 24 h ou mais). **Mover etapa do funil foi excluído de
 propósito:** mover etapa dispara automações de follow-up e webhooks, e o administrador nunca deve
 mandar mensagem ao cliente por conta própria.
+
+## Limites conhecidos e operação
+
+- **Respostas longas saem em partes.** Se a parte k (k > 1) falha, o cliente pode ver uma resposta
+  parcial, e um reenvio manual da mensagem inteira repetiria as primeiras partes. Confira no inbox
+  o que já foi entregue antes de reenviar.
+- **Automações na mesma conta pausam a IA.** Respostas automáticas e mensagens de boas-vindas do
+  próprio Instagram, ou outros apps conectados à conta (ManyChat, Business Suite etc.), geram ecos
+  que o CRM trata como resposta humana e **pausam a IA naquela conversa**. Considere desligar essas
+  automações. Não há filtro por `app_id` do eco: não está confirmado que o eco o traga, então isso
+  não foi implementado.
+- **Webhooks são arquivados antes da verificação da assinatura** (corpo de até 1 MiB). Mantenha o
+  token da URL do webhook em segredo. Não existe hoje rotação desse token pela tela nem por API: ao
+  reconectar, o mesmo token é preservado. Se ele vazar, é preciso trocar `webhook_path_token` da
+  sessão diretamente no banco e atualizar a URL no painel da Meta.
+- **Migration 0275:** adiciona uma coluna gerada (armazenada) em `contacts`, o que reescreve a
+  tabela sob lock `ACCESS EXCLUSIVE`. Em bases grandes, aplique em horário de baixo movimento.
+- **Colunas cifradas legíveis por membros da organização (RLS):** o token e o segredo ficam cifrados
+  e só o service role decifra, mas o texto cifrado em si é legível por membros via RLS. É uma lacuna
+  conhecida de defesa em profundidade.
+- **Follow-ups segmentados pela tag `sem-responsavel`:** o administrador etiqueta contatos com essa
+  tag; um follow-up automático segmentado por ela passaria a enviar mensagens indiretamente. Evite
+  esse tipo de segmento.
+- **Reenvios e excesso:** payloads assinados reenviados são deduplicados pelo id da mensagem; eventos
+  além de 100 por requisição são descartados.
+- **Override de host da Graph (`INSTAGRAM_GRAPH_BASE_URL`):** só para teste de integração. Em
+  produção um valor que não comece com `https://` é ignorado.
