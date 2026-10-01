@@ -99,6 +99,10 @@ CRONS="
 # O ADMINISTRADOR. A cada 15 min; a rota responde desligado enquanto
 # ADMIN_AGENT_ENABLED nao for true, entao agendar aqui nao liga nada por si so.
 */15 * * * *|90|api/v1/cron/administrador
+# O TOKEN DO INSTAGRAM. Uma vez ao dia: o token de longa duracao vale 60 dias e so
+# renova com 24 h de idade e ainda vivo; a rodada renova quem vence em ate 10 dias.
+# Sem sessao do Instagram a rota e uma consulta vazia.
+25 5 * * *|90|api/v1/cron/instagram-token
 "
 
 # CRONTAB_PATH é ponto de injeção do teste (tests/shell/scheduler-entrypoint.test.sh).
