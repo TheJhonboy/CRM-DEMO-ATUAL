@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Canal Instagram (mensagens diretas)",
+    "subtitle": "Entrada por webhook assinado, resposta por thread, mídia por CDN e administrador opcional",
+    "output": "canal-instagram.html",
+    "quality_profile": "standard"
+  },
+  "lanes": [
+    { "id": "pessoa", "label": "Pessoa e Meta" },
+    { "id": "app", "label": "Aplicativo" },
+    { "id": "db", "label": "Banco" }
+  ],
+  "mainPath": ["webhook", "ingest", "inbox", "agente", "envio", "adapter", "meta"],
+  "nodes": [
+    { "id": "meta", "lane": "pessoa", "col": 0, "type": "external", "label": "Meta: webhook assinado e API de mensagens do Instagram" },
+    { "id": "conectar", "lane": "pessoa", "col": 0, "type": "ui", "label": "Tela Conectar o Instagram (passo a passo, token, segredo do app)" },
+    { "id": "webhook", "lane": "app", "col": 1, "type": "route", "label": "Rota neutra de webhook: corpo limitado, assinatura, arquivo do evento" },
+    { "id": "conexao", "lane": "app", "col": 1, "type": "service", "label": "Conexão: valida o token em /me, grava cifrado, assina os campos do webhook" },
+    { "id": "ingest", "lane": "app", "col": 2, "type": "service", "label": "Ingestão: contato por IGSID, conversa, eco nosso x humano" },
+    { "id": "inbox", "lane": "db", "col": 3, "type": "database", "label": "Contatos, conversas e mensagens (índices únicos por organização)" },
+    { "id": "sessao", "lane": "db", "col": 2, "type": "database", "label": "Sessão do canal: conta, token e segredo cifrados; conta única entre ativas" },
+    { "id": "agente", "lane": "app", "col": 3, "type": "service", "label": "Agente de IA e cadeia antes do envio (janela de 24 h, modo de teste)" },
+    { "id": "envio", "lane": "app", "col": 4, "type": "service", "label": "Handler de envio: endereço pela thread, mensagem enfileirada antes da rede" },
+    { "id": "adapter", "lane": "app", "col": 5, "type": "service", "label": "Adapter: texto em partes de 1000 bytes, mídia por URL, saúde" },
+    { "id": "midia", "lane": "app", "col": 4, "type": "service", "label": "Persistência de mídia: baixa do CDN da Meta por allowlist e guarda no storage" },
+    { "id": "admin", "lane": "app", "col": 3, "type": "service", "label": "Agente administrador (opt-in): tarefa, nota e etiqueta; nunca fala com cliente" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "meta", "to": "webhook", "label": "Mensagens, ecos e leituras" },
+    { "id": "e2", "from": "webhook", "to": "ingest", "label": "Evento verificado" },
+    { "id": "e3", "from": "ingest", "to": "inbox", "label": "Grava; eco de parte nossa não pausa a IA" },
+    { "id": "e4", "from": "sessao", "to": "webhook", "label": "Token de caminho e segredo do app" },
+    { "id": "e5", "from": "inbox", "to": "agente", "label": "Mensagem do cliente aciona o turno" },
+    { "id": "e6", "from": "agente", "to": "envio", "label": "Resposta aprovada pela cadeia" },
+    { "id": "e7", "from": "envio", "to": "adapter", "label": "Thread do provider como destino" },
+    { "id": "e8", "from": "adapter", "to": "meta", "label": "POST de mensagem por parte" },
+    { "id": "e9", "from": "conectar", "to": "conexao", "label": "ID, token e segredo" },
+    { "id": "e10", "from": "conexao", "to": "sessao", "label": "Grava só depois de validar" },
+    { "id": "e11", "from": "conexao", "to": "meta", "label": "Valida em /me e assina o webhook" },
+    { "id": "e12", "from": "ingest", "to": "midia", "label": "Pede a persistência do anexo" },
+    { "id": "e13", "from": "midia", "to": "inbox", "label": "Caminho do arquivo na mensagem" },
+    { "id": "e14", "from": "admin", "to": "inbox", "label": "Etiqueta e tarefa auditadas" },
+    { "id": "e15", "from": "sessao", "to": "adapter", "label": "Credencial por sessão, sem .env" }
+  ]
+}
