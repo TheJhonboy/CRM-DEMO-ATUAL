@@ -840,6 +840,26 @@ const HOSTS_DECLARADOS: Record<string, EntradaDeHost> = {
     motivo:
       "endpoint da Graph API do WhatsApp Cloud — 6 arquivos: envio de template, sincronização de modelos, validação de credencial, conversões e insights. É contrato da Meta, não escolha nossa.",
   },
+  "graph.instagram.com": {
+    categoria: "FORNECEDOR",
+    motivo:
+      "endpoint da API do Instagram com Instagram Login (envio de DM, validação do token em /me e assinatura do webhook) — `lib/channels/instagram/credentials.ts`, com override por INSTAGRAM_GRAPH_BASE_URL. É contrato da Meta, não escolha nossa.",
+  },
+  "cdninstagram.com": {
+    categoria: "FORNECEDOR",
+    motivo:
+      "domínio dos CDNs de mídia do Instagram, na allowlist de `lib/channels/instagram/midia.ts`: só a URL de anexo que a Meta anuncia no webhook, e que vem de lá, é baixada. Trocar pela marca do revendedor faria o download recusar a mídia legítima.",
+  },
+  "fbcdn.net": {
+    categoria: "FORNECEDOR",
+    motivo:
+      "domínio dos CDNs de mídia da Meta (par de cdninstagram.com na allowlist de download de anexos do Instagram).",
+  },
+  "fbsbx.com": {
+    categoria: "FORNECEDOR",
+    motivo:
+      "domínio de mídia da Meta (lookaside) que também serve anexos do Instagram; entra na mesma allowlist de download.",
+  },
   "www.googleapis.com": {
     categoria: "FORNECEDOR",
     motivo:
