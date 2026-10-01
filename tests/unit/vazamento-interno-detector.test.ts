@@ -198,6 +198,13 @@ describe("sondas de mecanismo — pares mínimos por correção", () => {
     expect(detectarVazamentoInterno("Segue a gente no insta (@loja_da_ana)").termos).toEqual([]);
   });
 
+  it("nome de rede social que é provider (palavra do cliente) não é vazamento; os outros providers continuam", () => {
+    expect(detectarVazamentoInterno("Segue a gente no instagram e no Instagram").termos).toEqual([]);
+    expect(detectarVazamentoInterno("Me chama no Instagram que eu respondo").termos).toEqual([]);
+    expect(detectarVazamentoInterno("a conta esta no waha").termos).toContain("waha");
+    expect(detectarVazamentoInterno("usamos o meta_cloud").termos.length).toBeGreaterThan(0);
+  });
+
   it("admin: colado a e-mail passa, solto continua barrando", () => {
     expect(detectarVazamentoInterno("admin@loja.com.br").termos).toEqual([]);
     expect(detectarVazamentoInterno("contato_vendas@loja.com.br").termos).toEqual([]);
