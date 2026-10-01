@@ -154,7 +154,7 @@ describe("renovarTokenDaSessao", () => {
     const r = await renovarTokenDaSessao(admin, { organizationId: ORG, sessionId: SESSAO });
     expect(r.ok).toBe(true);
     if (!r.ok) throw new Error("esperava ok");
-    expect(Date.parse(r.tokenValidoAte)).toBeGreaterThanOrEqual(antes + 5183944 * 1000 - 50);
+    expect(Date.parse(r.tokenValidoAte!)).toBeGreaterThanOrEqual(antes + 5183944 * 1000 - 50);
     expect(String(fetchMock.mock.calls[0]![0])).toContain(encodeURIComponent(TOKEN));
     expect(filtros).toContainEqual(["organization_id", ORG]);
     expect(filtros).toContainEqual(["id", SESSAO]);

@@ -9351,8 +9351,6 @@ export const DICIONARIO: Traducoes = {
   },
   "Token expirou em": { es: "El token expiró el" },
   "Token válido até": { es: "Token válido hasta" },
-  "dia": { es: "día" },
-  "dias": { es: "días" },
   "Token com validade desconhecida": { es: "Token con vigencia desconocida" },
   "Renovando…": { es: "Renovando…" },
   "Renovar token agora": { es: "Renovar token ahora" },
