@@ -26,6 +26,7 @@ import { checkRateLimit } from "@/lib/ai/dispatcher/rate-limit";
 import { fail, ok } from "@/lib/api/wrappers";
 import { requireRole } from "@/lib/auth/require-role";
 import { connectInstagram, estadoDoInstagram } from "@/lib/channels/connect";
+import { alertaDoToken } from "@/lib/channels/instagram/token";
 import { urlDoWebhookDoCanal } from "@/lib/channels/webhook-url";
 import { traduzir } from "@/lib/i18n/dicionario";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -58,6 +59,10 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
       username: e.username,
       webhookUrl: conectado ? urlDoWebhookDoCanal(req, e.webhookPathToken as string) : null,
       verifyToken: conectado ? e.webhookPathToken : null,
+      tokenValidoAte: conectado ? e.tokenValidoAte : null,
+      ...(conectado
+        ? alertaDoToken(e.tokenValidoAte)
+        : { diasRestantes: null, alertaToken: "desconhecido" as const }),
     },
     { requestId },
   );

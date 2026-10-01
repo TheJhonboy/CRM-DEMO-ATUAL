@@ -648,3 +648,52 @@ describe("connectInstagram — token de longa duração (60 dias)", () => {
     for (const s of [TOKEN, SEGREDO, "LONGO_TROCADO"]) expect(texto).not.toContain(s);
   });
 });
+
+describe("GET — validade do token", () => {
+  it("devolve tokenValidoAte, diasRestantes e alertaToken derivados", async () => {
+    graphBoa();
+    await POST(pedido(corpoValido));
+    linhas[0]!.instagram_token_expires_at = new Date(Date.now() + 5 * 86_400_000).toISOString();
+    const { data } = await (await GET(pedido(null, "GET"))).json();
+    expect(data.tokenValidoAte).toBe(linhas[0]!.instagram_token_expires_at);
+    expect(data.diasRestantes).toBe(5);
+    expect(data.alertaToken).toBe("vence_em_breve");
+  });
+
+  it("sem validade: desconhecido; vencida: expirado; longe: ok", async () => {
+    graphBoa();
+    await POST(pedido(corpoValido));
+    const ler = async () => (await (await GET(pedido(null, "GET"))).json()).data;
+    expect((await ler()).alertaToken).toBe("desconhecido");
+    linhas[0]!.instagram_token_expires_at = new Date(Date.now() - 1000).toISOString();
+    expect((await ler()).alertaToken).toBe("expirado");
+    linhas[0]!.instagram_token_expires_at = new Date(Date.now() + 40 * 86_400_000).toISOString();
+    expect((await ler()).alertaToken).toBe("ok");
+  });
+
+  it("nao conectado: sem validade nem dias", async () => {
+    const { data } = await (await GET(pedido(null, "GET"))).json();
+    expect(data).toMatchObject({ tokenValidoAte: null, diasRestantes: null, alertaToken: "desconhecido" });
+  });
+});
+
+describe("migration 0277 ainda não aplicada (coluna ausente)", () => {
+  it("conectar repete a gravação sem a coluna de validade, em vez de falhar", async () => {
+    graphComToken({ troca: "ok" });
+    const admin = bancoFalso() as { from: (t: string) => Record<string, unknown> };
+    const from = admin.from.bind(admin);
+    admin.from = (t: string) => {
+      const q = from(t) as { insert: (l: Linha) => Promise<{ error: unknown }> };
+      const insert = q.insert;
+      q.insert = async (l: Linha) =>
+        "instagram_token_expires_at" in l
+          ? { error: { code: "PGRST204", message: "Could not find the 'instagram_token_expires_at' column" } }
+          : insert(l);
+      return q;
+    };
+    const r = await connectInstagram(admin as never, { organizationId: ORG_A, ...corpoValido });
+    expect(r.ok).toBe(true);
+    expect(linhas).toHaveLength(1);
+    expect("instagram_token_expires_at" in linhas[0]!).toBe(false);
+  });
+});

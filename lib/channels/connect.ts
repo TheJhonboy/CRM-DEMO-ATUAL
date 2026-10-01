@@ -21,7 +21,7 @@ import { instagramAdapter } from "./adapters/instagram";
 import { ARCHIVED_AT, queryTolerantToMissingArchived } from "./archived";
 import { CHANNEL_PROVIDER_INSTAGRAM, CHANNEL_PROVIDER_ZERNIO } from "./capabilities";
 import { instagramBaseUrl } from "./instagram/credentials";
-import { renovarToken, trocarPorTokenLongo } from "./instagram/token";
+import { colunaDeValidadeAusente, COLUNA_VALIDADE, renovarToken, trocarPorTokenLongo } from "./instagram/token";
 import { zernioBaseUrl } from "./zernio/credentials";
 import type { ChannelProvider } from "./types";
 
@@ -410,6 +410,8 @@ export interface InstagramSession {
   webhookPathToken: string | null;
   hasToken: boolean;
   archivedAt: string | null;
+  /** ISO; `null` = desconhecida (ou migration 0277 ainda não aplicada). */
+  tokenExpiresAt: string | null;
 }
 
 const COLUNAS_INSTAGRAM =
@@ -428,10 +430,14 @@ export async function findInstagramSession(
       .eq("provider", INSTAGRAM_CHANNEL_PROVIDER)
       .maybeSingle();
 
-  const { data, error } = await queryTolerantToMissingArchived(
-    () => buscar(`${COLUNAS_INSTAGRAM}, ${ARCHIVED_AT}`),
-    () => buscar(COLUNAS_INSTAGRAM),
-  );
+  const tentar = (colunas: string) =>
+    queryTolerantToMissingArchived(
+      () => buscar(`${colunas}, ${ARCHIVED_AT}`),
+      () => buscar(colunas),
+    );
+  let { data, error } = await tentar(`${COLUNAS_INSTAGRAM}, ${COLUNA_VALIDADE}`);
+  // Migration 0277 pendente: repete sem a coluna (validade desconhecida), não quebra o canal.
+  if (colunaDeValidadeAusente(error)) ({ data, error } = await tentar(COLUNAS_INSTAGRAM));
   // Erro NÃO é "não achei": tratar como ausente faria o conectar inserir uma linha
   // duplicada (o índice parcial único 0276 a barraria com 23505, tarde e com erro cru).
   if (error) {
@@ -447,6 +453,7 @@ export async function findInstagramSession(
     webhookPathToken: (row.webhook_path_token as string) ?? null,
     hasToken: !!row.instagram_token_encrypted,
     archivedAt: (row.archived_at as string) ?? null,
+    tokenExpiresAt: (row[COLUNA_VALIDADE] as string) ?? null,
   };
 }
 
@@ -527,9 +534,17 @@ export async function connectInstagram(
     archived_at: null,
   };
 
-  const { error } = existente
-    ? await admin.from("channel_sessions").update(linha).eq("id", existente.id)
-    : await admin.from("channel_sessions").insert({ ...linha, metadata: metadataInicialDoCanal() });
+  const gravar = (l: Record<string, unknown>) =>
+    existente
+      ? admin.from("channel_sessions").update(l).eq("id", existente.id)
+      : admin.from("channel_sessions").insert({ ...l, metadata: metadataInicialDoCanal() });
+  let { error } = await gravar(linha);
+  if (colunaDeValidadeAusente(error)) {
+    // Migration 0277 pendente: conecta sem a validade em vez de falhar.
+    const { [COLUNA_VALIDADE]: _validade, ...semValidade } = linha;
+    void _validade;
+    ({ error } = await gravar(semValidade));
+  }
   if (error) {
     return { ok: false, kind: "banco", reason: "Não foi possível gravar a conexão. Tente de novo." };
   }
@@ -552,6 +567,8 @@ export interface InstagramEstadoDaConexao {
   estado: InstagramEstado;
   webhookPathToken: string | null;
   username: string | null;
+  /** ISO de quando o token vence; `null` = desconhecido. */
+  tokenValidoAte: string | null;
   /** `sem_resposta` = a Meta não respondeu no prazo: o estado vem da existência da conexão, não de um teste. */
   saude: "ok" | "falhou" | "sem_resposta" | "credencial_indisponivel" | null;
 }
@@ -568,10 +585,11 @@ export async function estadoDoInstagram(
 ): Promise<InstagramEstadoDaConexao> {
   const sessao = await findInstagramSession(admin, organizationId);
   if (!sessao || sessao.archivedAt || !sessao.accountId || !sessao.hasToken) {
-    return { estado: "nao_conectado", webhookPathToken: null, username: null, saude: null };
+    return { estado: "nao_conectado", webhookPathToken: null, username: null, tokenValidoAte: null, saude: null };
   }
   const base = {
     webhookPathToken: sessao.webhookPathToken,
+    tokenValidoAte: sessao.tokenExpiresAt,
     username: sessao.displayName?.startsWith("@") ? sessao.displayName.slice(1) : null,
   };
 

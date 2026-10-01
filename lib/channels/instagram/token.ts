@@ -97,8 +97,41 @@ export function renovarToken(input: { tokenAtual: string }): Promise<ResultadoDo
   });
 }
 
+export const COLUNA_VALIDADE = "instagram_token_expires_at";
+
+/**
+ * A migration 0277 ainda não rodou neste banco? (O deploy do código e a migration são
+ * passos separados.) Nesse caso a coluna some do `select`/`update`: o chamador repete
+ * sem ela, e a validade fica desconhecida em vez de a conexão quebrar.
+ */
+export function colunaDeValidadeAusente(
+  erro: { code?: string | null; message?: string | null } | null | undefined,
+): boolean {
+  return (
+    !!erro &&
+    (erro.code === "42703" || erro.code === "PGRST204") &&
+    (erro.message ?? "").includes(COLUNA_VALIDADE)
+  );
+}
+
+export type AlertaDoToken = "ok" | "vence_em_breve" | "expirado" | "desconhecido";
+/** Dias (inclusive) a partir dos quais a tela avisa e a rotina diária passa a renovar. */
+export const DIAS_PARA_AVISAR = 10;
+
+/** Estado derivado da validade. `diasRestantes` arredonda para cima; vencido = 0. */
+export function alertaDoToken(
+  validoAte: string | null | undefined,
+  agora: number = Date.now(),
+): { diasRestantes: number | null; alertaToken: AlertaDoToken } {
+  const t = validoAte ? Date.parse(validoAte) : NaN;
+  if (!Number.isFinite(t)) return { diasRestantes: null, alertaToken: "desconhecido" };
+  if (t <= agora) return { diasRestantes: 0, alertaToken: "expirado" };
+  const dias = Math.ceil((t - agora) / 86_400_000);
+  return { diasRestantes: dias, alertaToken: dias <= DIAS_PARA_AVISAR ? "vence_em_breve" : "ok" };
+}
+
 export type RenovacaoDaSessao =
-  | { ok: true; tokenValidoAte: string }
+  | { ok: true; tokenValidoAte: string | null }
   | {
       ok: false;
       motivo: MotivoDaFalhaDoToken | "sem_sessao" | "sem_credencial" | "cifra" | "banco";
@@ -140,11 +173,18 @@ export async function renovarTokenDaSessao(
   if (!novoCifrado) return { ok: false, motivo: "cifra" };
 
   const validoAte = new Date(Date.now() + r.expiresInSeconds * 1000).toISOString();
-  const { error: erroUpdate } = await admin
-    .from("channel_sessions")
-    .update({ instagram_token_encrypted: novoCifrado, instagram_token_expires_at: validoAte })
-    .eq("organization_id", organizationId)
-    .eq("id", sessionId);
+  const gravar = (campos: Record<string, unknown>) =>
+    admin.from("channel_sessions").update(campos).eq("organization_id", organizationId).eq("id", sessionId);
+  const { error: erroUpdate } = await gravar({
+    instagram_token_encrypted: novoCifrado,
+    [COLUNA_VALIDADE]: validoAte,
+  });
+  if (colunaDeValidadeAusente(erroUpdate)) {
+    // Migration 0277 pendente: o token novo precisa ser gravado mesmo assim (o antigo continua vivo,
+    // mas a próxima renovação dependeria dele).
+    const { error: erro2 } = await gravar({ instagram_token_encrypted: novoCifrado });
+    return erro2 ? { ok: false, motivo: "banco" } : { ok: true, tokenValidoAte: null };
+  }
   if (erroUpdate) return { ok: false, motivo: "banco" };
   return { ok: true, tokenValidoAte: validoAte };
 }
