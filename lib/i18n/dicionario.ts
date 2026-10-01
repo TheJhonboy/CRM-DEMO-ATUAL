@@ -8332,6 +8332,9 @@ export const DICIONARIO: Traducoes = {
   "Este número foi excluído da Central de Conexões.": {
     es: "Este número fue eliminado de la Central de Conexiones.",
   },
+  "Conversa sem endereço de envio neste canal.": {
+    es: "La conversación no tiene dirección de envío en este canal.",
+  },
   "Contato sem telefone para envio WhatsApp.": {
     es: "El contacto no tiene teléfono para el envío por WhatsApp.",
   },

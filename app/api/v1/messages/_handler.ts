@@ -34,6 +34,7 @@ import {
   type ChannelSessionRef,
 } from "@/lib/channels";
 import { ARCHIVED_AT, queryTolerantToMissingArchived } from "@/lib/channels/archived";
+import { enderecaPorTelefone } from "@/lib/channels/capabilities";
 import { conferirDefinicao } from "@/lib/channels/conferir-definicao";
 import { isMediaPathOwnedBy } from "@/lib/messaging/media/upload-validation";
 import {
@@ -663,7 +664,10 @@ export async function sendMessageHandler(
       .update({
         status: "failed",
         error_code: "missing_phone_number",
-        error_message: "Contato sem telefone para envio WhatsApp.",
+        // Canal que endereça pela thread (sem telefone) não tem "telefone do contato" a cobrar.
+        error_message: enderecaPorTelefone(c.channel_sessions?.provider ?? DEFAULT_CHANNEL_PROVIDER)
+          ? "Contato sem telefone para envio WhatsApp."
+          : "Conversa sem endereço de envio neste canal.",
       })
       .eq("id", message.id)
       .select(MSG_COLS)

@@ -267,6 +267,17 @@ describe('sendMessageHandler — os 6 desfechos do envio', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("2b. canal sem telefone (thread ausente): mensagem NEUTRA, sem 'WhatsApp'; o código segue o mesmo", async () => {
+    vi.stubGlobal('fetch', vi.fn());
+    const row = conversationRow({ provider: 'instagram', phoneNumber: null });
+    (row as Record<string, unknown>).provider_conversation_id = null;
+    const msg = await sendMessageHandler(makeSupabase(row), ctx, textInput());
+    expect(msg.status).toBe('failed');
+    expect(msg.error_code).toBe('missing_phone_number');
+    expect(msg.error_message).toBe('Conversa sem endereço de envio neste canal.');
+    expect(msg.error_message).not.toMatch(/whatsapp/i);
+  });
+
   it('3. sessão fora de WORKING: fica queued com channel_session_not_working', async () => {
     wahaConfigured(true);
     const fetchMock = vi.fn();
