@@ -142,6 +142,18 @@ describe("POST /webhooks/channel/[token]", () => {
       expect(await lerCorpoComLimite(reqDe(pedacos), 100)).toBe("a€b😀c");
     });
 
+    it("sem req.body (so text()): cai em text() e mantem o teto em BYTES", async () => {
+      const fake = (t: string) => ({ headers: new Headers(), body: null, text: async () => t }) as unknown as Request;
+      expect(await lerCorpoComLimite(fake("{\"a\":1}"))).toBe("{\"a\":1}");
+      expect(await lerCorpoComLimite(fake("ééééééé"), 10)).toBeNull(); // 14 bytes, 7 caracteres
+      expect(await lerCorpoComLimite(fake("éééééé"), 12)).toBe("éééééé");
+    });
+
+    it("body sem getReader (objeto de teste/adaptador): tambem cai em text()", async () => {
+      const fake = { headers: new Headers(), body: {}, text: async () => "ok" } as unknown as Request;
+      expect(await lerCorpoComLimite(fake)).toBe("ok");
+    });
+
     it("leitura que aborta: lança CorpoIlegivelError, sem vazar a causa", async () => {
       const stream = new ReadableStream<Uint8Array>({
         pull(c) {

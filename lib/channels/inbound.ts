@@ -70,8 +70,14 @@ export async function lerCorpoComLimite(
 ): Promise<string | null> {
   const header = req.headers.get("content-length");
   if (header !== null && /^\d+$/.test(header.trim()) && Number(header.trim()) > limite) return null;
-  if (!req.body) return "";
-  const reader = req.body.getReader();
+  const corpo = req.body as ReadableStream<Uint8Array> | null | undefined;
+  if (!corpo || typeof corpo.getReader !== "function") {
+    // Sem stream legível (corpo vazio, ou um objeto de requisição que só tem `text()`):
+    // o texto vem inteiro, e o teto em BYTES vale sobre ele.
+    const texto = await req.text();
+    return Buffer.byteLength(texto, "utf8") > limite ? null : texto;
+  }
+  const reader = corpo.getReader();
   const pedacos: Uint8Array[] = [];
   let total = 0;
   for (;;) {
