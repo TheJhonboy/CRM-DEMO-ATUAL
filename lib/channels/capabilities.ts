@@ -123,6 +123,17 @@ export const CHANNEL_PROVIDER_WAHA: ChannelProvider = "waha";
 export const CHANNEL_PROVIDER_META: ChannelProvider = "meta_cloud";
 export const CHANNEL_PROVIDER_ZERNIO: ChannelProvider = "zernio";
 export const CHANNEL_PROVIDER_INSTAGRAM: ChannelProvider = "instagram";
+/**
+ * Providers cujo nome é MARCA PÚBLICA do canal em que o cliente já está (como "WhatsApp",
+ * que não é chave de provider e por isso nunca foi vetado). O detector de vazamento
+ * (`agent-engine/guardrails/vazamento-interno.ts`) existe para barrar nomes INTERNOS de
+ * transporte/fornecedor; "siga a gente no Instagram" é fala normal de atendimento, e vetá-la
+ * calaria a IA no próprio canal. Lista EXPLÍCITA e fechada: provider novo entra como interno
+ * (vetado) até alguém decidir, aqui, que o nome dele é marca pública. Os identificadores
+ * técnicos continuam vetados por outras regras (`*_id` snake_case, host de API da Graph).
+ */
+export const PROVIDERS_COM_NOME_PUBLICO: readonly string[] = [CHANNEL_PROVIDER_INSTAGRAM];
+
 /** Chamada de voz WhatsApp (spec 18). Não transporta mensagem — ver abaixo. */
 export const CHANNEL_PROVIDER_WACALLS: ChannelProvider = "wacalls";
 

@@ -23,9 +23,15 @@
 import { describe, expect, it } from "vitest";
 
 import { detectarVazamentoInterno } from "@/lib/agent-engine/guardrails/vazamento-interno";
-import { CHANNEL_CAPABILITIES } from "@/lib/channels/capabilities";
+import { CHANNEL_CAPABILITIES, PROVIDERS_COM_NOME_PUBLICO } from "@/lib/channels/capabilities";
 
-const PROVIDERS = Object.keys(CHANNEL_CAPABILITIES);
+/**
+ * EXCEÇÃO EXPLÍCITA e fechada: o nome de um provider que é MARCA PÚBLICA do canal do cliente
+ * ("Instagram", como "WhatsApp") não é vocabulário interno — a IA precisa poder dizê-lo.
+ * Quem decide é a lista `PROVIDERS_COM_NOME_PUBLICO` (com a justificativa lá); todos os demais
+ * continuam obrigatoriamente vetados, e provider novo nasce vetado.
+ */
+const PROVIDERS = Object.keys(CHANNEL_CAPABILITIES).filter((p) => !PROVIDERS_COM_NOME_PUBLICO.includes(p));
 
 describe("nome de provider de canal é vazamento", () => {
   /**
@@ -48,6 +54,18 @@ describe("nome de provider de canal é vazamento", () => {
    * silencioso. A palavra do cliente que mais se aproxima aqui é "canal" — ele fala
    * "outro canal", "canal de atendimento", e isso NÃO pode morrer.
    */
+  it("a lista de nomes públicos é pequena e explícita (não vira rota de fuga)", () => {
+    expect([...PROVIDERS_COM_NOME_PUBLICO]).toEqual(["instagram"]);
+    // os internos de transporte nunca entram
+    for (const interno of ["waha", "meta_cloud", "zernio"]) expect(PROVIDERS_COM_NOME_PUBLICO).not.toContain(interno);
+  });
+
+  it("marca pública passa: 'siga a gente no Instagram'", () => {
+    for (const p of PROVIDERS_COM_NOME_PUBLICO) {
+      expect(detectarVazamentoInterno(`Siga a gente no ${p} e me chama por lá.`).achou).toBe(false);
+    }
+  });
+
   it("não barra a palavra do cliente que orbita o termo", () => {
     for (const frase of [
       "Prefere que eu te chame em outro canal?",

@@ -198,11 +198,24 @@ describe("sondas de mecanismo — pares mínimos por correção", () => {
     expect(detectarVazamentoInterno("Segue a gente no insta (@loja_da_ana)").termos).toEqual([]);
   });
 
-  it("nome de provider colado a endereço/menção passa; solto continua barrando (par mínimo)", () => {
-    for (const ok of ["instagram.com/loja_da_ana", "https://instagram.com/loja", "@instagram", "#instagram", "www.instagram.com"]) {
-      expect(detectarVazamentoInterno(ok).termos, ok).toEqual([]);
+  it("Instagram é marca pública do canal: a resposta ao cliente passa; os nomes internos continuam vetados", () => {
+    for (const ok of [
+      "Siga a gente no Instagram",
+      "siga a gente no instagram",
+      "Me chama no Instagram que eu respondo",
+      "instagram.com/loja_da_ana",
+      "@instagram",
+    ]) {
+      expect(detectarVazamentoInterno(ok).achou, ok).toBe(false);
     }
-    for (const nao of ["Não consegui enviar pelo instagram, tente de novo.", "a conta esta no waha", "usamos o meta_cloud"]) {
+    for (const nao of [
+      "a conta esta no waha",
+      "usamos o meta_cloud",
+      "falha no zernio",
+      "o erro veio de graph.instagram.com",
+      "chamei graph.facebook.com",
+      "faltou o instagram_account_id",
+    ]) {
       expect(detectarVazamentoInterno(nao).achou, nao).toBe(true);
     }
   });
