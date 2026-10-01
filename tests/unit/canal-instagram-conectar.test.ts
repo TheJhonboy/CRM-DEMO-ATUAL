@@ -424,7 +424,7 @@ describe("POST — sucesso", () => {
     graphBoa();
     const r = await POST(pedido(corpoValido));
     const { data } = await r.json();
-    expect(Object.keys(data).sort()).toEqual(["status", "username", "verifyToken", "webhookSubscribed", "webhookUrl"]);
+    expect(Object.keys(data).sort()).toEqual(["status", "tokenLongo", "tokenValidoAte", "username", "verifyToken", "webhookSubscribed", "webhookUrl"]);
     expect(data.username).toBe("loja_da_ana");
     expect(data.status).toBe("WORKING");
     expect(data.verifyToken).toBe(linhas[0]!.webhook_path_token);
