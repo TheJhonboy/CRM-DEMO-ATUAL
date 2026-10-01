@@ -61,6 +61,8 @@ interface Conectado {
   status: string;
   /** `false` = a assinatura automática do campo `messages` não foi confirmada pela Meta. */
   webhookSubscribed?: boolean;
+  /** `false` = o token colado é provavelmente de curta duração (~1 h); `null`/ausente = não deu para saber. */
+  tokenLongo?: boolean | null;
 }
 
 /** Campo somente-leitura com botão de copiar — o que o operador cola na Meta. */
@@ -269,9 +271,22 @@ export function CanalInstagramForm() {
           </div>
         )}
 
-        {!carregando && conectado && estado?.alertaToken === "vence_em_breve" && (
+        {recemConectado?.tokenLongo === false && (
           <div
             role="alert"
+            className="rounded-md border border-warning/40 bg-warning-bg p-3 text-sm"
+            data-testid="aviso-token-curto"
+          >
+            <p className="font-medium">{t("O token colado parece ser de curta duração (cerca de 1 hora).")}</p>
+            <p className="text-xs text-muted-foreground">
+              {t("Ele deve parar de funcionar em breve. Gere um token de longa duração no painel da Meta, ou confira se o segredo do app é do mesmo app do token, e use Reconectar.")}
+            </p>
+          </div>
+        )}
+
+        {!carregando && conectado && estado?.alertaToken === "vence_em_breve" && (
+          <div
+            role="status"
             className="rounded-md border border-warning/40 bg-warning-bg p-3 text-sm"
             data-testid="aviso-token-vencendo"
           >
@@ -284,7 +299,7 @@ export function CanalInstagramForm() {
 
         {!carregando && conectado && estado?.alertaToken === "expirado" && (
           <div
-            role="alert"
+            role="status"
             className="rounded-md border border-error/40 bg-error-bg p-3 text-sm"
             data-testid="aviso-token-expirado"
           >
@@ -323,8 +338,13 @@ export function CanalInstagramForm() {
                       })`
                     : t("Token com validade desconhecida")}
               </p>
+              {estado?.alertaToken === "desconhecido" && (
+                <p role="status" className="mt-1 text-xs text-muted-foreground" data-testid="dica-validade-desconhecida">
+                  {t("Não foi possível descobrir a validade deste token. O CRM tenta renová-lo sozinho todos os dias; se ele for de curta duração, gere um token de longa duração na Meta.")}
+                </p>
+              )}
               {resultadoRenovacao && (
-                <p role="status" className="mt-1 text-xs text-muted-foreground" data-testid="resultado-renovacao">
+                <p role="alert" className="mt-1 text-xs text-muted-foreground" data-testid="resultado-renovacao">
                   {resultadoRenovacao}
                 </p>
               )}

@@ -9339,6 +9339,15 @@ export const DICIONARIO: Traducoes = {
   "O token de longa duração vale 60 dias. O CRM tenta trocar o token colado por um de longa duração e o renova automaticamente todos os dias enquanto ele ainda é válido. Se o CRM ficar desligado por 60 dias, o token morre e é preciso gerar um novo na Meta e usar Reconectar.": {
     es: "El token de larga duración vale 60 días. El CRM intenta cambiar el token pegado por uno de larga duración y lo renueva automáticamente todos los días mientras siga siendo válido. Si el CRM queda apagado por 60 días, el token muere y hay que generar uno nuevo en Meta y usar Reconectar.",
   },
+  "O token colado parece ser de curta duração (cerca de 1 hora).": {
+    es: "El token pegado parece ser de corta duración (alrededor de 1 hora).",
+  },
+  "Ele deve parar de funcionar em breve. Gere um token de longa duração no painel da Meta, ou confira se o segredo do app é do mesmo app do token, e use Reconectar.": {
+    es: "Dejará de funcionar pronto. Genera un token de larga duración en el panel de Meta, o verifica que el secreto de la app sea de la misma app del token, y usa Reconectar.",
+  },
+  "Não foi possível descobrir a validade deste token. O CRM tenta renová-lo sozinho todos os dias; se ele for de curta duração, gere um token de longa duração na Meta.": {
+    es: "No fue posible descubrir la vigencia de este token. El CRM intenta renovarlo solo todos los días; si es de corta duración, genera un token de larga duración en Meta.",
+  },
   "Token renovado.": { es: "Token renovado." },
   "Não foi possível renovar o token.": { es: "No fue posible renovar el token." },
   "O token do Instagram vence em breve.": { es: "El token de Instagram vence pronto." },
