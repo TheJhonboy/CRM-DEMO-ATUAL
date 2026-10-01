@@ -123,14 +123,6 @@ export const CHANNEL_PROVIDER_WAHA: ChannelProvider = "waha";
 export const CHANNEL_PROVIDER_META: ChannelProvider = "meta_cloud";
 export const CHANNEL_PROVIDER_ZERNIO: ChannelProvider = "zernio";
 export const CHANNEL_PROVIDER_INSTAGRAM: ChannelProvider = "instagram";
-/**
- * Providers cujo nome é palavra PÚBLICA do cliente final (marca de rede social), não
- * vocabulário interno. O detector de vazamento (`agent-engine/guardrails`) trata os demais
- * nomes de provider como termo de arquitetura e veta a mensagem; estes ficam de fora, senão
- * "siga a gente no Instagram" seria calado em toda conversa.
- */
-export const PROVIDERS_COM_NOME_PUBLICO: readonly string[] = [CHANNEL_PROVIDER_INSTAGRAM];
-
 /** Chamada de voz WhatsApp (spec 18). Não transporta mensagem — ver abaixo. */
 export const CHANNEL_PROVIDER_WACALLS: ChannelProvider = "wacalls";
 

@@ -198,11 +198,13 @@ describe("sondas de mecanismo — pares mínimos por correção", () => {
     expect(detectarVazamentoInterno("Segue a gente no insta (@loja_da_ana)").termos).toEqual([]);
   });
 
-  it("nome de rede social que é provider (palavra do cliente) não é vazamento; os outros providers continuam", () => {
-    expect(detectarVazamentoInterno("Segue a gente no instagram e no Instagram").termos).toEqual([]);
-    expect(detectarVazamentoInterno("Me chama no Instagram que eu respondo").termos).toEqual([]);
-    expect(detectarVazamentoInterno("a conta esta no waha").termos).toContain("waha");
-    expect(detectarVazamentoInterno("usamos o meta_cloud").termos.length).toBeGreaterThan(0);
+  it("nome de provider colado a endereço/menção passa; solto continua barrando (par mínimo)", () => {
+    for (const ok of ["instagram.com/loja_da_ana", "https://instagram.com/loja", "@instagram", "#instagram", "www.instagram.com"]) {
+      expect(detectarVazamentoInterno(ok).termos, ok).toEqual([]);
+    }
+    for (const nao of ["Não consegui enviar pelo instagram, tente de novo.", "a conta esta no waha", "usamos o meta_cloud"]) {
+      expect(detectarVazamentoInterno(nao).achou, nao).toBe(true);
+    }
   });
 
   it("admin: colado a e-mail passa, solto continua barrando", () => {

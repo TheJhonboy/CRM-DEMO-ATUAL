@@ -52,7 +52,7 @@
  * resíduo de falso-positivo ACEITO — congelado, não escondido. Regressão reprova o CI.
  */
 import { TOOL_CATALOG, catalogEntry } from '@/lib/mcp/tools/catalog';
-import { CHANNEL_CAPABILITIES, PROVIDERS_COM_NOME_PUBLICO } from '@/lib/channels/capabilities';
+import { CHANNEL_CAPABILITIES } from '@/lib/channels/capabilities';
 
 /** Categoria da regra que pegou o termo — vai ao trace (rótulo nosso, nunca o corpo). */
 export type CategoriaVazamento = 'snake_case' | 'tool' | 'papel' | 'arquitetura' | 'erro_cru';
@@ -134,8 +134,18 @@ const PALAVRAS_ARQUITETURA = [
  * mentindo. `lib/channels/capabilities.ts` importa só tipos — não arrasta peso
  * para dentro deste módulo puro.
  */
-const PROVIDERES_DE_CANAL = Object.keys(CHANNEL_CAPABILITIES).filter(
-  (p) => !PROVIDERS_COM_NOME_PUBLICO.includes(p),
+const PROVIDERES_DE_CANAL = Object.keys(CHANNEL_CAPABILITIES);
+
+/**
+ * O nome de provider barra como palavra solta, mas NÃO quando é endereço ou menção que o
+ * cliente PEDIU: `instagram.com/loja_da_ana`, `@instagram`, `#instagram`. Mesma ideia do
+ * `admin@loja.com.br` (RE_ADMIN): o nome colado a `@`/`#`/`/`, ou seguido de `.` + letra
+ * (domínio), é endereço, não vocabulário interno. A palavra SOLTA continua barrando
+ * (`tests/unit/vazamento-nome-de-provider.test.ts`).
+ */
+const RE_PROVIDER_DE_CANAL = new RegExp(
+  `(?<![@#/.\\w-])(?:${PROVIDERES_DE_CANAL.join('|')})s?\\b(?![.][a-z0-9]|[/@])`,
+  'g',
 );
 
 /**
@@ -224,7 +234,8 @@ const RE_ARQUIVO_DE_CODIGO = new RegExp(
 );
 
 const REGRAS: ReadonlyArray<RegraTexto> = [
-  { categoria: 'arquitetura', re: alternacao([...PALAVRAS_ARQUITETURA, ...PROVIDERES_DE_CANAL]) },
+  { categoria: 'arquitetura', re: alternacao(PALAVRAS_ARQUITETURA) },
+  { categoria: 'arquitetura', rotulo: 'provider', re: RE_PROVIDER_DE_CANAL },
   { categoria: 'papel', re: alternacao(PALAVRAS_PAPEL) },
   { categoria: 'papel', rotulo: 'admin', re: RE_ADMIN },
   // (C-bis) as duas ambíguas, só em contexto de papel. "seu perfil atual é agent" é a
