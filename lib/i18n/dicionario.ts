@@ -9333,8 +9333,40 @@ export const DICIONARIO: Traducoes = {
     es: "La cuenta de Instagram debe ser profesional (Empresa o Creador), con el acceso a los mensajes habilitado en la configuración de Instagram. Mientras la app esté en modo de desarrollo, agrega esa cuenta como probadora de la app.",
   },
   "Gere o token do Instagram.": { es: "Genera el token de Instagram." },
-  "No painel do app, em Instagram API with Instagram Login, gere o token de acesso da conta com as permissões instagram_business_basic e instagram_business_manage_messages.": {
-    es: "En el panel de la app, en Instagram API with Instagram Login, genera el token de acceso de la cuenta con los permisos instagram_business_basic e instagram_business_manage_messages.",
+  "No painel do app, em Instagram API with Instagram Login, gere o token de acesso da conta com as permissões instagram_business_basic e instagram_business_manage_messages. Se puder, gere um token de longa duração.": {
+    es: "En el panel de la app, en Instagram API with Instagram Login, genera el token de acceso de la cuenta con los permisos instagram_business_basic e instagram_business_manage_messages. Si puedes, genera un token de larga duración.",
+  },
+  "O token de longa duração vale 60 dias. O CRM tenta trocar o token colado por um de longa duração e o renova automaticamente todos os dias enquanto ele ainda é válido. Se o CRM ficar desligado por 60 dias, o token morre e é preciso gerar um novo na Meta e usar Reconectar.": {
+    es: "El token de larga duración vale 60 días. El CRM intenta cambiar el token pegado por uno de larga duración y lo renueva automáticamente todos los días mientras siga siendo válido. Si el CRM queda apagado por 60 días, el token muere y hay que generar uno nuevo en Meta y usar Reconectar.",
+  },
+  "Token renovado.": { es: "Token renovado." },
+  "Não foi possível renovar o token.": { es: "No fue posible renovar el token." },
+  "O token do Instagram vence em breve.": { es: "El token de Instagram vence pronto." },
+  "O CRM tenta renovar sozinho todos os dias, mas ainda não conseguiu. Use Renovar token agora; se não funcionar, gere um token novo na Meta e cole em Reconectar.": {
+    es: "El CRM intenta renovarlo solo todos los días, pero aún no lo logró. Usa Renovar token ahora; si no funciona, genera un token nuevo en Meta y pégalo en Reconectar.",
+  },
+  "O token do Instagram expirou.": { es: "El token de Instagram expiró." },
+  "A Meta não permite mais renová-lo e as respostas param. Gere um token NOVO no painel do app da Meta, cole em Token de acesso, abaixo, e use Reconectar.": {
+    es: "Meta ya no permite renovarlo y las respuestas se detienen. Genera un token NUEVO en el panel de la app de Meta, pégalo en Token de acceso, abajo, y usa Reconectar.",
+  },
+  "Token expirou em": { es: "El token expiró el" },
+  "Token válido até": { es: "Token válido hasta" },
+  "dia": { es: "día" },
+  "dias": { es: "días" },
+  "Token com validade desconhecida": { es: "Token con vigencia desconocida" },
+  "Renovando…": { es: "Renovando…" },
+  "Renovar token agora": { es: "Renovar token ahora" },
+  "Não foi possível consultar a conexão. Tente de novo.": { es: "No fue posible consultar la conexión. Inténtalo de nuevo." },
+  "O Instagram não está conectado nesta organização.": { es: "Instagram no está conectado en esta organización." },
+  "Token renovado por mais 60 dias.": { es: "Token renovado por 60 días más." },
+  "O token tem menos de 24 horas e a Meta ainda não permite renovar. Tente de novo amanhã.": {
+    es: "El token tiene menos de 24 horas y Meta aún no permite renovarlo. Inténtalo de nuevo mañana.",
+  },
+  "O token expirou e não pode mais ser renovado. Gere um token NOVO no painel da Meta e cole em Reconectar.": {
+    es: "El token expiró y ya no se puede renovar. Genera un token NUEVO en el panel de Meta y pégalo en Reconectar.",
+  },
+  "Não foi possível renovar o token agora. Tente de novo em instantes.": {
+    es: "No fue posible renovar el token ahora. Inténtalo de nuevo en unos instantes.",
   },
   "Pegue os três dados.": { es: "Toma los tres datos." },
   "O ID da conta do Instagram, o token gerado no passo anterior e o segredo do app (Configurações do app › Básico): use o segredo do mesmo app.": {

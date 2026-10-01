@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { apiClient } from "@/lib/api/client";
 import { copyToClipboard } from "@/lib/clipboard";
 import { useT } from "@/hooks/i18n/useT";
+import { tagDeIdioma } from "@/lib/i18n/datas";
+import { useIdioma } from "@/lib/i18n/IdiomaProvider";
 
 /**
  * Conectar uma conta de Instagram (mensagens diretas) — tela do operador.
@@ -40,6 +42,16 @@ interface Estado {
   username: string | null;
   webhookUrl: string | null;
   verifyToken: string | null;
+  /** ISO de quando o token vence; `null` = desconhecido. */
+  tokenValidoAte?: string | null;
+  diasRestantes?: number | null;
+  alertaToken?: "ok" | "vence_em_breve" | "expirado" | "desconhecido";
+}
+
+interface ResultadoDaRenovacao {
+  status: "renovado" | "novo_demais" | "expirado" | "falhou";
+  tokenValidoAte: string | null;
+  reason: string;
 }
 
 interface Conectado {
@@ -91,6 +103,9 @@ function SeloDoEstado({ estado }: { estado: EstadoDaConexao }) {
 
 export function CanalInstagramForm() {
   const t = useT();
+  const tag = tagDeIdioma(useIdioma());
+  const [renovando, setRenovando] = useState(false);
+  const [resultadoRenovacao, setResultadoRenovacao] = useState<string | null>(null);
   const [estado, setEstado] = useState<Estado | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [testando, setTestando] = useState(false);
@@ -161,6 +176,34 @@ export function CanalInstagramForm() {
     }
   };
 
+  const renovar = async () => {
+    setRenovando(true);
+    setResultadoRenovacao(null);
+    try {
+      const r = await apiClient.post<{ data: ResultadoDaRenovacao }>(
+        "/api/v1/channels/instagram/renovar-token",
+        {},
+      );
+      if (r.data.status === "renovado") {
+        toast.success(t("Token renovado."));
+        await carregar();
+      } else {
+        // A razão já vem traduzida e fixa do servidor (nunca texto da Meta).
+        setResultadoRenovacao(r.data.reason);
+        toast.error(t("Não foi possível renovar o token."));
+      }
+    } catch (e) {
+      const mensagem = e instanceof Error ? t(e.message) : t("Não foi possível renovar o token.");
+      setResultadoRenovacao(mensagem);
+      toast.error(mensagem);
+    } finally {
+      setRenovando(false);
+    }
+  };
+
+  const dataDoToken = (iso: string) =>
+    new Date(iso).toLocaleDateString(tag, { day: "2-digit", month: "2-digit", year: "numeric" });
+
   const conectado = estado?.state === "conectado" || estado?.state === "token_invalido";
   const estadoAtual: EstadoDaConexao = estado?.state ?? "nao_conectado";
   const webhookUrl = recemConectado?.webhookUrl ?? estado?.webhookUrl ?? null;
@@ -226,6 +269,32 @@ export function CanalInstagramForm() {
           </div>
         )}
 
+        {!carregando && conectado && estado?.alertaToken === "vence_em_breve" && (
+          <div
+            role="alert"
+            className="rounded-md border border-warning/40 bg-warning-bg p-3 text-sm"
+            data-testid="aviso-token-vencendo"
+          >
+            <p className="font-medium">{t("O token do Instagram vence em breve.")}</p>
+            <p className="text-xs text-muted-foreground">
+              {t("O CRM tenta renovar sozinho todos os dias, mas ainda não conseguiu. Use Renovar token agora; se não funcionar, gere um token novo na Meta e cole em Reconectar.")}
+            </p>
+          </div>
+        )}
+
+        {!carregando && conectado && estado?.alertaToken === "expirado" && (
+          <div
+            role="alert"
+            className="rounded-md border border-error/40 bg-error-bg p-3 text-sm"
+            data-testid="aviso-token-expirado"
+          >
+            <p className="font-medium">{t("O token do Instagram expirou.")}</p>
+            <p className="text-xs text-muted-foreground">
+              {t("A Meta não permite mais renová-lo e as respostas param. Gere um token NOVO no painel do app da Meta, cole em Token de acesso, abaixo, e use Reconectar.")}
+            </p>
+          </div>
+        )}
+
         {conectado && (
           <div className="flex flex-col gap-3 rounded-md border border-border bg-muted/40 p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
@@ -236,8 +305,32 @@ export function CanalInstagramForm() {
                 {t("Token e segredo ficam guardados cifrados e não são mostrados de novo.")}
               </p>
             </div>
-            <Button variant="outline" onClick={testar} disabled={testando}>
+            <Button variant="outline" onClick={testar} disabled={testando} className="min-h-11">
               {testando ? t("Testando…") : t("Testar conexão")}
+            </Button>
+          </div>
+        )}
+
+        {!carregando && conectado && (
+          <div className="flex flex-col gap-3 rounded-md border border-border bg-muted/40 p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="font-medium" data-testid="validade-do-token">
+                {estado?.tokenValidoAte && estado.alertaToken === "expirado"
+                  ? `${t("Token expirou em")} ${dataDoToken(estado.tokenValidoAte)}`
+                  : estado?.tokenValidoAte
+                    ? `${t("Token válido até")} ${dataDoToken(estado.tokenValidoAte)} (${estado.diasRestantes ?? 0} ${
+                        estado.diasRestantes === 1 ? t("dia") : t("dias")
+                      })`
+                    : t("Token com validade desconhecida")}
+              </p>
+              {resultadoRenovacao && (
+                <p role="status" className="mt-1 text-xs text-muted-foreground" data-testid="resultado-renovacao">
+                  {resultadoRenovacao}
+                </p>
+              )}
+            </div>
+            <Button variant="outline" onClick={renovar} disabled={renovando} className="min-h-11 w-full sm:w-auto">
+              {renovando ? t("Renovando…") : t("Renovar token agora")}
             </Button>
           </div>
         )}
@@ -256,7 +349,7 @@ export function CanalInstagramForm() {
           </li>
           <li>
             <strong>{t("Gere o token do Instagram.")}</strong>{" "}
-            {t("No painel do app, em Instagram API with Instagram Login, gere o token de acesso da conta com as permissões instagram_business_basic e instagram_business_manage_messages.")}
+            {t("No painel do app, em Instagram API with Instagram Login, gere o token de acesso da conta com as permissões instagram_business_basic e instagram_business_manage_messages. Se puder, gere um token de longa duração.")}
           </li>
           <li>
             <strong>{t("Pegue os três dados.")}</strong>{" "}
@@ -271,6 +364,13 @@ export function CanalInstagramForm() {
             {t("Cole a URL e o verify token abaixo no webhook do app. Se a tela avisar que a assinatura não foi confirmada, assine o campo messages no painel do app. Sem isso o CRM envia, mas não recebe.")}
           </li>
         </ol>
+        <p
+          role="note"
+          className="rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground"
+          data-testid="nota-validade-do-token"
+        >
+          {t("O token de longa duração vale 60 dias. O CRM tenta trocar o token colado por um de longa duração e o renova automaticamente todos os dias enquanto ele ainda é válido. Se o CRM ficar desligado por 60 dias, o token morre e é preciso gerar um novo na Meta e usar Reconectar.")}
+        </p>
         <p
           role="note"
           className="rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground"

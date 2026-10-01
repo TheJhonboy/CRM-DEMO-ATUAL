@@ -284,3 +284,109 @@ describe("testar conexão e copiar", () => {
     await waitFor(() => expect(copiar).toHaveBeenCalledWith(URL_WEBHOOK));
   });
 });
+
+describe("validade do token e renovação", () => {
+  const comToken = (extra: Record<string, unknown>) => ({
+    data: { ...conectado.data, tokenValidoAte: null, diasRestantes: null, alertaToken: "desconhecido", ...extra },
+  });
+
+  it("token em dia: mostra a validade com a data e os dias, sem alerta", async () => {
+    getMock.mockResolvedValue(
+      comToken({ tokenValidoAte: "2026-11-15T15:00:00.000Z", diasRestantes: 45, alertaToken: "ok" }),
+    );
+    render(<CanalInstagramForm />);
+    expect(await screen.findByTestId("validade-do-token")).toHaveTextContent("Token válido até 15/11/2026 (45 dias)");
+    expect(screen.queryByTestId("aviso-token-vencendo")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("aviso-token-expirado")).not.toBeInTheDocument();
+  });
+
+  it("1 dia restante usa o singular", async () => {
+    getMock.mockResolvedValue(
+      comToken({ tokenValidoAte: "2026-11-15T15:00:00.000Z", diasRestantes: 1, alertaToken: "vence_em_breve" }),
+    );
+    render(<CanalInstagramForm />);
+    expect(await screen.findByTestId("validade-do-token")).toHaveTextContent("(1 dia)");
+  });
+
+  it("sem validade: diz que é desconhecida, sem inventar data", async () => {
+    getMock.mockResolvedValue(comToken({}));
+    render(<CanalInstagramForm />);
+    expect(await screen.findByTestId("validade-do-token")).toHaveTextContent(/validade desconhecida/i);
+    expect(screen.queryByTestId("aviso-token-vencendo")).not.toBeInTheDocument();
+  });
+
+  it("vence em breve: alerta com a ação (renovar agora)", async () => {
+    getMock.mockResolvedValue(
+      comToken({ tokenValidoAte: "2026-11-15T15:00:00.000Z", diasRestantes: 5, alertaToken: "vence_em_breve" }),
+    );
+    render(<CanalInstagramForm />);
+    const aviso = await screen.findByTestId("aviso-token-vencendo");
+    expect(aviso).toHaveAttribute("role", "alert");
+    expect(aviso).toHaveTextContent(/Renovar token agora/);
+  });
+
+  it("expirado: manda gerar um token NOVO na Meta e colar em Reconectar", async () => {
+    getMock.mockResolvedValue(
+      comToken({ tokenValidoAte: "2026-09-01T15:00:00.000Z", diasRestantes: 0, alertaToken: "expirado" }),
+    );
+    render(<CanalInstagramForm />);
+    const aviso = await screen.findByTestId("aviso-token-expirado");
+    expect(aviso).toHaveTextContent(/token NOVO/);
+    expect(aviso).toHaveTextContent(/Reconectar/);
+    expect(screen.getByTestId("validade-do-token")).toHaveTextContent(/expirou/i);
+  });
+
+  it("o botão Renovar token agora tem altura de toque (>= 44px) e chama o endpoint, recarregando o estado", async () => {
+    getMock.mockResolvedValue(comToken({ tokenValidoAte: "2026-11-15T15:00:00.000Z", diasRestantes: 5, alertaToken: "vence_em_breve" }));
+    let resolver: (v: unknown) => void = () => undefined;
+    postMock.mockImplementation(() => new Promise((r) => (resolver = r)));
+    render(<CanalInstagramForm />);
+    const botao = await screen.findByRole("button", { name: "Renovar token agora" });
+    expect(botao.className).toMatch(/min-h-11|h-11/);
+    fireEvent.click(botao);
+    expect(await screen.findByRole("button", { name: /renovando/i })).toBeDisabled();
+    expect(postMock).toHaveBeenCalledWith("/api/v1/channels/instagram/renovar-token", {});
+    resolver({ data: { status: "renovado", tokenValidoAte: "2026-12-30T12:00:00.000Z", reason: "ok" } });
+    await waitFor(() => expect(toastOk).toHaveBeenCalledWith("Token renovado."));
+    expect(getMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("novo demais / expirado / falhou: mostra a razão do servidor como erro, sem sucesso", async () => {
+    getMock.mockResolvedValue(comToken({}));
+    for (const status of ["novo_demais", "expirado", "falhou"]) {
+      toastOk.mockReset();
+      toastErro.mockReset();
+      postMock.mockResolvedValueOnce({ data: { status, tokenValidoAte: null, reason: `razao ${status}` } });
+      const { unmount } = render(<CanalInstagramForm />);
+      fireEvent.click(await screen.findByRole("button", { name: "Renovar token agora" }));
+      expect(await screen.findByTestId("resultado-renovacao")).toHaveTextContent(`razao ${status}`);
+      expect(toastOk).not.toHaveBeenCalled();
+      unmount();
+    }
+  });
+
+  it("falha de rede ao renovar: erro, e o botão volta a funcionar", async () => {
+    getMock.mockResolvedValue(comToken({}));
+    postMock.mockRejectedValue(new Error("Muitas tentativas. Aguarde um minuto."));
+    render(<CanalInstagramForm />);
+    fireEvent.click(await screen.findByRole("button", { name: "Renovar token agora" }));
+    await waitFor(() => expect(toastErro).toHaveBeenCalled());
+    expect(await screen.findByRole("button", { name: "Renovar token agora" })).toBeEnabled();
+  });
+
+  it("sem conexão não há botão de renovar", async () => {
+    getMock.mockResolvedValue(naoConectado);
+    render(<CanalInstagramForm />);
+    await screen.findByText("Não conectado");
+    expect(screen.queryByRole("button", { name: "Renovar token agora" })).not.toBeInTheDocument();
+  });
+
+  it("as instruções pedem token de longa duração e explicam a renovação diária e os 60 dias", async () => {
+    getMock.mockResolvedValue(naoConectado);
+    render(<CanalInstagramForm />);
+    const nota = await screen.findByTestId("nota-validade-do-token");
+    expect(nota).toHaveTextContent(/longa duração/i);
+    expect(nota).toHaveTextContent(/todos os dias|todo dia/i);
+    expect(nota).toHaveTextContent(/60 dias/);
+  });
+});
