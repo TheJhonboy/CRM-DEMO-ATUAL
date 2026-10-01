@@ -21,7 +21,8 @@ Tela: Configurações › Conexões › Instagram.
 
 1. **Crie o app** na Meta e adicione o produto Instagram API with Instagram Login.
 2. **Prepare a conta**: profissional, mensagens liberadas, adicionada como testadora (modo de desenvolvimento).
-3. **Gere o token** do Instagram no painel do app, com os dois scopes acima.
+3. **Gere o token** do Instagram no painel do app, com os dois scopes acima. Prefira o de **longa
+   duração**; se vier o curto, o CRM tenta a troca sozinho (ver "Ciclo de vida do token").
 4. **Junte os três dados**: ID da conta do Instagram, o token gerado e o **App Secret do mesmo app**
    (Configurações do app › Básico). O App Secret é o que assina os webhooks.
 5. **Cole na tela e conecte.** O CRM consulta a Meta (`/me`), só aceita se o ID digitado for o da
@@ -31,6 +32,31 @@ Tela: Configurações › Conexões › Instagram.
    app (produto Instagram). Se a tela disser que a assinatura automática não foi confirmada
    (`webhookSubscribed: false`), assine o campo `messages` no painel do app. Sem isso o CRM envia,
    mas não recebe.
+
+## Ciclo de vida do token (60 dias)
+
+- O token de **longa duração** do Instagram vale **60 dias** a partir da emissão ou da última renovação.
+  Só pode ser renovado com **24 h ou mais de idade** e **enquanto ainda está vivo**; passou dos 60 dias
+  sem renovar, ele morre e o operador precisa gerar um novo na Meta.
+- **Na conexão**, o CRM tenta trocar o token colado (curto) por um de longa duração usando o App Secret
+  digitado (`ig_exchange_token`). Se a Meta recusar porque o token já é longo, ele é mantido e o CRM tenta
+  renovar só para descobrir a validade. Nada disso impede a conexão. Se a validade não puder ser
+  descoberta (token colado com menos de 24 h), a tela mostra "validade desconhecida".
+- **Renovação automática:** a rotina `api/v1/cron/instagram-token` roda **uma vez por dia** no scheduler e
+  renova os tokens que vencem em até **10 dias** (e os de validade desconhecida criados há mais de 50 dias).
+  Não precisa de variável de ambiente; sem canal do Instagram ela não faz nada.
+- **Aviso na Central:** se a renovação falha com 7 dias ou menos para vencer (ou o token já morreu), abre-se
+  um item na Central de avisos (`ref_kind = instagram_token`), um por canal enquanto estiver aberto. Ele é
+  resolvido sozinho quando a renovação funciona.
+- **Na tela** (Configurações › Conexões › Instagram): mostra "Token válido até DD/MM/AAAA (N dias)", avisa
+  quando vence em até 10 dias ou já expirou e tem o botão **Renovar token agora**
+  (`POST /api/v1/channels/instagram/renovar-token`, até 6 por minuto por organização).
+- **Se o CRM ficar desligado por 60 dias** (ou o token expirar por outro motivo), a renovação deixa de ser
+  possível: gere um token NOVO no painel do app da Meta e cole em **Reconectar**.
+- **Migration 0277** acrescenta `channel_sessions.instagram_token_expires_at` (aditiva, anulável). Se o
+  código subir antes dela, a conexão e a renovação seguem funcionando, só sem registrar a validade.
+- Os endpoints de troca e renovação da Meta não são versionados e recebem o token na URL (é o que a Meta
+  documenta); o CRM nunca registra essa URL nem devolve o token em resposta ou erro.
 
 ## Como testar
 
@@ -62,7 +88,7 @@ Tela: Configurações › Conexões › Instagram.
 
 ## Se as mensagens não chegam
 
-1. O estado na tela está **Conectado**? Se estiver "Token inválido", gere um token novo e reconecte.
+1. O estado na tela está **Conectado**? Se estiver "Token inválido" ou o token estiver expirado, gere um token novo e reconecte.
 2. O campo `messages` está assinado no painel do app? (A tela avisa se a assinatura automática falhou.)
 3. A URL de retorno e o verify token do app são os mostrados na tela?
 4. O App Secret colado é o do **mesmo app** que envia o webhook? Assinatura inválida é recusada.

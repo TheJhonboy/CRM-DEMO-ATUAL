@@ -19,3 +19,8 @@ organização. Nunca envia mensagem a cliente e não move lead de etapa.
 As migrations 0275 e 0276 são aplicadas pelo fluxo normal de atualização, antes de a aplicação
 reiniciar; não há passo manual. A 0275 acrescenta uma coluna gerada em `contacts`, o que
 reescreve a tabela: em bases grandes a atualização pode demorar mais que de costume.
+
+O token do Instagram é trocado por um de longa duração (60 dias) na conexão e renovado
+automaticamente todos os dias; a tela mostra a validade, avisa quando faltam 10 dias ou menos e
+tem o botão "Renovar token agora". Se a renovação falhar perto do vencimento, abre um aviso na
+Central. A migration 0277 (coluna da validade) é aditiva e entra no mesmo fluxo de atualização.
