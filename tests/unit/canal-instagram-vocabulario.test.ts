@@ -100,3 +100,18 @@ describe("migration 0276", () => {
     expect(baseline).toContain("set instagram_account_id = s.instagram_account_id || '-conflito-' || s.id::text");
   });
 });
+
+describe("migration 0277 (validade do token)", () => {
+  const M = "supabase/migrations/20261001120000_0277_instagram_validade_do_token.sql";
+  it("adiciona a coluna de validade, aditiva e idempotente, espelhada no baseline e no MANIFEST", () => {
+    const m = readFileSync(M, "utf8");
+    expect(m).toMatch(
+      /alter table public\.channel_sessions\s+add column if not exists instagram_token_expires_at timestamptz;/,
+    );
+    expect(m).toContain("comment on column public.channel_sessions.instagram_token_expires_at");
+    expect(m).not.toMatch(/drop |not null|default /i);
+    expect(baseline).toContain("add column if not exists instagram_token_expires_at timestamptz");
+    expect(readFileSync("supabase/migrations/MANIFEST.md", "utf8")).toContain("0277_instagram_validade_do_token");
+    expect(readFileSync("lib/database.types.ts", "utf8").match(/instagram_token_expires_at/g)?.length).toBe(3);
+  });
+});

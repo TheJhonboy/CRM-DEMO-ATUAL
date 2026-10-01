@@ -9244,6 +9244,13 @@ comment on column public.channel_sessions.instagram_account_id is
 comment on column public.channel_sessions.instagram_token_encrypted is
   'Token de acesso da Página/Instagram, cifrado por fn_encrypt_oauth. Por SESSÃO.';
 
+-- validade do token do Instagram (migration 0277).
+alter table public.channel_sessions
+  add column if not exists instagram_token_expires_at timestamptz;
+
+comment on column public.channel_sessions.instagram_token_expires_at is
+  'Quando o token do Instagram (instagram_token_encrypted) expira. Atualizada na conexão e a cada renovação. NULL = desconhecida.';
+
 comment on column public.channel_sessions.zernio_account_id is
   'Identificador da conta conectada NO INTERMEDIÁRIO (accountId), não o phone_number_id da Meta. É o que endereça envio e webhook. Espelhado em lib/channels/session-ref.ts.';
 

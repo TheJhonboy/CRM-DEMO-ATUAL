@@ -2983,6 +2983,7 @@ export type Database = {
           id: string
           instagram_account_id: string | null
           instagram_token_encrypted: string | null
+          instagram_token_expires_at: string | null
           is_warmup_complete: boolean | null
           last_health_check_at: string | null
           last_status_change_at: string
@@ -3018,6 +3019,7 @@ export type Database = {
           id?: string
           instagram_account_id?: string | null
           instagram_token_encrypted?: string | null
+          instagram_token_expires_at?: string | null
           is_warmup_complete?: boolean | null
           last_health_check_at?: string | null
           last_status_change_at?: string
@@ -3053,6 +3055,7 @@ export type Database = {
           id?: string
           instagram_account_id?: string | null
           instagram_token_encrypted?: string | null
+          instagram_token_expires_at?: string | null
           is_warmup_complete?: boolean | null
           last_health_check_at?: string | null
           last_status_change_at?: string
