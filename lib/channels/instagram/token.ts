@@ -14,6 +14,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { ARCHIVED_AT, queryTolerantToMissingArchived } from "../archived";
+import { CHANNEL_PROVIDER_INSTAGRAM } from "../capabilities";
 import { decryptWebhookSecret, encryptWebhookSecret } from "@/lib/webhooks/secrets";
 
 const GRAPH_HOST = "https://graph.instagram.com";
@@ -60,7 +61,8 @@ async function chamar(caminho: string, params: Record<string, string>): Promise<
   try {
     json = JSON.parse(await res.text());
   } catch {
-    return { ok: false, motivo: "resposta_invalida" };
+    // 4xx sem JSON (página de erro de proxy, por exemplo) é recusa; 2xx sem JSON é resposta quebrada.
+    return { ok: false, motivo: res.ok ? "resposta_invalida" : "recusado" };
   }
   if (!json || typeof json !== "object") return { ok: false, motivo: "resposta_invalida" };
 
@@ -134,7 +136,7 @@ export type RenovacaoDaSessao =
   | { ok: true; tokenValidoAte: string | null }
   | {
       ok: false;
-      motivo: MotivoDaFalhaDoToken | "sem_sessao" | "sem_credencial" | "cifra" | "banco";
+      motivo: MotivoDaFalhaDoToken | "sem_sessao" | "sem_credencial" | "cifra" | "banco" | "mudou_enquanto_isso";
     };
 
 /**
@@ -153,7 +155,7 @@ export async function renovarTokenDaSessao(
       .select("id, instagram_token_encrypted")
       .eq("organization_id", organizationId)
       .eq("id", sessionId)
-      .eq("provider", "instagram");
+      .eq("provider", CHANNEL_PROVIDER_INSTAGRAM);
   const { data, error } = await queryTolerantToMissingArchived(
     () => base().is(ARCHIVED_AT, null).maybeSingle(),
     () => base().maybeSingle(),
@@ -173,18 +175,33 @@ export async function renovarTokenDaSessao(
   if (!novoCifrado) return { ok: false, motivo: "cifra" };
 
   const validoAte = new Date(Date.now() + r.expiresInSeconds * 1000).toISOString();
-  const gravar = (campos: Record<string, unknown>) =>
-    admin.from("channel_sessions").update(campos).eq("organization_id", organizationId).eq("id", sessionId);
-  const { error: erroUpdate } = await gravar({
-    instagram_token_encrypted: novoCifrado,
-    [COLUNA_VALIDADE]: validoAte,
-  });
+  // Compare-and-swap: só grava se o texto cifrado ainda é o que lemos e o canal segue ativo.
+  // Sem isso, uma reconexão (token novo colado) entre a leitura e a gravação seria
+  // sobrescrita pelo token renovado do token ANTIGO.
+  const gravar = (campos: Record<string, unknown>) => {
+    const base = () =>
+      admin
+        .from("channel_sessions")
+        .update(campos)
+        .eq("organization_id", organizationId)
+        .eq("id", sessionId)
+        .eq("instagram_token_encrypted", cifrado);
+    return queryTolerantToMissingArchived(
+      () => base().is(ARCHIVED_AT, null).select("id"),
+      () => base().select("id"),
+    );
+  };
+  const resposta = await gravar({ instagram_token_encrypted: novoCifrado, [COLUNA_VALIDADE]: validoAte });
+  let { error: erroUpdate, data: gravadas } = resposta;
+  let semValidade = false;
   if (colunaDeValidadeAusente(erroUpdate)) {
     // Migration 0277 pendente: o token novo precisa ser gravado mesmo assim (o antigo continua vivo,
     // mas a próxima renovação dependeria dele).
-    const { error: erro2 } = await gravar({ instagram_token_encrypted: novoCifrado });
-    return erro2 ? { ok: false, motivo: "banco" } : { ok: true, tokenValidoAte: null };
+    ({ error: erroUpdate, data: gravadas } = await gravar({ instagram_token_encrypted: novoCifrado }));
+    semValidade = true;
   }
   if (erroUpdate) return { ok: false, motivo: "banco" };
+  if (!gravadas || gravadas.length === 0) return { ok: false, motivo: "mudou_enquanto_isso" };
+  if (semValidade) return { ok: true, tokenValidoAte: null };
   return { ok: true, tokenValidoAte: validoAte };
 }

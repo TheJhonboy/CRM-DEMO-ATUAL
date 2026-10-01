@@ -67,6 +67,11 @@ describe("renovarToken", () => {
     expect(await renovarToken({ tokenAtual: TOKEN })).toEqual({ ok: false, motivo: "rede" });
   });
 
+  it("4xx com corpo que não é JSON: recusado (não resposta_invalida)", async () => {
+    fetchMock.mockResolvedValue(resp(400, "<html>bad</html>"));
+    expect(await renovarToken({ tokenAtual: TOKEN })).toEqual({ ok: false, motivo: "recusado" });
+  });
+
   it("JSON inválido ou campos faltando: resposta_invalida", async () => {
     fetchMock.mockResolvedValue(resp(200, "<html>"));
     expect(await renovarToken({ tokenAtual: TOKEN })).toEqual({ ok: false, motivo: "resposta_invalida" });
@@ -106,7 +111,14 @@ describe("trocarPorTokenLongo", () => {
 
 /** Banco falso: registra filtros e o update. */
 function banco(
-  opts: { linha?: Record<string, unknown> | null; cifraOk?: boolean; decifraOk?: boolean; erroUpdate?: boolean } = {},
+  opts: {
+    linha?: Record<string, unknown> | null;
+    cifraOk?: boolean;
+    decifraOk?: boolean;
+    erroUpdate?: boolean;
+    /** Simula reconectar entre a leitura e a gravação: troca o texto cifrado da linha. */
+    corrida?: boolean;
+  } = {},
 ) {
   const linha =
     opts.linha === undefined
@@ -122,8 +134,14 @@ function banco(
       is: (c: string, v: unknown) => (f.push([c, v]), api),
       maybeSingle: async () => ({ data: linha, error: null }),
       then: (res: (v: unknown) => unknown) => {
-        if (modo === "update") updates.push({ valores: valores!, filtros: f });
-        return Promise.resolve({ error: opts.erroUpdate ? { message: "x" } : null }).then(res);
+        if (modo === "update" && opts.corrida && linha) linha.instagram_token_encrypted = "outro-cifrado";
+        const alvo = f.find(([c]) => c === "instagram_token_encrypted")?.[1];
+        const casou = modo !== "update" || !alvo || (linha && linha.instagram_token_encrypted === alvo);
+        if (modo === "update" && casou && !opts.erroUpdate) updates.push({ valores: valores!, filtros: f });
+        return Promise.resolve({
+          data: modo === "update" ? (casou ? [{ id: SESSAO }] : []) : null,
+          error: opts.erroUpdate ? { message: "x" } : null,
+        }).then(res);
       },
     };
     return api;
@@ -201,6 +219,25 @@ describe("renovarTokenDaSessao", () => {
       motivo: "cifra",
     });
     expect(updates).toHaveLength(0);
+  });
+
+  it("compare-and-swap: se a linha mudou (reconexão) entre a leitura e a gravação, NÃO sobrescreve", async () => {
+    fetchMock.mockResolvedValue(resp(200, { access_token: NOVO, expires_in: 5000000 }));
+    const { admin, updates, filtros } = banco({ corrida: true });
+    const r = await renovarTokenDaSessao(admin, { organizationId: ORG, sessionId: SESSAO });
+    expect(r).toEqual({ ok: false, motivo: "mudou_enquanto_isso" });
+    expect(updates).toHaveLength(0);
+    nenhumSegredo(r);
+    expect(filtros.some(([c]) => c === "instagram_token_encrypted")).toBe(true);
+  });
+
+  it("a gravação compara o texto cifrado lido e só vale para canal não arquivado", async () => {
+    fetchMock.mockResolvedValue(resp(200, { access_token: NOVO, expires_in: 5000000 }));
+    const { admin, updates } = banco();
+    await renovarTokenDaSessao(admin, { organizationId: ORG, sessionId: SESSAO });
+    const f = updates[0]!.filtros;
+    expect(f.some(([c, v]) => c === "instagram_token_encrypted" && String(v).length > 0)).toBe(true);
+    expect(f).toContainEqual(["archived_at", null]);
   });
 
   it("falha ao gravar: banco, sem vazar o token novo", async () => {

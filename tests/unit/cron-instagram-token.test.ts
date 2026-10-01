@@ -20,6 +20,7 @@ import { renovarTokensDoInstagram } from "@/lib/channels/instagram/renovar-todos
 import { createAdminClient } from "@/lib/supabase/admin";
 import { GET, POST } from "@/app/api/v1/cron/instagram-token/route";
 
+const req = (m: string) => new NextRequest("https://crm.exemplo/api/v1/cron/instagram-token", { method: m });
 const AGORA = Date.parse("2026-10-01T12:00:00Z");
 const dias = (n: number) => new Date(AGORA + n * 86_400_000).toISOString();
 
@@ -28,7 +29,7 @@ interface Estado {
   sessoes: Sess[];
   itens: Array<Record<string, unknown>>;
   filtros: Array<[string, ...unknown[]]>;
-  erroNaConsulta?: boolean;
+  erroNaConsulta?: boolean | { code: string; message: string };
   falhaPorId?: Set<string>;
 }
 
@@ -50,38 +51,37 @@ function bancoFalso(e: Estado) {
           then: (res: (v: unknown) => unknown) =>
             Promise.resolve(
               e.erroNaConsulta
-                ? { data: null, error: { message: "boom" } }
+                ? { data: null, error: typeof e.erroNaConsulta === "object" ? e.erroNaConsulta : { message: "boom" } }
                 : { data: e.sessoes.filter((s) => s.id > gt).slice(0, limite), error: null },
             ).then(res),
         };
         return q;
       }
       // agent_inbox_items
-      const f: Array<[string, unknown]> = [];
+      const f: Array<(it: Record<string, unknown>) => boolean> = [];
       const q: Record<string, unknown> = {
         select: () => q,
-        eq: (c: string, v: unknown) => (f.push([c, v]), q),
+        eq: (c: string, v: unknown) => (f.push((it) => it[c] === v), q),
+        in: (c: string, vs: unknown[]) => (f.push((it) => vs.includes(it[c])), q),
         limit: () => q,
         insert: async (l: Record<string, unknown>) => {
           e.itens.push({ status: "open", ...l });
           return { error: null };
         },
         update: (valores: Record<string, unknown>) => {
-          const g: Array<[string, unknown]> = [];
+          const g: Array<(it: Record<string, unknown>) => boolean> = [];
           const u: Record<string, unknown> = {
-            eq: (c: string, v: unknown) => (g.push([c, v]), u),
+            eq: (c: string, v: unknown) => (g.push((it) => it[c] === v), u),
+            in: (c: string, vs: unknown[]) => (g.push((it) => vs.includes(it[c])), u),
             then: (res: (v: unknown) => unknown) => {
-              for (const it of e.itens) if (g.every(([c, v]) => it[c] === v)) Object.assign(it, valores);
+              for (const it of e.itens) if (g.every((fn) => fn(it))) Object.assign(it, valores);
               return Promise.resolve({ error: null }).then(res);
             },
           };
           return u;
         },
         then: (res: (v: unknown) => unknown) =>
-          Promise.resolve({
-            data: e.itens.filter((it) => f.every(([c, v]) => it[c] === v)),
-            error: null,
-          }).then(res),
+          Promise.resolve({ data: e.itens.filter((it) => f.every((fn) => fn(it))), error: null }).then(res),
       };
       return q;
     },
@@ -98,7 +98,7 @@ beforeEach(() => {
 });
 
 describe("renovarTokensDoInstagram", () => {
-  it("consulta só instagram ativo na janela de 10 dias (ou sem validade com 50+ dias de idade), não vencido", async () => {
+  it("consulta só instagram ativo na janela de 10 dias (ou sem validade com mais de 1 dia de idade), não vencido", async () => {
     await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA });
     expect(estado.filtros).toContainEqual(["eq", "provider", "instagram"]);
     expect(estado.filtros).toContainEqual(["is", "archived_at", null]);
@@ -107,7 +107,7 @@ describe("renovarTokensDoInstagram", () => {
     expect(or).toContain(`instagram_token_expires_at.gt.${dias(0)}`);
     expect(or).toContain(`instagram_token_expires_at.lte.${dias(10)}`);
     expect(or).toContain("instagram_token_expires_at.is.null");
-    expect(or).toContain(`created_at.lt.${dias(-50)}`);
+    expect(or).toContain(`created_at.lt.${dias(-1)}`);
   });
 
   it("renova cada sessão com a organização da LINHA e conta os resultados", async () => {
@@ -169,11 +169,53 @@ describe("renovarTokensDoInstagram", () => {
     expect(estado.itens[0]!.severity).toBe("critical");
   });
 
+  it("aviso aberto OU reconhecido (ack) conta para o dedupe: não abre outro", async () => {
+    estado.sessoes = [{ id: "s1", organization_id: "o1", instagram_token_expires_at: dias(2) }];
+    estado.itens = [{ organization_id: "o1", kind: "other", ref_kind: "instagram_token", ref_id: "s1", status: "ack", severity: "warn" }];
+    vi.mocked(renovarTokenDaSessao).mockResolvedValue({ ok: false, motivo: "rede" });
+    await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA });
+    expect(estado.itens).toHaveLength(1);
+  });
+
+  it("token expirado ESCALA o aviso warn existente para critical, em vez de ser barrado", async () => {
+    estado.sessoes = [{ id: "s1", organization_id: "o1", instagram_token_expires_at: dias(2) }];
+    estado.itens = [{ organization_id: "o1", kind: "other", ref_kind: "instagram_token", ref_id: "s1", status: "open", severity: "warn", title: "x" }];
+    vi.mocked(renovarTokenDaSessao).mockResolvedValue({ ok: false, motivo: "token_expirado" });
+    await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA });
+    expect(estado.itens).toHaveLength(1);
+    expect(estado.itens[0]).toMatchObject({ severity: "critical" });
+    expect(String(estado.itens[0]!.title)).toMatch(/expirou/);
+  });
+
+  it("validade desconhecida que falha todo dia gera no máximo UM aviso por sessão", async () => {
+    estado.sessoes = [{ id: "s1", organization_id: "o1", instagram_token_expires_at: null }];
+    vi.mocked(renovarTokenDaSessao).mockResolvedValue({ ok: false, motivo: "token_expirado" });
+    for (let i = 0; i < 4; i++) await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA });
+    expect(estado.itens).toHaveLength(1);
+  });
+
+  it("migration 0277 ausente: resumo vazio com migracaoPendente, sem lançar", async () => {
+    estado.erroNaConsulta = { code: "42703", message: "column channel_sessions.instagram_token_expires_at does not exist" };
+    const r = await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA });
+    expect(r).toEqual({ candidatas: 0, renovadas: 0, falhas: 0, avisos: 0, interrompidoPorTempo: false, migracaoPendente: true });
+    const resp = await POST(req("POST"));
+    expect(resp.status).toBe(200);
+    expect((await resp.json()).data.migracaoPendente).toBe(true);
+  });
+
+  it("a margem de segurança é de pelo menos 15 s (pára de iniciar em 75 s)", async () => {
+    estado.sessoes = [{ id: "s1", organization_id: "o1", instagram_token_expires_at: dias(2) }];
+    const relogio = vi.fn().mockReturnValueOnce(AGORA).mockReturnValue(AGORA + 76_000);
+    const r = await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA, relogio });
+    expect(r.interrompidoPorTempo).toBe(true);
+  });
+
   it("renovação com sucesso resolve o aviso aberto da sessão", async () => {
     estado.sessoes = [{ id: "s1", organization_id: "o1", instagram_token_expires_at: dias(3) }];
     estado.itens = [{ organization_id: "o1", kind: "other", ref_kind: "instagram_token", ref_id: "s1", status: "open" }];
     await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA });
     expect(estado.itens[0]!.status).toBe("resolved");
+    expect(typeof estado.itens[0]!.resolved_at).toBe("string");
   });
 
   it("pagina por id sem pular linhas e respeita o orçamento de tempo", async () => {
@@ -202,7 +244,6 @@ describe("renovarTokensDoInstagram", () => {
 });
 
 describe("rota /api/v1/cron/instagram-token", () => {
-  const req = (m: string) => new NextRequest("https://crm.exemplo/api/v1/cron/instagram-token", { method: m });
   it("sem segredo de cron: 403 e não toca no banco", async () => {
     vi.mocked(autorizaCron).mockReturnValue(false);
     const r = await POST(req("POST"));

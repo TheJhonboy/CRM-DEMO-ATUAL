@@ -43,7 +43,7 @@ Tela: Configurações › Conexões › Instagram.
   renovar só para descobrir a validade. Nada disso impede a conexão. Se a validade não puder ser
   descoberta (token colado com menos de 24 h), a tela mostra "validade desconhecida".
 - **Renovação automática:** a rotina `api/v1/cron/instagram-token` roda **uma vez por dia** no scheduler e
-  renova os tokens que vencem em até **10 dias** (e os de validade desconhecida criados há mais de 50 dias).
+  renova os tokens que vencem em até **10 dias** (e os de validade desconhecida criados há mais de 1 dia: a renovação é barata e, se der certo, passa a registrar a validade).
   Não precisa de variável de ambiente; sem canal do Instagram ela não faz nada.
 - **Aviso na Central:** se a renovação falha com 7 dias ou menos para vencer (ou o token já morreu), abre-se
   um item na Central de avisos (`ref_kind = instagram_token`), um por canal enquanto estiver aberto. Ele é
@@ -54,7 +54,9 @@ Tela: Configurações › Conexões › Instagram.
 - **Se o CRM ficar desligado por 60 dias** (ou o token expirar por outro motivo), a renovação deixa de ser
   possível: gere um token NOVO no painel do app da Meta e cole em **Reconectar**.
 - **Migration 0277** acrescenta `channel_sessions.instagram_token_expires_at` (aditiva, anulável). Se o
-  código subir antes dela, a conexão e a renovação seguem funcionando, só sem registrar a validade.
+  código subir antes dela, a conexão e a renovação pela tela seguem funcionando, só sem registrar a
+  validade; a rotina diária **não renova nada** (responde 200 com `migracaoPendente: true` e registra
+  um aviso no log) até a migration ser aplicada.
 - Os endpoints de troca e renovação da Meta não são versionados e recebem o token na URL (é o que a Meta
   documenta); o CRM nunca registra essa URL nem devolve o token em resposta ou erro.
 

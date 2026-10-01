@@ -98,6 +98,7 @@ describe("POST renovar-token", () => {
     ["resposta_invalida", "falhou"],
     ["cifra", "falhou"],
     ["banco", "falhou"],
+    ["mudou_enquanto_isso", "falhou"],
   ] as const)("motivo %s vira status %s, com razão fixa e sem segredo", async (motivo, status) => {
     vi.mocked(renovarTokenDaSessao).mockResolvedValue({ ok: false, motivo });
     const r = await POST(pedido());

@@ -25,6 +25,10 @@ async function handle(req: NextRequest): Promise<Response> {
   try {
     const resumo = await renovarTokensDoInstagram(createAdminClient());
     const completo = { ...resumo, duracaoMs: Date.now() - inicio };
+    if (resumo.migracaoPendente) {
+      logger.warn("[instagram-token] migration 0277 pendente: nada renovado até ela ser aplicada", { requestId });
+      return ok(completo, { requestId });
+    }
     logger.info("[instagram-token] rodada concluída", { ...completo, requestId });
     return ok(completo, { requestId });
   } catch {
