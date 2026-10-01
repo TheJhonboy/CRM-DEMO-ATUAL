@@ -340,6 +340,10 @@ const schema = z.object({
     .default("false")
     .transform((v) => v === "true"),
 
+  // Canal Instagram: host da Graph (API do Instagram com Instagram Login). Vazio = padrão
+  // https://graph.instagram.com/<versão>. Só para teste de integração (em produção só https://).
+  INSTAGRAM_GRAPH_BASE_URL: z.string().optional(),
+
   // App URLs
   NEXT_PUBLIC_APP_URL: z
     .string()
