@@ -133,11 +133,18 @@ describe("o envelope carrega a thread do provider", () => {
     // A resposta para o cartão de contato é a mesma das outras três: o canal
     // oficial endereça por thread própria, e um cartão enviado sem ela abriria
     // conversa nova em vez de continuar a que está aberta.
+    //
+    // CINCO desde o canal por thread sem telefone (Instagram): aos quatro envios
+    // acrescentou-se a chamada a `adapter.resolveRecipient`, que também recebe a thread
+    // (é ali que o adapter decide o endereço; sem ela toda resposta falharia em
+    // `missing_phone_number`). Cada `adapter.send`/`sendTemplate` do handler continua
+    // levando a thread: o `_handler.ts` tem 1 resolveRecipient + 1 sendTemplate + 3 send
+    // (texto, mídia, contato) e todos passam — conferido linha a linha.
     const passagens = [...fonte.matchAll(/providerConversationId:\s*c\.provider_conversation_id/g)];
     expect(
       passagens.length,
-      "todos os call sites (texto, mídia, modelo e contato) precisam passar",
-    ).toBe(4);
+      "todos os call sites (resolveRecipient, texto, mídia, modelo e contato) precisam passar",
+    ).toBe(5);
   });
 });
 
