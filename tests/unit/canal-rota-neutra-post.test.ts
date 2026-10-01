@@ -149,6 +149,13 @@ describe("POST /webhooks/channel/[token]", () => {
       expect(await lerCorpoComLimite(fake("éééééé"), 12)).toBe("éééééé");
     });
 
+    it("text() que rejeita no fallback: CorpoIlegivelError (vira 400, nao 500)", async () => {
+      const fake = { headers: new Headers(), body: null, text: async () => { throw new Error("aborted segredo-interno"); } } as unknown as Request;
+      const e = await lerCorpoComLimite(fake).catch((x) => x);
+      expect(e).toBeInstanceOf(CorpoIlegivelError);
+      expect(String(e.message)).not.toContain("segredo-interno");
+    });
+
     it("body sem getReader (objeto de teste/adaptador): tambem cai em text()", async () => {
       const fake = { headers: new Headers(), body: {}, text: async () => "ok" } as unknown as Request;
       expect(await lerCorpoComLimite(fake)).toBe("ok");

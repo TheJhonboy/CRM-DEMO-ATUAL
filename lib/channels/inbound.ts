@@ -74,7 +74,12 @@ export async function lerCorpoComLimite(
   if (!corpo || typeof corpo.getReader !== "function") {
     // Sem stream legível (corpo vazio, ou um objeto de requisição que só tem `text()`):
     // o texto vem inteiro, e o teto em BYTES vale sobre ele.
-    const texto = await req.text();
+    let texto: string;
+    try {
+      texto = await req.text();
+    } catch {
+      throw new CorpoIlegivelError();
+    }
     return Buffer.byteLength(texto, "utf8") > limite ? null : texto;
   }
   const reader = corpo.getReader();

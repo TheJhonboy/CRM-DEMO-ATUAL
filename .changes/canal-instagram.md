@@ -1,5 +1,5 @@
 ---
-impacto: exige_acao
+impacto: capacidade_nova
 secao: adicionado
 titulo: Novo canal Instagram (mensagens diretas) e agente administrador opcional
 ---
@@ -16,10 +16,6 @@ registra nota e etiqueta contato de conversa sem responsável. Ele **vem desliga
 `ADMIN_AGENT_ENABLED=true` e com `organizations.settings.administrador_ativo = true` na
 organização. Nunca envia mensagem a cliente e não move lead de etapa.
 
-## Requer atenção
-
-- Aplique as migrations **0275 e 0276 ANTES de subir esta versão**: as listas de colunas de
-  `channel_sessions` usadas em telas e rotas agora incluem `instagram_account_id`, e a versão
-  nova falha em banco que ainda não tem a coluna.
-- A 0275 acrescenta uma coluna gerada em `contacts`, o que reescreve a tabela sob lock
-  `ACCESS EXCLUSIVE`. Em bases grandes, aplique em horário de baixo movimento.
+As migrations 0275 e 0276 são aplicadas pelo fluxo normal de atualização, antes de a aplicação
+reiniciar; não há passo manual. A 0275 acrescenta uma coluna gerada em `contacts`, o que
+reescreve a tabela: em bases grandes a atualização pode demorar mais que de costume.

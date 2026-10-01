@@ -132,7 +132,7 @@ export const CHANNEL_PROVIDER_INSTAGRAM: ChannelProvider = "instagram";
  * (vetado) até alguém decidir, aqui, que o nome dele é marca pública. Os identificadores
  * técnicos continuam vetados por outras regras (`*_id` snake_case, host de API da Graph).
  */
-export const PROVIDERS_COM_NOME_PUBLICO: readonly string[] = [CHANNEL_PROVIDER_INSTAGRAM];
+export const PROVIDERS_COM_NOME_PUBLICO: readonly string[] = Object.freeze([CHANNEL_PROVIDER_INSTAGRAM]);
 
 /** Chamada de voz WhatsApp (spec 18). Não transporta mensagem — ver abaixo. */
 export const CHANNEL_PROVIDER_WACALLS: ChannelProvider = "wacalls";

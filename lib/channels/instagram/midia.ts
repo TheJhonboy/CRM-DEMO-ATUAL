@@ -94,17 +94,15 @@ export async function baixarMidiaDoInstagram(url: string, hintMime?: string | nu
   const reader = res.body?.getReader();
   if (!reader) throw new InstagramMediaError("sem_corpo");
   try {
-    {
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        total += value.byteLength;
-        if (total > MAX_MEDIA_BYTES) {
-          await reader.cancel().catch(() => undefined);
-          throw new MediaTooLargeError();
-        }
-        pedacos.push(value);
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > MAX_MEDIA_BYTES) {
+        await reader.cancel().catch(() => undefined);
+        throw new MediaTooLargeError();
       }
+      pedacos.push(value);
     }
   } catch (e) {
     if (e instanceof MediaTooLargeError) throw e;
