@@ -30,11 +30,14 @@ export interface SelectableChannel {
   display_name: string;
   status: string;
   phone_number: string | null;
+  /** Provider da sessão: quem escolhe um padrão precisa saber se endereça por telefone. */
+  provider: string;
 }
 
-const COLUNAS = "id, display_name, status, phone_number, waha_session_name";
+const COLUNAS = "id, display_name, status, phone_number, waha_session_name, provider";
 
 interface LinhaCanal {
+  provider: string;
   id: string;
   display_name: string | null;
   status: string;
@@ -84,5 +87,6 @@ export async function listSelectableChannels(
     display_name: nomeDoCanal(c),
     status: c.status,
     phone_number: c.phone_number ?? null,
+    provider: c.provider,
   }));
 }

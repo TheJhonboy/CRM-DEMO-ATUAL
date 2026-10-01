@@ -24,6 +24,7 @@
  */
 import { describe, expect, it } from "vitest";
 
+import { canalPadraoDoAgente } from "@/lib/channels/capabilities";
 import { listSelectableChannels } from "@/lib/channels/selectable";
 import { sessaoProntaParaEnvio } from "@/lib/automation/start-conversation";
 
@@ -116,6 +117,47 @@ describe("o seletor de canais não oferece a linha de chamada de voz", () => {
     // recebe mensagem.
     const { db } = bancoDeMentira([VOZ]);
     expect(await listSelectableChannels(db, "org")).toEqual([]);
+  });
+});
+
+const INSTAGRAM: Linha = {
+  id: "conta-do-instagram",
+  organization_id: "org",
+  provider: "instagram",
+  display_name: "@loja",
+  phone_number: null,
+  status: "WORKING",
+  waha_session_name: null,
+  archived_at: null,
+  created_at: "2019-01-01T00:00:00Z", // a mais antiga de todas
+};
+
+describe("canal sem telefone (Instagram) não é escolhido por padrão para envio endereçado por telefone", () => {
+  it("automação: com Instagram mais antigo e WhatsApp, escolhe o WhatsApp", async () => {
+    const { db } = bancoDeMentira([INSTAGRAM, WHATSAPP]);
+    expect(await sessaoProntaParaEnvio(db, "org")).toBe("numero-de-verdade");
+  });
+
+  it("automação: só Instagram -> null (nenhum canal por telefone), nos dois degraus", async () => {
+    const { db } = bancoDeMentira([INSTAGRAM, { ...INSTAGRAM, id: "outra", status: "STOPPED" }]);
+    expect(await sessaoProntaParaEnvio(db, "org")).toBeNull();
+  });
+
+  it("o seletor continua oferecendo o Instagram (escolha EXPLICITA do operador), com o provider", async () => {
+    const { db } = bancoDeMentira([INSTAGRAM, WHATSAPP]);
+    const canais = await listSelectableChannels(db, "org");
+    expect(canais.map((c) => c.id)).toEqual(["conta-do-instagram", "numero-de-verdade"]);
+    expect(canais.map((c) => c.provider)).toEqual(["instagram", "waha"]);
+  });
+
+  it("canalPadraoDoAgente: ignora o canal sem telefone; só Instagram -> nenhum", () => {
+    expect(
+      canalPadraoDoAgente([
+        { id: "ig", provider: "instagram" },
+        { id: "wa", provider: "waha" },
+      ])?.id,
+    ).toBe("wa");
+    expect(canalPadraoDoAgente([{ id: "ig", provider: "instagram" }])).toBeUndefined();
   });
 });
 

@@ -157,6 +157,37 @@ export const PROVIDERS_DE_MENSAGEM = [
 ] as const satisfies readonly ProviderDeMensagem[];
 
 /**
+ * Canais de mensagem que NÃO se endereçam por telefone: o endereço é a thread do provider.
+ * Automação que parte de um número de telefone (iniciar conversa) e o agente recém-criado
+ * (vínculo padrão ao primeiro canal) não podem cair neles por acaso — só por escolha explícita.
+ */
+export const PROVIDERS_SEM_ENDERECO_DE_TELEFONE = [
+  "instagram",
+] as const satisfies readonly (typeof PROVIDERS_DE_MENSAGEM)[number][];
+
+/** Mensagem + endereçado por telefone: o conjunto certo para "mandar para este número". */
+export const PROVIDERS_ENDERECAVEIS_POR_TELEFONE: readonly string[] = PROVIDERS_DE_MENSAGEM.filter(
+  (p) => !(PROVIDERS_SEM_ENDERECO_DE_TELEFONE as readonly string[]).includes(p),
+);
+
+/** `true` se o provider é de mensagem e se endereça por telefone. Falha fechado. */
+export function enderecaPorTelefone(provider: string | null | undefined): boolean {
+  return PROVIDERS_ENDERECAVEIS_POR_TELEFONE.includes(provider ?? "");
+}
+
+/**
+ * O canal que um agente recém-criado ganha quando ninguém escolheu: o mais antigo que se
+ * endereça por telefone. Canal por thread (sem telefone) só entra por escolha explícita;
+ * se só houver esses, não há padrão (`undefined`) e o agente fica sem vínculo.
+ */
+export function canalPadraoDoAgente<T extends { provider?: string | null }>(canais: T[]): T | undefined {
+  // Já são canais de mensagem (a lista vem do seletor): só se pula o que sabidamente não tem telefone.
+  return canais.find(
+    (c) => !(PROVIDERS_SEM_ENDERECO_DE_TELEFONE as readonly string[]).includes(c.provider ?? ""),
+  );
+}
+
+/**
  * `true` quando a linha de `channel_sessions` é um canal de mensagem.
  *
  * Aceita `string | null | undefined` de propósito: quem chama está lendo uma

@@ -1,3 +1,4 @@
+import { canalPadraoDoAgente } from "@/lib/channels/capabilities";
 import { listSelectableChannels, type SelectableChannel } from "@/lib/channels/selectable";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { capacidadesPadraoDoOnboarding } from "./capacidades-padrao";
@@ -96,7 +97,7 @@ export async function publishFirstVersion(
   } catch (err) {
     return { published: false, reason: "failed", message: mensagemDoErro(err) };
   }
-  const canal = selection ? canais.find((c) => c.id === selection.channelId) : canais[0];
+  const canal = selection ? canais.find((c) => c.id === selection.channelId) : canalPadraoDoAgente(canais);
   if (!canal) return { published: false, reason: "no_channel" };
 
   // Erro de leitura aqui NÃO pode virar "assume anthropic": publicar sem saber
