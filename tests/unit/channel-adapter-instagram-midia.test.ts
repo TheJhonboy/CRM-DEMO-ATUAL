@@ -71,7 +71,7 @@ describe("adapter instagram — fetchInboundMedia", () => {
     expect(getAdapter("instagram").fetchInboundMedia).toBeTypeOf("function");
   });
 
-  it("caminho feliz: baixa SEM Authorization, redirect error, timeout 15 s; mime do content-type", async () => {
+  it("caminho feliz: baixa SEM Authorization, redirect manual, timeout 15 s; mime do content-type", async () => {
     const spy = vi.fn().mockResolvedValue(resp(new Uint8Array([1, 2, 3]), { "content-type": "image/png; charset=x" }));
     vi.stubGlobal("fetch", spy);
     const r = await baixar();
@@ -79,7 +79,7 @@ describe("adapter instagram — fetchInboundMedia", () => {
     expect([...r.buffer]).toEqual([1, 2, 3]);
     const [url, init] = spy.mock.calls[0]!;
     expect(url).toBe(URL_OK);
-    expect(init.redirect).toBe("error");
+    expect(init.redirect).toBe("manual");
     expect(init.signal).toBeInstanceOf(AbortSignal);
     expect(JSON.stringify(init.headers ?? {})).not.toMatch(/authorization/i);
   });
@@ -109,9 +109,81 @@ describe("adapter instagram — fetchInboundMedia", () => {
     expect(spy).not.toHaveBeenCalled();
   });
 
-  it("redirect: erro (o fetch recusa) e nada é devolvido", async () => {
+  it("erro de rede/fetch: falha sem resultado", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
     await expect(baixar()).rejects.toThrow(/instagram_media_failed/);
+  });
+
+  describe("redirects (lookaside.fbsbx.com -> CDN)", () => {
+    const redir = (to: string, status = 302) => new Response(null, { status, headers: { location: to } });
+    const CDN = "https://scontent-gru2-1.cdninstagram.com/v/t51/final.jpg?sig=2";
+
+    it("cadeia ok: segue ate o CDN, revalida cada Location, nunca manda Authorization", async () => {
+      const spy = vi
+        .fn()
+        .mockResolvedValueOnce(redir(CDN))
+        .mockResolvedValueOnce(resp(new Uint8Array([5]), { "content-type": "image/jpeg" }));
+      vi.stubGlobal("fetch", spy);
+      const r = await baixar({ url: "https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=1" });
+      expect([...r.buffer]).toEqual([5]);
+      expect(spy).toHaveBeenCalledTimes(2);
+      expect(spy.mock.calls[1]![0]).toBe(CDN);
+      for (const [, init] of spy.mock.calls) {
+        expect(init.redirect).toBe("manual");
+        expect(JSON.stringify(init.headers ?? {})).not.toMatch(/authorization/i);
+      }
+    });
+
+    it("Location relativa e resolvida contra a URL atual (e revalidada)", async () => {
+      const spy = vi
+        .fn()
+        .mockResolvedValueOnce(redir("/outro/caminho.jpg"))
+        .mockResolvedValueOnce(resp(new Uint8Array([1])));
+      vi.stubGlobal("fetch", spy);
+      await baixar();
+      expect(spy.mock.calls[1]![0]).toBe("https://scontent-gru1-1.cdninstagram.com/outro/caminho.jpg");
+    });
+
+    it.each([
+      "https://evil.example/x.jpg",
+      "http://scontent.cdninstagram.com/x.jpg",
+      "https://user:pw@scontent.cdninstagram.com/x.jpg",
+      "https://scontent.cdninstagram.com:444/x.jpg",
+      "https://169.254.169.254/latest/meta-data",
+    ])("salto para %s: recusado, sem segunda chamada", async (to) => {
+      const spy = vi.fn().mockResolvedValue(redir(to));
+      vi.stubGlobal("fetch", spy);
+      await expect(baixar()).rejects.toThrow(/instagram_media_url_nao_permitida/);
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it("mais de 3 saltos: recusado", async () => {
+      const spy = vi.fn().mockImplementation(async () => redir(CDN));
+      vi.stubGlobal("fetch", spy);
+      await expect(baixar()).rejects.toThrow(/instagram_media_redirects/);
+      expect(spy).toHaveBeenCalledTimes(4); // inicial + 3 saltos seguidos; o 4o redirect e recusado
+    });
+
+    it("exatamente 3 saltos ainda passa", async () => {
+      const spy = vi
+        .fn()
+        .mockResolvedValueOnce(redir(CDN))
+        .mockResolvedValueOnce(redir(CDN))
+        .mockResolvedValueOnce(redir(CDN))
+        .mockResolvedValueOnce(resp(new Uint8Array([7])));
+      vi.stubGlobal("fetch", spy);
+      expect([...(await baixar()).buffer]).toEqual([7]);
+    });
+
+    it("redirect sem Location: erro", async () => {
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 302 })));
+      await expect(baixar()).rejects.toThrow(/instagram_media_redirects/);
+    });
+  });
+
+  it("resposta sem corpo (body null) NAO vira buffer vazio de sucesso", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 200, headers: { "content-type": "image/jpeg" } })));
+    await expect(baixar()).rejects.toThrow(/instagram_media_sem_corpo/);
   });
 
   it("resposta não-2xx: erro com o status", async () => {

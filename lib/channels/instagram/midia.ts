@@ -13,6 +13,8 @@ export const MAX_URL_DE_MIDIA = 2048;
 /** Hosts de mídia da Meta: o host precisa ser igual ao domínio ou terminar em `.domínio`. */
 export const DOMINIOS_DE_MIDIA = ["cdninstagram.com", "fbcdn.net", "fbsbx.com"];
 export const TIMEOUT_DA_MIDIA_MS = 15_000;
+/** O lookaside da Meta costuma responder 302 para o CDN: seguimos poucos saltos, cada um revalidado. */
+export const MAX_SALTOS_DA_MIDIA = 3;
 
 export function urlDeMidiaPermitida(url: unknown): url is string {
   if (typeof url !== "string" || url.length > MAX_URL_DE_MIDIA || !url.startsWith("https://")) return false;
@@ -40,15 +42,30 @@ export class InstagramMediaError extends Error {
 export async function baixarMidiaDoInstagram(url: string, hintMime?: string | null): Promise<FetchedMedia> {
   if (!urlDeMidiaPermitida(url)) throw new InstagramMediaError("url_nao_permitida");
 
+  // Um prazo só para a cadeia inteira de saltos.
+  const signal = AbortSignal.timeout(TIMEOUT_DA_MIDIA_MS);
+  let atual = url;
   let res: Response;
-  try {
-    res = await fetch(url, {
-      // Sem Authorization; redirect é erro (um 302 para host de atacante escaparia da allowlist).
-      redirect: "error",
-      signal: AbortSignal.timeout(TIMEOUT_DA_MIDIA_MS),
-    });
-  } catch {
-    throw new InstagramMediaError("failed");
+  for (let saltos = 0; ; saltos++) {
+    try {
+      // Sem Authorization nunca. `manual`: quem decide se o salto vale é a allowlist, não o fetch.
+      res = await fetch(atual, { redirect: "manual", signal });
+    } catch {
+      throw new InstagramMediaError("failed");
+    }
+    if (res.status < 300 || res.status >= 400) break;
+    await res.body?.cancel().catch(() => undefined);
+    const local = res.headers.get("location");
+    if (!local || saltos >= MAX_SALTOS_DA_MIDIA) throw new InstagramMediaError("redirects");
+    let proximo: string;
+    try {
+      proximo = new URL(local, atual).toString();
+    } catch {
+      throw new InstagramMediaError("redirects");
+    }
+    // Cada Location passa pela MESMA allowlist da URL inicial.
+    if (!urlDeMidiaPermitida(proximo)) throw new InstagramMediaError("url_nao_permitida");
+    atual = proximo;
   }
   if (!res.ok) {
     await res.body?.cancel().catch(() => undefined);
@@ -73,9 +90,11 @@ export async function baixarMidiaDoInstagram(url: string, hintMime?: string | nu
   // Teto imposto DURANTE a leitura: content-length mente ou falta.
   const pedacos: Uint8Array[] = [];
   let total = 0;
+  // Sem corpo não é mídia vazia de sucesso: é falha (um persistido vazio esconderia o defeito).
+  const reader = res.body?.getReader();
+  if (!reader) throw new InstagramMediaError("sem_corpo");
   try {
-    const reader = res.body?.getReader();
-    if (reader) {
+    {
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
