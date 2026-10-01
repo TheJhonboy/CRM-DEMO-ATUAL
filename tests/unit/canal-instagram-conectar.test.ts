@@ -270,7 +270,7 @@ describe("POST — validação: id do /me e mensagens fixas", () => {
       ...corpoValido,
       accountId: "17841400000000001",
     });
-    // 17841400000000001 perde precisao como number: o id nao bate e nada e gravado
+    // o objeto da Graph aqui e serializado com Number (perde precisao): so o numero pequeno confirma
     expect(r.ok).toBe(false);
     graphFalsa((_t, url) => corpoMe(url, { user_id: 1784140000, username: "x" }));
     const ok = await connectInstagram(bancoFalso() as never, {
@@ -279,6 +279,30 @@ describe("POST — validação: id do /me e mensagens fixas", () => {
       accountId: "1784140000",
     });
     expect(ok.ok).toBe(true);
+  });
+
+  it("user_id como NUMERO JSON de 17 digitos nao perde precisao (comparado como texto)", async () => {
+    const f = vi.fn(async (url: string) =>
+      new Response(
+        String(url).includes("subscribed_apps")
+          ? '{"success":true}'
+          : `{"user_id":${CONTA},"username":"loja_da_ana"}`,
+        { status: 200 },
+      ),
+    );
+    vi.stubGlobal("fetch", f);
+    const r = await POST(pedido(corpoValido));
+    expect(r.status).toBe(200);
+    expect(linhas[0]!.instagram_account_id).toBe(CONTA);
+    expect((await r.json()).data.username).toBe("loja_da_ana");
+  });
+
+  it("id numerico no reserva (`id`) tambem e lido como texto", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (url: string) =>
+      new Response(String(url).includes("subscribed_apps") ? '{"success":true}' : `{"id":${CONTA}}`, { status: 200 }),
+    ));
+    expect((await POST(pedido(corpoValido))).status).toBe(200);
+    expect(linhas[0]!.instagram_account_id).toBe(CONTA);
   });
 
   it("user_id vence id quando a Graph manda os dois", async () => {

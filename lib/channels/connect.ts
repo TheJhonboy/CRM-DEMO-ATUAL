@@ -312,12 +312,18 @@ export async function validateInstagramAccount(input: {
     };
   }
 
-  const json = (await res.json().catch(() => null)) as {
-    user_id?: unknown;
-    id?: unknown;
+  // Lido como TEXTO: o id da conta tem 17+ dígitos e, como número JSON, `JSON.parse` perderia
+  // precisão (e a comparação com o digitado falharia, ou pior, bateria com outra conta).
+  const texto = await res.text().catch(() => "");
+  let json: {
     username?: unknown;
     error?: { code?: unknown };
-  } | null;
+  } | null = null;
+  try {
+    json = JSON.parse(texto);
+  } catch {
+    json = null;
+  }
 
   if (res.status >= 500) {
     return {
@@ -341,9 +347,7 @@ export async function validateInstagramAccount(input: {
 
   // Com Instagram Login o id da conta profissional é `user_id`; `id` é o reserva (os
   // nomes do /me nesse caminho não estão confirmados na documentação da Meta).
-  const bruto = json?.user_id ?? json?.id;
-  const idDaMeta =
-    typeof bruto === "string" || typeof bruto === "number" ? String(bruto).trim() : "";
+  const idDaMeta = idDoTexto(texto, "user_id") ?? idDoTexto(texto, "id") ?? "";
   if (!idDaMeta) {
     return { ok: false, kind: "rejeitada", reason: "A Meta não devolveu a conta deste token." };
   }
@@ -385,6 +389,12 @@ export async function subscribeInstagramWebhooks(accessToken: string): Promise<b
   } catch {
     return false;
   }
+}
+
+/** Id numérico (string ou número JSON) do campo `campo` no texto cru da resposta, sem passar por Number. */
+function idDoTexto(texto: string, campo: "user_id" | "id"): string | null {
+  const re = campo === "user_id" ? /"user_id"\s*:\s*"?(\d{1,40})"?/ : /"id"\s*:\s*"?(\d{1,40})"?/;
+  return re.exec(texto)?.[1] ?? null;
 }
 
 export interface InstagramSession {

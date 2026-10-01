@@ -57,7 +57,8 @@ Tela: Configurações › Conexões › Instagram.
 - **Um Instagram por organização.**
 - **Incerteza sobre o ID da conta:** a documentação da Meta não confirma o nome do campo de ID no
   `/me` do Instagram Login. O CRM pede `user_id,username` e usa `user_id` (ou `id`, se for o que a
-  Meta devolver). O ID que vale é o que chega no webhook em `entry.id`.
+  Meta devolver). Na conexão o ID digitado precisa ser igual ao que a Meta devolve para o token; o
+  que chega no webhook em `entry.id` deve ser esse mesmo ID.
 
 ## Se as mensagens não chegam
 
@@ -66,8 +67,9 @@ Tela: Configurações › Conexões › Instagram.
 3. A URL de retorno e o verify token do app são os mostrados na tela?
 4. O App Secret colado é o do **mesmo app** que envia o webhook? Assinatura inválida é recusada.
 5. Compare o `entry.id` do evento no arquivo de webhooks do CRM com o ID da conta gravado na conexão.
-   Se forem diferentes, o CRM descarta o evento como "conta de outra sessão". Reconecte informando o
-   ID que aparece em `entry.id`.
+   Se forem diferentes, o CRM descarta o evento como "conta de outra sessão". **Hoje não há
+   contorno:** a conexão só aceita o ID que a Meta devolve para o token, então não dá para gravar o
+   `entry.id` à mão. Reporte aos mantenedores com os dois IDs (sem o token).
 6. Com a conta em modo de desenvolvimento, confirme que quem escreve é testador do app.
 
 ## Agente administrador (opt-in)
