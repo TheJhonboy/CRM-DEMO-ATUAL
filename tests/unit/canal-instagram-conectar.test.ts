@@ -337,7 +337,7 @@ describe("POST — assinatura do webhook (best-effort)", () => {
     const r = await POST(pedido(corpoValido));
     const { data } = await r.json();
     expect(data.webhookSubscribed).toBe(true);
-    const [url, init] = f.mock.calls[1]! as [string, RequestInit];
+    const [url, init] = f.mock.calls.find(([u]) => String(u).includes("/subscribed_apps"))! as [string, RequestInit];
     expect(url).toContain("/me/subscribed_apps?subscribed_fields=messages,messaging_seen");
     expect(url).not.toContain(TOKEN);
     expect(init.method).toBe("POST");
@@ -348,6 +348,7 @@ describe("POST — assinatura do webhook (best-effort)", () => {
   it("so roda depois da validacao: token recusado nao assina", async () => {
     const f = graphFalsa(() => ({ status: 400, body: { error: { code: 190 } } }));
     await POST(pedido(corpoValido));
+    // só a validação roda: nem troca de token nem assinatura
     expect(f).toHaveBeenCalledTimes(1);
   });
 
@@ -389,7 +390,8 @@ describe("POST — sucesso", () => {
     expect(r.status).toBe(200);
 
     // Uma ida à Graph, no endpoint certo, com o token no cabeçalho (nunca na URL).
-    expect(f).toHaveBeenCalledTimes(2); // /me e subscribed_apps
+    // /me, troca, renovação (a troca falha no mock) e subscribed_apps
+    expect(f).toHaveBeenCalledTimes(4);
     const url = String(f.mock.calls[0]![0]);
     expect(url).toContain("/me?fields=user_id,username");
     // Todo fetch com Authorization recusa redirect (senao o token seguiria para outro host).
@@ -547,5 +549,102 @@ describe("connectInstagram / estadoDoInstagram (a camada de baixo)", () => {
     await connectInstagram(admin, { organizationId: ORG_A, ...corpoValido });
     linhas[0]!.archived_at = "2026-01-01T00:00:00Z";
     expect((await estadoDoInstagram(admin, ORG_A)).estado).toBe("nao_conectado");
+  });
+});
+
+/** Graph que também responde a troca/renovação do token (query), além de /me e subscribed_apps. */
+function graphComToken(opts: {
+  troca: "ok" | "recusa" | "rede";
+  renovacao?: "ok" | "novo_demais" | "recusa" | "rede";
+}) {
+  const f = vi.fn(async (url: string) => {
+    const u = String(url);
+    if (u.includes("ig_exchange_token")) {
+      if (opts.troca === "rede") throw new Error("ECONNRESET");
+      return opts.troca === "ok"
+        ? new Response(JSON.stringify({ access_token: "LONGO_TROCADO_0123456789", token_type: "bearer", expires_in: 5183944 }))
+        : new Response(JSON.stringify({ error: { code: 100, message: "x" } }), { status: 400 });
+    }
+    if (u.includes("ig_refresh_token")) {
+      const m = opts.renovacao ?? "recusa";
+      if (m === "rede") throw new Error("ECONNRESET");
+      if (m === "ok")
+        return new Response(JSON.stringify({ access_token: "LONGO_RENOVADO_0123456789", expires_in: 5000000 }));
+      if (m === "novo_demais")
+        return new Response(JSON.stringify({ error: { code: 10, message: "less than 24 hours old" } }), { status: 400 });
+      return new Response(JSON.stringify({ error: { code: 190 } }), { status: 400 });
+    }
+    if (u.includes("/subscribed_apps")) return new Response(JSON.stringify({ success: true }));
+    return new Response(JSON.stringify({ user_id: CONTA, username: "loja_da_ana" }));
+  });
+  vi.stubGlobal("fetch", f);
+  return f;
+}
+
+describe("connectInstagram — token de longa duração (60 dias)", () => {
+  const entrada = { organizationId: ORG_A, ...corpoValido };
+  const tokenGravado = () => {
+    const hex = String(linhas[0]!.instagram_token_encrypted).slice(2);
+    return Buffer.from(hex, "hex").toString().replace(/^ENC:/, "");
+  };
+
+  it("troca bem-sucedida: grava o token LONGO e a validade; devolve tokenValidoAte e tokenLongo=true", async () => {
+    graphComToken({ troca: "ok" });
+    const antes = Date.now();
+    const r = await connectInstagram(bancoFalso() as never, entrada);
+    expect(r.ok).toBe(true);
+    if (!r.ok) throw new Error("esperava ok");
+    expect(r.tokenLongo).toBe(true);
+    expect(Date.parse(r.tokenValidoAte!)).toBeGreaterThanOrEqual(antes + 5183944 * 1000 - 50);
+    expect(tokenGravado()).toBe("LONGO_TROCADO_0123456789");
+    expect(Date.parse(String(linhas[0]!.instagram_token_expires_at))).toBe(Date.parse(r.tokenValidoAte!));
+    expect(JSON.stringify(r)).not.toContain("LONGO_TROCADO");
+  });
+
+  it("troca recusada (já era longo) e renovação ok: guarda o token renovado com a validade", async () => {
+    graphComToken({ troca: "recusa", renovacao: "ok" });
+    const r = await connectInstagram(bancoFalso() as never, entrada);
+    if (!r.ok) throw new Error("esperava ok");
+    expect(r.tokenLongo).toBe(true);
+    expect(r.tokenValidoAte).not.toBeNull();
+    expect(tokenGravado()).toBe("LONGO_RENOVADO_0123456789");
+  });
+
+  it("já longo mas com menos de 24 h: mantém o colado, validade desconhecida (null), conecta", async () => {
+    graphComToken({ troca: "recusa", renovacao: "novo_demais" });
+    const r = await connectInstagram(bancoFalso() as never, entrada);
+    if (!r.ok) throw new Error("esperava ok");
+    expect(r.tokenValidoAte).toBeNull();
+    expect(r.tokenLongo).toBe(true);
+    expect(tokenGravado()).toBe(TOKEN);
+    expect(linhas[0]!.instagram_token_expires_at).toBeNull();
+  });
+
+  it("as duas recusadas: provavelmente token curto (tokenLongo=false), segue conectado", async () => {
+    graphComToken({ troca: "recusa", renovacao: "recusa" });
+    const r = await connectInstagram(bancoFalso() as never, entrada);
+    if (!r.ok) throw new Error("esperava ok");
+    expect(r.tokenLongo).toBe(false);
+    expect(r.tokenValidoAte).toBeNull();
+    expect(tokenGravado()).toBe(TOKEN);
+  });
+
+  it("rede caindo na troca/renovação nunca derruba a conexão: desconhecido (null/null)", async () => {
+    graphComToken({ troca: "rede", renovacao: "rede" });
+    const r = await connectInstagram(bancoFalso() as never, entrada);
+    if (!r.ok) throw new Error("esperava ok");
+    expect(r.tokenLongo).toBeNull();
+    expect(r.tokenValidoAte).toBeNull();
+    expect(tokenGravado()).toBe(TOKEN);
+  });
+
+  it("a rota devolve tokenValidoAte e tokenLongo sem nenhum segredo", async () => {
+    graphComToken({ troca: "ok" });
+    const r = await POST(pedido(corpoValido));
+    const texto = await r.text();
+    const { data } = JSON.parse(texto);
+    expect(data.tokenLongo).toBe(true);
+    expect(typeof data.tokenValidoAte).toBe("string");
+    for (const s of [TOKEN, SEGREDO, "LONGO_TROCADO"]) expect(texto).not.toContain(s);
   });
 });

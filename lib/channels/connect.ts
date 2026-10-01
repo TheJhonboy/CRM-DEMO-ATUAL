@@ -21,6 +21,7 @@ import { instagramAdapter } from "./adapters/instagram";
 import { ARCHIVED_AT, queryTolerantToMissingArchived } from "./archived";
 import { CHANNEL_PROVIDER_INSTAGRAM, CHANNEL_PROVIDER_ZERNIO } from "./capabilities";
 import { instagramBaseUrl } from "./instagram/credentials";
+import { renovarToken, trocarPorTokenLongo } from "./instagram/token";
 import { zernioBaseUrl } from "./zernio/credentials";
 import type { ChannelProvider } from "./types";
 
@@ -263,6 +264,10 @@ export type InstagramConnectResult =
        * Best-effort: `false` NÃO impede a conexão — a tela manda o operador assinar no painel.
        */
       webhookSubscribed: boolean;
+      /** ISO de quando o token vence; `null` = desconhecido (token longo colado com menos de 24 h). */
+      tokenValidoAte: string | null;
+      /** `true` = token de longa duração; `false` = provavelmente curto (~1 h); `null` = não deu para saber. */
+      tokenLongo: boolean | null;
     }
   | {
       ok: false;
@@ -445,6 +450,30 @@ export async function findInstagramSession(
   };
 }
 
+const emIso = (segundos: number) => new Date(Date.now() + segundos * 1000).toISOString();
+
+/**
+ * Troca por token longo (60 dias); se a Meta recusa (o colado já é longo), tenta renovar
+ * para descobrir a validade. Nunca lança; sem sucesso mantém o token colado.
+ * `longo=false` só quando as DUAS recusam (provável token curto, ~1 h); falha de rede = `null`.
+ */
+async function prepararTokenLongo(
+  colado: string,
+  appSecret: string,
+): Promise<{ token: string; validoAte: string | null; longo: boolean | null }> {
+  const troca = await trocarPorTokenLongo({ appSecret, tokenCurto: colado });
+  if (troca.ok) return { token: troca.accessToken, validoAte: emIso(troca.expiresInSeconds), longo: true };
+  const renovado = await renovarToken({ tokenAtual: colado });
+  if (renovado.ok) {
+    return { token: renovado.accessToken, validoAte: emIso(renovado.expiresInSeconds), longo: true };
+  }
+  if (renovado.motivo === "token_novo_demais") return { token: colado, validoAte: null, longo: true };
+  const recusadas =
+    troca.motivo !== "rede" &&
+    (renovado.motivo === "recusado" || renovado.motivo === "token_expirado");
+  return { token: colado, validoAte: null, longo: recusadas ? false : null };
+}
+
 /**
  * Valida na Graph, cifra e grava — nessa ordem, e nada é gravado se um passo falha.
  *
@@ -461,7 +490,11 @@ export async function connectInstagram(
   });
   if (!v.ok) return { ok: false, kind: v.kind, reason: v.reason, metaStatus: v.metaStatus };
 
-  const tokenCifrado = await encryptWebhookSecret(admin, input.accessToken);
+  // Token de longa duração: tenta trocar o colado; se já era longo, tenta renovar só para
+  // aprender a validade. Best-effort — nada daqui derruba a conexão.
+  const longo = await prepararTokenLongo(input.accessToken, input.appSecret);
+
+  const tokenCifrado = await encryptWebhookSecret(admin, longo.token);
   const segredoCifrado = await encryptWebhookSecret(admin, input.appSecret);
   if (!tokenCifrado || !segredoCifrado) {
     // Sem a GUC de cifra, gravar em claro seria pior que recusar.
@@ -486,6 +519,7 @@ export async function connectInstagram(
     provider: INSTAGRAM_CHANNEL_PROVIDER,
     instagram_account_id: v.accountId,
     instagram_token_encrypted: tokenCifrado,
+    instagram_token_expires_at: longo.validoAte,
     webhook_path_token: webhookPathToken,
     webhook_secret_encrypted: segredoCifrado,
     display_name: input.displayName?.trim() || (v.username ? `@${v.username}` : "Instagram"),
@@ -500,8 +534,16 @@ export async function connectInstagram(
     return { ok: false, kind: "banco", reason: "Não foi possível gravar a conexão. Tente de novo." };
   }
   // Só depois de gravar: uma assinatura sem linha correspondente seria efeito sem conexão.
-  const webhookSubscribed = await subscribeInstagramWebhooks(input.accessToken);
-  return { ok: true, webhookPathToken, username: v.username, status, webhookSubscribed };
+  const webhookSubscribed = await subscribeInstagramWebhooks(longo.token);
+  return {
+    ok: true,
+    webhookPathToken,
+    username: v.username,
+    status,
+    webhookSubscribed,
+    tokenValidoAte: longo.validoAte,
+    tokenLongo: longo.longo,
+  };
 }
 
 export type InstagramEstado = "conectado" | "nao_conectado" | "token_invalido";

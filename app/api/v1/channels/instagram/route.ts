@@ -110,6 +110,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       username: r.username,
       status: r.status,
       webhookSubscribed: r.webhookSubscribed,
+      tokenValidoAte: r.tokenValidoAte,
+      tokenLongo: r.tokenLongo,
     },
     { requestId },
   );
