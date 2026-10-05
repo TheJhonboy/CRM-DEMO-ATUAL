@@ -31,7 +31,8 @@ describe("migration 0558", () => {
     expect(b).toMatch(/provider = 'wacalls'\s+and wacalls_session_id\s+is not null/);
     expect(b).toMatch(/provider = 'waha'\s+and waha_session_name\s+is not null/);
     expect(b).toMatch(/provider = 'meta_cloud'\s+and meta_phone_number_id\s+is not null/);
-    expect(b).toMatch(/provider = 'zernio'\s+and zernio_account_id\s+is not null/);
+    expect(b).toMatch(/provider in \('zernio', 'zernio_social'\)\s+and zernio_account_id\s+is not null/);
+    expect(b).toMatch(/provider = 'datafy'\s+and datafy_phone_number_id\s+is not null/);
   });
 
   it("cria as colunas novas", () => {

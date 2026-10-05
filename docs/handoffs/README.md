@@ -44,6 +44,7 @@ que vieram da raiz estão igualmente indexados.
 |---|---|
 | [`HANDOFF-canais-oficial.md`](HANDOFF-canais-oficial.md) | HANDOFF — WhatsApp API Oficial (seam de canais) |
 | [`HANDOFF-casos-humanos.md`](HANDOFF-casos-humanos.md) | HANDOFF — Casos Humanos |
+| [`HANDOFF-CODEX.md`](HANDOFF-CODEX.md) | Handoff do fork para continuar o trabalho em outra ferramenta (Codex) |
 | [`HANDOFF-conversa-vira-lead.md`](HANDOFF-conversa-vira-lead.md) | HANDOFF — A conversa vira lead (spec 17) |
 | [`HANDOFF-crm-vivo.md`](HANDOFF-crm-vivo.md) | HANDOFF — CRM Vivo |
 | [`HANDOFF-followup-vivo.md`](HANDOFF-followup-vivo.md) | HANDOFF — Follow-up Vivo |

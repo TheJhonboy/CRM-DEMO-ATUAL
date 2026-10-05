@@ -52,8 +52,8 @@ describe("JanelaFechadaAviso sem fonte de modelos", () => {
     expect(screen.queryByText(/Nenhum modelo aprovado/i)).toBeNull();
     expect(screen.queryByText(/Conexões → Templates/)).toBeNull();
     expect(screen.queryByRole("combobox")).toBeNull();
-    expect(screen.getByText(/não tem modelo aprovado/i)).toBeInTheDocument();
-    expect(screen.getByText(/cliente escrever de novo/i)).toBeInTheDocument();
+    // Sem fonte de modelos o aviso mostra só o motivo que o composer calculou.
+    expect(screen.getByText(/A janela de 24h fechou há 3d\./i)).toBeInTheDocument();
     // E não pergunta por modelos a rota nenhuma.
     expect(get).not.toHaveBeenCalled();
   });
@@ -66,7 +66,7 @@ describe("JanelaFechadaAviso sem fonte de modelos", () => {
 });
 
 describe("o selo e o motivo do composer também não prometem modelo", () => {
-  it("selo fechado no canal sem modelo: 'aguarde o cliente', não 'só modelo'", () => {
+  it("selo fechado no canal sem modelo: 'aguardando o cliente', não 'só modelo'", () => {
     render(
       <JanelaSelo
         provider={CHANNEL_PROVIDER_INSTAGRAM}
@@ -74,12 +74,12 @@ describe("o selo e o motivo do composer também não prometem modelo", () => {
       />,
     );
     expect(screen.queryByText(/só modelo/i)).toBeNull();
-    expect(screen.getByText(/aguarde o cliente/i)).toBeInTheDocument();
+    expect(screen.getByText(/aguardando o cliente/i)).toBeInTheDocument();
   });
 
-  it("o InboxLayout escolhe o texto do motivo pela saída do seam, não pelo provider", () => {
+  it("o InboxLayout escolhe o texto do motivo pela fonte de modelos do seam, não pelo provider", () => {
     const fonte = readFileSync("components/inbox/InboxLayout.tsx", "utf8");
-    expect(fonte).toMatch(/saidaDaJanelaFechada\(/);
+    expect(fonte).toMatch(/fonteDeTemplates\(/);
     expect(fonte).not.toMatch(/"instagram"|"meta_cloud"|"zernio"|"waha"/);
   });
 });

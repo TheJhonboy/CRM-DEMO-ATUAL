@@ -22,7 +22,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { nomeDoCanal } from "@/lib/channels/estado";
 
 import { ARCHIVED_AT, queryTolerantToMissingArchived } from "./archived";
-import { PROVIDERS_DE_MENSAGEM, capabilitiesOf, transportaMensagem } from "./capabilities";
+import { PROVIDERS_DE_MENSAGEM, capabilitiesOf, enderecaPorTelefone, transportaMensagem } from "./capabilities";
 import type { ProviderDeMensagem } from "./types";
 
 /** Um canal oferecível como destino, já com o rótulo resolvido para a tela. */
@@ -31,8 +31,8 @@ export interface SelectableChannel {
   display_name: string;
   status: string;
   phone_number: string | null;
-  /** Provider da sessão: quem escolhe um padrão precisa saber se endereça por telefone. */
-  provider: string;
+  /** O canal se endereça por telefone? Quem escolhe um padrão precisa saber; o nome do provedor não sai daqui. */
+  enderecaPorTelefone: boolean;
   /**
    * O canal manda TEXTO LIVRE a qualquer hora?
    *
@@ -124,7 +124,7 @@ export async function listSelectableChannels(
     display_name: nomeDoCanal(c),
     status: c.status,
     phone_number: c.phone_number ?? null,
-    provider: c.provider ?? "",
+    enderecaPorTelefone: enderecaPorTelefone(c.provider),
     aceitaMensagemLivre: aceitaMensagemLivre(c.provider),
   }));
 }

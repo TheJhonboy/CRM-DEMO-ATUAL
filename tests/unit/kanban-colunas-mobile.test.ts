@@ -32,7 +32,7 @@ describe("Kanban — colunas no celular", () => {
   it("a coluna real tem ~85vw com snap no celular, 320px a partir de md — sem snap-none (o contêiner o controla)", () => {
     const src = fs.readFileSync(path.join(RAIZ, "components/kanban/StageColumn.tsx"), "utf8");
     expect(src).toContain(
-      'className="flex w-[85vw] shrink-0 snap-center flex-col overflow-hidden rounded-lg border border-border bg-surface dark:border-white/10 md:w-80"',
+      'className="flex min-h-full w-[85vw] shrink-0 snap-center flex-col rounded-lg border border-border bg-surface dark:border-white/10 md:w-80"',
     );
   });
 
@@ -40,7 +40,7 @@ describe("Kanban — colunas no celular", () => {
     const src = fs.readFileSync(path.join(RAIZ, "components/kanban/KanbanBoard.tsx"), "utf8");
     expect(src).toContain('data-arrastando={arrastando}');
     expect(src).toContain(
-      'className="flex h-full snap-x snap-mandatory gap-3 overflow-x-auto p-4 max-md:-mx-6 md:snap-none data-[arrastando=true]:snap-none"',
+      'className="flex min-h-0 flex-1 snap-x snap-mandatory items-start gap-3 overflow-auto px-4 pb-4 max-md:-mx-6 md:snap-none data-[arrastando=true]:snap-none"',
     );
     expect(src).toContain('onDragStart={() => setArrastando(true)}');
     expect(src).toContain('setArrastando(false);');
@@ -53,7 +53,7 @@ describe("Kanban — colunas no celular", () => {
   // nessa página: conferido com grep em app/ e components/.)
   it("a página do funil, que renderiza o board, não põe padding horizontal próprio — o -mx-6 desconta só o da main", () => {
     const pagina = fs.readFileSync(path.join(RAIZ, "app/app/pipelines/[id]/_client.tsx"), "utf8");
-    expect(pagina).toContain('className="flex h-full flex-col gap-4"');
+    expect(pagina).toContain('className="flex h-[calc(100dvh-3.5rem-3rem)] min-h-[28rem] max-md:h-[calc(100dvh-3.5rem-3rem-var(--bottom-nav-h))] flex-col gap-4"');
     expect(pagina.match(/<KanbanBoard/g)).toHaveLength(1);
   });
 
@@ -61,7 +61,7 @@ describe("Kanban — colunas no celular", () => {
     const src = fs.readFileSync(path.join(RAIZ, "components/kanban/KanbanBoard.tsx"), "utf8");
     // O skeleton tem a MESMA geometria do contêiner real, `max-md:-mx-6` incluso.
     expect(src).toContain(
-      'className="flex snap-x snap-mandatory gap-3 overflow-x-auto p-4 max-md:-mx-6 md:snap-none"',
+      'className="flex min-h-0 flex-1 snap-x snap-mandatory gap-3 overflow-x-auto p-4 max-md:-mx-6 md:snap-none"',
     );
     // Mesma superfície, também: o esqueleto acompanhou a coluna real na troca
     // de paleta, senão o board mudaria de cor quando os dados chegassem.

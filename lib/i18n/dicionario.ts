@@ -8907,6 +8907,11 @@ export const DICIONARIO: Traducoes = {
 
   // ─── Auth: login, cadastro, recuperação de senha, MFA, códigos de recuperação ───
   "Entrar": { es: "Entrar" },
+  // Página /manutencao (modo manutenção, MAINTENANCE_MODE=1).
+  "Estamos em manutenção": { es: "Estamos en mantenimiento" },
+  "Atualização sendo feita. Voltamos a partir daqui 1 hora.": {
+    es: "Estamos haciendo una actualización. Volvemos en 1 hora.",
+  },
   "Criar conta": { es: "Crear cuenta" },
   "Senha": { es: "Contraseña" },
   "Confirmar senha": { es: "Confirmar contraseña" },

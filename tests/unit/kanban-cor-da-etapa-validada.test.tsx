@@ -109,7 +109,7 @@ describe("StageColumn — cor da etapa", () => {
 
   it("a geometria mobile da coluna (snap e largura) não mudou", () => {
     renderizar("#1a2b3c");
-    const coluna = screen.getByRole("heading", { name: "Qualificação" }).parentElement!.parentElement!;
+    const coluna = screen.getByRole("heading", { name: "Qualificação" }).closest("[data-etapa-do-quadro]") as HTMLElement;
     for (const classe of ["w-[85vw]", "shrink-0", "snap-center", "md:w-80"]) {
       expect(coluna, `perdeu a classe ${classe}`).toHaveClass(classe);
     }

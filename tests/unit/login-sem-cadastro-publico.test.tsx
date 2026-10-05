@@ -5,8 +5,8 @@ vi.mock("@/components/auth/LoginForm", () => ({
   LoginForm: () => <form aria-label="Entrar" />,
 }));
 
-vi.mock("@/lib/branding", () => ({
-  branding: () => ({ name: "Calixto AI CRM" }),
+vi.mock("@/lib/branding/saida", () => ({
+  marcaDaSaida: vi.fn(async () => ({ nome: "Calixto AI CRM" })),
 }));
 
 // A tela passou a resolver o idioma do visitante lendo a sessão (ver

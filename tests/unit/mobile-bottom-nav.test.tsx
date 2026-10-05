@@ -26,6 +26,8 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/components/connections/ConnectionHealthDot", () => ({
   ConnectionHealthDot: () => null,
 }));
+vi.mock("@/components/shell/ContadorDeCasos", () => ({ ContadorDeCasos: () => null }));
+vi.mock("@/components/shell/ContadorDaFila", () => ({ ContadorDaFila: () => null }));
 vi.mock("@/app/actions/shell/toggleSidebar", () => ({
   toggleSidebar: vi.fn(),
 }));

@@ -12,6 +12,9 @@ vi.mock("@/hooks/auth/AuthProvider", () => ({
 vi.mock("@/lib/branding/contexto", () => ({
   useMarcaDaInstalacao: () => ({ name: "Calixto AI", logoUrl: null }),
 }));
+vi.mock("@/components/shell/ContadorDeCasos", () => ({ ContadorDeCasos: () => <span /> }));
+vi.mock("@/components/shell/ContadorDaFila", () => ({ ContadorDaFila: () => <span /> }));
+vi.mock("@/components/shell/AvisoDePropostaEmDestaque", () => ({ AvisoDePropostaEmDestaque: () => null }));
 vi.mock("@/app/actions/shell/toggleSidebar", () => ({ toggleSidebar: vi.fn() }));
 vi.mock("@/components/shell/AlertsBell", () => ({ AlertsBell: () => <span /> }));
 vi.mock("@/components/shell/MobileSidebar", () => ({ MobileSidebar: () => <span /> }));

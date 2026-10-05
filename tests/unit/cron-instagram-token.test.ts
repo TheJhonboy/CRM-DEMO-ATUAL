@@ -99,7 +99,7 @@ beforeEach(() => {
 
 describe("renovarTokensDoInstagram", () => {
   it("consulta só instagram ativo na janela de 10 dias (ou sem validade com mais de 1 dia de idade), não vencido", async () => {
-    await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA });
+    await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA, relogio: () => AGORA });
     expect(estado.filtros).toContainEqual(["eq", "provider", "instagram"]);
     expect(estado.filtros).toContainEqual(["is", "archived_at", null]);
     expect(estado.filtros).toContainEqual(["not", "instagram_token_encrypted", "is", null]);
@@ -115,7 +115,7 @@ describe("renovarTokensDoInstagram", () => {
       { id: "s1", organization_id: "o1", instagram_token_expires_at: dias(5) },
       { id: "s2", organization_id: "o2", instagram_token_expires_at: null },
     ];
-    const r = await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA });
+    const r = await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA, relogio: () => AGORA });
     expect(renovarTokenDaSessao).toHaveBeenCalledWith(expect.anything(), { organizationId: "o1", sessionId: "s1" });
     expect(renovarTokenDaSessao).toHaveBeenCalledWith(expect.anything(), { organizationId: "o2", sessionId: "s2" });
     expect(r).toMatchObject({ candidatas: 2, renovadas: 2, falhas: 0, avisos: 0, interrompidoPorTempo: false });
@@ -129,15 +129,15 @@ describe("renovarTokensDoInstagram", () => {
     vi.mocked(renovarTokenDaSessao)
       .mockRejectedValueOnce(new Error("boom"))
       .mockResolvedValueOnce({ ok: true, tokenValidoAte: dias(60) });
-    const r = await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA });
+    const r = await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA, relogio: () => AGORA });
     expect(r).toMatchObject({ renovadas: 1, falhas: 1 });
   });
 
   it("falha com 7 dias ou menos abre UM aviso na Central (kind other, ref_kind próprio, org da linha); repetir não duplica", async () => {
     estado.sessoes = [{ id: "s1", organization_id: "o1", instagram_token_expires_at: dias(6) }];
     vi.mocked(renovarTokenDaSessao).mockResolvedValue({ ok: false, motivo: "rede" });
-    const r1 = await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA });
-    await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA });
+    const r1 = await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA, relogio: () => AGORA });
+    await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA, relogio: () => AGORA });
     expect(estado.itens).toHaveLength(1);
     expect(estado.itens[0]).toMatchObject({
       organization_id: "o1",
@@ -154,17 +154,17 @@ describe("renovarTokensDoInstagram", () => {
   it("falha com mais de 7 dias não abre aviso", async () => {
     estado.sessoes = [{ id: "s1", organization_id: "o1", instagram_token_expires_at: dias(9) }];
     vi.mocked(renovarTokenDaSessao).mockResolvedValue({ ok: false, motivo: "rede" });
-    await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA });
+    await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA, relogio: () => AGORA });
     expect(estado.itens).toHaveLength(0);
   });
 
   it("validade desconhecida que falha não abre aviso; token_expirado abre mesmo assim", async () => {
     estado.sessoes = [{ id: "s1", organization_id: "o1", instagram_token_expires_at: null }];
     vi.mocked(renovarTokenDaSessao).mockResolvedValue({ ok: false, motivo: "rede" });
-    await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA });
+    await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA, relogio: () => AGORA });
     expect(estado.itens).toHaveLength(0);
     vi.mocked(renovarTokenDaSessao).mockResolvedValue({ ok: false, motivo: "token_expirado" });
-    await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA });
+    await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA, relogio: () => AGORA });
     expect(estado.itens).toHaveLength(1);
     expect(estado.itens[0]!.severity).toBe("critical");
   });
@@ -173,7 +173,7 @@ describe("renovarTokensDoInstagram", () => {
     estado.sessoes = [{ id: "s1", organization_id: "o1", instagram_token_expires_at: dias(2) }];
     estado.itens = [{ organization_id: "o1", kind: "other", ref_kind: "instagram_token", ref_id: "s1", status: "ack", severity: "warn" }];
     vi.mocked(renovarTokenDaSessao).mockResolvedValue({ ok: false, motivo: "rede" });
-    await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA });
+    await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA, relogio: () => AGORA });
     expect(estado.itens).toHaveLength(1);
   });
 
@@ -181,7 +181,7 @@ describe("renovarTokensDoInstagram", () => {
     estado.sessoes = [{ id: "s1", organization_id: "o1", instagram_token_expires_at: dias(2) }];
     estado.itens = [{ organization_id: "o1", kind: "other", ref_kind: "instagram_token", ref_id: "s1", status: "open", severity: "warn", title: "x" }];
     vi.mocked(renovarTokenDaSessao).mockResolvedValue({ ok: false, motivo: "token_expirado" });
-    await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA });
+    await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA, relogio: () => AGORA });
     expect(estado.itens).toHaveLength(1);
     expect(estado.itens[0]).toMatchObject({ severity: "critical" });
     expect(String(estado.itens[0]!.title)).toMatch(/expirou/);
@@ -190,13 +190,13 @@ describe("renovarTokensDoInstagram", () => {
   it("validade desconhecida que falha todo dia gera no máximo UM aviso por sessão", async () => {
     estado.sessoes = [{ id: "s1", organization_id: "o1", instagram_token_expires_at: null }];
     vi.mocked(renovarTokenDaSessao).mockResolvedValue({ ok: false, motivo: "token_expirado" });
-    for (let i = 0; i < 4; i++) await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA });
+    for (let i = 0; i < 4; i++) await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA, relogio: () => AGORA });
     expect(estado.itens).toHaveLength(1);
   });
 
   it("migration 0277 ausente: resumo vazio com migracaoPendente, sem lançar", async () => {
     estado.erroNaConsulta = { code: "42703", message: "column channel_sessions.instagram_token_expires_at does not exist" };
-    const r = await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA });
+    const r = await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA, relogio: () => AGORA });
     expect(r).toEqual({ candidatas: 0, renovadas: 0, falhas: 0, avisos: 0, interrompidoPorTempo: false, migracaoPendente: true });
     const resp = await POST(req("POST"));
     expect(resp.status).toBe(200);
@@ -213,7 +213,7 @@ describe("renovarTokensDoInstagram", () => {
   it("renovação com sucesso resolve o aviso aberto da sessão", async () => {
     estado.sessoes = [{ id: "s1", organization_id: "o1", instagram_token_expires_at: dias(3) }];
     estado.itens = [{ organization_id: "o1", kind: "other", ref_kind: "instagram_token", ref_id: "s1", status: "open" }];
-    await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA });
+    await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA, relogio: () => AGORA });
     expect(estado.itens[0]!.status).toBe("resolved");
     expect(typeof estado.itens[0]!.resolved_at).toBe("string");
   });
@@ -224,7 +224,7 @@ describe("renovarTokensDoInstagram", () => {
       organization_id: "o1",
       instagram_token_expires_at: dias(2),
     }));
-    const r = await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA, tamanhoDaPagina: 2 });
+    const r = await renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA, relogio: () => AGORA, tamanhoDaPagina: 2 });
     expect(r.candidatas).toBe(5);
     expect(renovarTokenDaSessao).toHaveBeenCalledTimes(5);
 
@@ -237,7 +237,7 @@ describe("renovarTokensDoInstagram", () => {
 
   it("erro na consulta lança (a rota responde 500)", async () => {
     estado.erroNaConsulta = true;
-    await expect(renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA })).rejects.toThrow(
+    await expect(renovarTokensDoInstagram(bancoFalso(estado), { agora: AGORA, relogio: () => AGORA })).rejects.toThrow(
       /instagram_token_cron_lookup_failed/,
     );
   });

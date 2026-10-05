@@ -137,8 +137,8 @@ describe("o envelope carrega a thread do provider", () => {
     const passagens = [...fonte.matchAll(/providerConversationId:\s*c\.provider_conversation_id/g)];
     expect(
       passagens.length,
-      "todos os call sites (texto, mídia, modelo, contato e media_url) precisam passar",
-    ).toBe(5);
+      "todos os call sites (resolveRecipient, texto, mídia, modelo, contato e media_url) precisam passar",
+    ).toBe(6);
   });
 });
 

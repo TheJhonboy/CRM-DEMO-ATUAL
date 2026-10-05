@@ -35,9 +35,13 @@ describe("geometria da barra inferior do celular", () => {
 
   it("a grade do Inbox desconta a barra abaixo de md e mantém a conta antiga a partir dele", () => {
     const classes = classesLiterais(ler("components/inbox/InboxLayout.tsx"));
-    expect(classes).toContain("h-[calc(100dvh-3.5rem-2*var(--space-6)-var(--bottom-nav-h))]");
-    expect(classes).toContain("md:h-[calc(100dvh-3.5rem-2*var(--space-6))]");
-    // Sem o prefixo `md:`, a conta antiga valeria também no celular e o defeito voltaria.
-    expect(classes).not.toContain("h-[calc(100dvh-3.5rem-2*var(--space-6))]");
+    // A conta do upstream (rodapé ocupado pelas peças fixas) a partir de md; abaixo dele,
+    // a mesma conta mais a barra (`--bottom-nav-h` vale 4rem sempre — ver globals.css).
+    expect(classes).toContain(
+      "h-[calc(100dvh-3.5rem-var(--space-6)-max(var(--space-6),var(--rodape-ocupado,0px)))]",
+    );
+    expect(classes).toContain(
+      "max-md:h-[calc(100dvh-3.5rem-var(--space-6)-max(var(--space-6),var(--rodape-ocupado,0px))-var(--bottom-nav-h))]",
+    );
   });
 });

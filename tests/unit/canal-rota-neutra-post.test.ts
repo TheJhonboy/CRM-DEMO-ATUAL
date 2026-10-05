@@ -25,6 +25,8 @@ vi.mock("@/lib/webhooks/secrets", () => ({ decryptWebhookSecret: vi.fn(async () 
 vi.mock("@/lib/channels/inbound", async (orig) => ({
   ...(await orig<typeof import("@/lib/channels/inbound")>()),
   handleInboundWebhook: h.tratar,
+  // A assinatura do Instagram é exercitada em instagram-webhook; aqui o foco é o corpo.
+  verifyInboundWebhookSignature: () => true,
 }));
 
 import { POST } from "@/app/api/v1/webhooks/channel/[token]/route";

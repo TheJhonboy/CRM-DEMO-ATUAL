@@ -207,6 +207,7 @@ export const PROVIDERS_DE_MENSAGEM = [
  */
 export const PROVIDERS_SEM_ENDERECO_DE_TELEFONE = [
   "instagram",
+  "zernio_social",
 ] as const satisfies readonly (typeof PROVIDERS_DE_MENSAGEM)[number][];
 
 /** Mensagem + endereçado por telefone: o conjunto certo para "mandar para este número". */
@@ -224,10 +225,15 @@ export function enderecaPorTelefone(provider: string | null | undefined): boolea
  * endereça por telefone. Canal por thread (sem telefone) só entra por escolha explícita;
  * se só houver esses, não há padrão (`undefined`) e o agente fica sem vínculo.
  */
-export function canalPadraoDoAgente<T extends { provider?: string | null }>(canais: T[]): T | undefined {
+export function canalPadraoDoAgente<T extends { provider?: string | null; enderecaPorTelefone?: boolean }>(
+  canais: T[],
+): T | undefined {
   // Já são canais de mensagem (a lista vem do seletor): só se pula o que sabidamente não tem telefone.
-  return canais.find(
-    (c) => !(PROVIDERS_SEM_ENDERECO_DE_TELEFONE as readonly string[]).includes(c.provider ?? ""),
+  // O seletor entrega a CAPACIDADE (`enderecaPorTelefone`), nunca o nome do provedor.
+  return canais.find((c) =>
+    c.enderecaPorTelefone !== undefined
+      ? c.enderecaPorTelefone
+      : !(PROVIDERS_SEM_ENDERECO_DE_TELEFONE as readonly string[]).includes(c.provider ?? ""),
   );
 }
 

@@ -143,11 +143,12 @@ describe("canal sem telefone (Instagram) não é escolhido por padrão para envi
     expect(await sessaoProntaParaEnvio(db, "org")).toBeNull();
   });
 
-  it("o seletor continua oferecendo o Instagram (escolha EXPLICITA do operador), com o provider", async () => {
+  it("o seletor continua oferecendo o Instagram (escolha EXPLICITA do operador), com a capacidade (sem o provider)", async () => {
     const { db } = bancoDeMentira([INSTAGRAM, WHATSAPP]);
     const canais = await listSelectableChannels(db, "org");
     expect(canais.map((c) => c.id)).toEqual(["conta-do-instagram", "numero-de-verdade"]);
-    expect(canais.map((c) => c.provider)).toEqual(["instagram", "waha"]);
+    expect(canais.map((c) => c.enderecaPorTelefone)).toEqual([false, true]);
+    expect(canalPadraoDoAgente(canais)?.id).toBe("numero-de-verdade");
   });
 
   it("canalPadraoDoAgente: ignora o canal sem telefone; só Instagram -> nenhum", () => {

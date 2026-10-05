@@ -89,6 +89,8 @@ function conversaDoInstagram(over: { thread?: string | null } = {}) {
     group_chat_id: null,
     bot_silenced_until: null,
     provider_conversation_id: over.thread === undefined ? IGSID : over.thread,
+    // O cliente escreveu agora: a janela de 24h está aberta (a rota recusa texto de token/IA fora dela).
+    last_inbound_at: new Date().toISOString(),
     // Contato do Instagram: nasce SEM telefone e sem identidade de WhatsApp.
     contacts: { phone_number: null, wa_identity: null, wa_lid: null, is_blocked: false },
     channel_sessions: {

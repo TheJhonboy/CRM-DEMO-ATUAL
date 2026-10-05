@@ -125,9 +125,11 @@ export function ActiveCallPanel() {
       role="region"
       aria-label={t("Chamada em andamento")}
       ref={ancora}
-      // A medição da peça vem do contrato do rodapé (issue #1305); no celular a
-      // barra inferior (`--bottom-nav-h`) empurra o painel para cima dela.
-      className="fixed bottom-[calc(var(--bottom-nav-h)+1rem)] right-4 z-50 flex w-[min(320px,calc(100%-2rem))] items-center gap-3 rounded-xl border border-border bg-popover p-3 shadow-2xl animate-in fade-in slide-in-from-bottom-4 md:bottom-4"
+      // A posição no rodapé vem do contrato (issue #1305), não de uma classe daqui.
+      // No celular, a barra inferior (`--bottom-nav-h`, só abaixo de md) entra como
+      // margem: empurra o painel para cima dela sem mexer no número do contrato.
+      style={{ bottom: PAINEL_DE_CHAMADA.distancia }}
+      className="fixed right-4 z-50 max-md:mb-[var(--bottom-nav-h)] flex w-[min(320px,calc(100%-2rem))] items-center gap-3 rounded-xl border border-border bg-popover p-3 shadow-2xl animate-in fade-in slide-in-from-bottom-4"
     >
       <Avatar className="h-10 w-10 shrink-0">
         {contact?.id ? (

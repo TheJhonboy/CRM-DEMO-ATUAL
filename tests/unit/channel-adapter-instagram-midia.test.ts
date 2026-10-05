@@ -32,7 +32,9 @@ vi.mock("@/lib/supabase/admin", () => ({
       },
       update: (p: Record<string, unknown>) => {
         h.patches.push(p);
-        return { eq: () => ({ eq: async () => ({ error: null }) }) };
+        // `.filter(...)`/`.select(...)` entram na cadeia do update (trava de mensagem redigida).
+        const fim = { filter: () => fim, select: async () => ({ data: [{ id: "m1" }], error: null }) };
+        return { eq: () => ({ eq: () => fim }) };
       },
     }),
     storage: { from: () => ({ upload: h.upload }) },

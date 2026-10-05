@@ -212,7 +212,8 @@ function montarTabela() {
 
 async function abrirExclusao() {
   montarTabela();
-  fireEvent.click(screen.getByTitle("Excluir contato"));
+  // A tela renderiza a tabela (xl+) e os cartões (celular): dois botões, o mesmo gesto.
+  fireEvent.click(screen.getAllByTitle("Excluir contato")[0]!);
 }
 
 describe("diálogo 'Excluir contato?' — o aviso antes do clique", () => {
