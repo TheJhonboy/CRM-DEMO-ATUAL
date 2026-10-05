@@ -12,6 +12,7 @@ export const PUBLIC_PATHS: RegExp[] = [
   /^\/404$/,
   /^\/500$/,
   /^\/503$/,
+  /^\/manutencao$/,
   /^\/api\/v1\/health$/,
   /^\/api\/v1\/webhooks\//,
   /^\/api\/v1\/cron\//,

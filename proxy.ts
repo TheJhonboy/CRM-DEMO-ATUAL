@@ -10,6 +10,19 @@ import {
 
 const COOKIE_NAME = "sb-deskcomm-auth";
 
+const MANUTENCAO_LIBERADO: RegExp[] = [
+  /^\/manutencao$/,
+  /^\/api\/v1\/health$/,
+  /^\/api\/v1\/webhooks\//,
+  /^\/api\/v1\/cron\//,
+  /^\/api\/v1\/system\/(agent|relogio\/tick)$/,
+  /^\/api\/internal\//,
+];
+
+function manutencaoLiberado(pathname: string): boolean {
+  return MANUTENCAO_LIBERADO.some((re) => re.test(pathname));
+}
+
 export async function proxy(request: NextRequest) {
   const response = NextResponse.next({ request: { headers: request.headers } });
 
@@ -28,6 +41,20 @@ export async function proxy(request: NextRequest) {
   // documentation of the intended deploy topology.
   const host = request.headers.get("host") ?? "";
   const isAdminSurface = host.startsWith("admin.") || pathname.startsWith("/admin");
+
+  // Modo manutenção (MAINTENANCE_MODE=1): todo mundo vê /manutencao. Webhooks, cron,
+  // health e rotas internas seguem de pé para não perder mensagens nem derrubar o relógio.
+  if (process.env.MAINTENANCE_MODE === "1" && !manutencaoLiberado(pathname)) {
+    if (pathname.startsWith("/api/")) {
+      return new NextResponse(
+        JSON.stringify({ error: { code: "maintenance", message: "Em manutenção" } }),
+        { status: 503, headers: { "content-type": "application/json", "retry-after": "3600" } },
+      );
+    }
+    const manutencao = NextResponse.rewrite(new URL("/manutencao", request.url), { status: 503 });
+    manutencao.headers.set("retry-after", "3600");
+    return manutencao;
+  }
 
   if (isPublicPath(pathname)) {
     return response;
