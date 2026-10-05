@@ -6,8 +6,10 @@ import { BarraDeProgressoNavegacao } from "@/components/shell/BarraDeProgressoNa
 import { MobileBottomNav } from "@/components/shell/MobileBottomNav";
 import { useSinalDePresenca } from "@/hooks/atendimento/useSinalDePresenca";
 import { useInboundMessageAlerts } from "@/hooks/notifications/useInboundMessageAlerts";
+import { useInboundCallAlerts } from "@/hooks/calls/useInboundCallAlerts";
 import { useCrmAlerts } from "@/hooks/notifications/useCrmAlerts";
 import { useNotifyOpenFromServiceWorker } from "@/lib/notifications/notify_open";
+import { estiloDaReserva, useOcupacaoDoRodape } from "@/lib/ui/rodape-ocupado";
 
 interface AppShellProps {
   sidebarCollapsed: boolean;
@@ -25,6 +27,7 @@ interface AppShellProps {
 
 export function AppShell({ sidebarCollapsed, podeAtender, children }: AppShellProps) {
   useInboundMessageAlerts();
+  useInboundCallAlerts();
   useCrmAlerts();
   useNotifyOpenFromServiceWorker();
   // O SINAL DE PRESENÇA (issue #996) sai daqui porque presença é "esta aba
@@ -32,6 +35,11 @@ export function AppShell({ sidebarCollapsed, podeAtender, children }: AppShellPr
   // no Inbox e na Agenda; um emissor amarrado à tela de gestão diria que só o
   // gerente está presente.
   useSinalDePresenca(podeAtender);
+  // O que as peças fixas do rodapé declararam ocupar agora (issue #1305). Sem
+  // chamada nenhuma é ZERO, e aí o `<main>` fica exatamente como sempre foi —
+  // o `p-6` inteiro é rodapé. Com o painel de chamada na tela, é ele que
+  // decide a faixa que o conteúdo perde, e ninguém mais mede isso por fora.
+  const ocupacaoDoRodape = useOcupacaoDoRodape();
   return (
     <div className="flex min-h-screen w-full bg-background">
       <BarraDeProgressoNavegacao />
@@ -59,12 +67,23 @@ export function AppShell({ sidebarCollapsed, podeAtender, children }: AppShellPr
       */}
       <div className="flex min-h-screen min-w-0 flex-1 flex-col">
         <TopBar />
-        {/* Padding de baixo no celular: o normal (--space-6) mais `--bottom-nav-h`,
-            a altura da barra inferior (definida em app/globals.css, com a folga
-            da área segura) — sem isto o fim de qualquer página fica atrás dela.
-            md:pb-6 devolve o padding normal a partir de onde a barra some. O
-            Inbox desconta a mesma variável da própria altura (InboxLayout). */}
-        <main className="flex-1 overflow-auto p-6 pb-[calc(var(--space-6)+var(--bottom-nav-h))] md:pb-6">{children}</main>
+        {/*
+          O RODAPÉ DESCONTA O QUE AS PEÇAS FIXAS OCUPAM (issue #1305).
+
+          `estiloDaReserva` devolve `undefined` quando não há peça registrada —
+          nenhum estilo, o `p-6` de sempre —, e um `padding-bottom` que consome
+          `--rodape-ocupado` quando há. O que ele descontou está também no
+          atributo `data-rodape-ocupado`: é por ali que o gate mede esta faixa
+          sem depender de o jsdom computar `var()` (ele não computa), e é o que
+          aparece no inspetor quando alguém pergunta quanto o rodapé perdeu.
+        */}
+        <main
+          className="flex-1 overflow-auto p-6 pb-[calc(var(--space-6)+var(--bottom-nav-h))] md:pb-6"
+          style={estiloDaReserva(ocupacaoDoRodape)}
+          data-rodape-ocupado={ocupacaoDoRodape}
+        >
+          {children}
+        </main>
       </div>
       <MobileBottomNav />
     </div>

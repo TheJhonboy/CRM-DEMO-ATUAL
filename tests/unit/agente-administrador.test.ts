@@ -22,6 +22,7 @@ vi.mock("@/app/api/v1/leads/_handler", () => ({
   updateLeadHandler: vi.fn(),
   moveLeadHandler: vi.fn(
     async (
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       sb: { from: (t: string) => any },
       ctx: { organization_id: string },
       leadId: string,

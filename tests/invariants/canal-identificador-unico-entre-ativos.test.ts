@@ -161,11 +161,11 @@ describe("0165 · o recorte do índice é o mesmo que o código consulta", () =>
 });
 
 /**
- * 0276 · a conta Instagram é única entre os canais ATIVOS da MESMA organização.
+ * 0559 · a conta Instagram é única entre os canais ATIVOS da MESMA organização.
  * O escopo é por organização porque a consulta de credencial filtra por
  * organização + conta (um `maybeSingle()` com duas linhas devolve PGRST116).
  */
-describe("0276 · a conta Instagram não se repete entre canais ativos da organização", () => {
+describe("0559 · a conta Instagram não se repete entre canais ativos da organização", () => {
   const INDICE = "channel_sessions_instagram_account_id_ativo_unique";
   const ig = (conta: string, extra: Record<string, string> = {}) => ({
     provider: `'instagram'`,
@@ -174,24 +174,24 @@ describe("0276 · a conta Instagram não se repete entre canais ativos da organi
   });
 
   it("a MESMA organização não repete a conta ativa", () => {
-    const org = novaOrg(`inv-0276-mesma-${Date.now()}`);
-    insertSession(org, ig("0276-mesma"));
+    const org = novaOrg(`inv-0559-mesma-${Date.now()}`);
+    insertSession(org, ig("0559-mesma"));
 
-    const erro = erroDe(() => insertSession(org, ig("0276-mesma")));
+    const erro = erroDe(() => insertSession(org, ig("0559-mesma")));
     expect(erro).toContain(INDICE);
   });
 
   it("organizações DIFERENTES podem ter a mesma conta (o escopo é a organização)", () => {
-    const a = novaOrg(`inv-0276-dif-a-${Date.now()}`);
-    const b = novaOrg(`inv-0276-dif-b-${Date.now()}`);
-    insertSession(a, ig("0276-dif"));
-    expect(lastLine(insertSession(b, ig("0276-dif")))).toBe("ok");
+    const a = novaOrg(`inv-0559-dif-a-${Date.now()}`);
+    const b = novaOrg(`inv-0559-dif-b-${Date.now()}`);
+    insertSession(a, ig("0559-dif"));
+    expect(lastLine(insertSession(b, ig("0559-dif")))).toBe("ok");
   });
 
   it("canal ARQUIVADO não trava reconectar a mesma conta", () => {
-    const org = novaOrg(`inv-0276-arq-${Date.now()}`);
-    insertSession(org, ig("0276-arq", { archived_at: `now()` }));
-    expect(lastLine(insertSession(org, ig("0276-arq")))).toBe("ok");
+    const org = novaOrg(`inv-0559-arq-${Date.now()}`);
+    insertSession(org, ig("0559-arq", { archived_at: `now()` }));
+    expect(lastLine(insertSession(org, ig("0559-arq")))).toBe("ok");
   });
 
   it("a deduplicação renomeia a perdedora (`-conflito-`) e mantém as DUAS linhas", () => {
@@ -199,20 +199,20 @@ describe("0276 · a conta Instagram não se repete entre canais ativos da organi
     // o índice, planta as duas linhas, roda a migration INTEIRA e confere; o
     // ROLLBACK devolve o banco ao estado anterior (DDL é transacional no Postgres).
     const migration = readFileSync(
-      "supabase/migrations/20260930130000_0276_instagram_conta_unica_entre_ativos.sql",
+      "supabase/migrations/20261005210100_0559_instagram_conta_unica_entre_ativos.sql",
       "utf8",
     );
-    const slug = `inv-0276-dedup-${Date.now()}`;
+    const slug = `inv-0559-dedup-${Date.now()}`;
     const saida = sql(`
       begin;
       insert into public.organizations (slug, legal_name, display_name)
-      values ('${slug}', 'inv 0276', 'inv 0276');
+      values ('${slug}', 'inv 0559', 'inv 0559');
       drop index public.${INDICE};
       insert into public.channel_sessions (id, organization_id, webhook_secret_encrypted, provider, instagram_account_id, created_at)
-      select '00000000-0000-0000-0000-0000000276a1', o.id, '\\x00'::bytea, 'instagram', '0276-dup', now() - interval '1 day'
+      select '00000000-0000-0000-0000-0000000276a1', o.id, '\\x00'::bytea, 'instagram', '0559-dup', now() - interval '1 day'
         from public.organizations o where o.slug = '${slug}';
       insert into public.channel_sessions (id, organization_id, webhook_secret_encrypted, provider, instagram_account_id, created_at)
-      select '00000000-0000-0000-0000-0000000276a2', o.id, '\\x00'::bytea, 'instagram', '0276-dup', now()
+      select '00000000-0000-0000-0000-0000000276a2', o.id, '\\x00'::bytea, 'instagram', '0559-dup', now()
         from public.organizations o where o.slug = '${slug}';
       ${migration}
       select 'linhas=' || count(*) from public.channel_sessions s join public.organizations o on o.id = s.organization_id where o.slug = '${slug}';
@@ -221,8 +221,8 @@ describe("0276 · a conta Instagram não se repete entre canais ativos da organi
       rollback;
     `);
     expect(saida).toContain("linhas=2");
-    expect(saida).toMatch(/^vencedora=0276-dup$/m);
-    expect(saida).toContain("perdedora=0276-dup-conflito-00000000-0000-0000-0000-0000000276a1");
+    expect(saida).toMatch(/^vencedora=0559-dup$/m);
+    expect(saida).toContain("perdedora=0559-dup-conflito-00000000-0000-0000-0000-0000000276a1");
   });
 
   it(`${INDICE} é ÚNICO e parcial em archived_at is null`, () => {

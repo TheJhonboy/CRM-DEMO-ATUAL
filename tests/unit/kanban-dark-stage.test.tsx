@@ -55,6 +55,7 @@ const LEAD = {
   external_id: null,
   custom_fields: {},
   updated_at: "2026-09-12T10:00:00.000Z",
+  stage_changed_at: null,
   created_by_user_id: null,
 } satisfies Lead;
 

@@ -20,12 +20,20 @@ const TooltipContent = React.forwardRef<
       ref={ref}
       sideOffset={sideOffset}
       className={cn(
-        // Do tema: balão verde-950 com texto branco no claro e superfície
-        // elevada no escuro (antes era `bg-primary`, que no escuro virava
-        // menta com texto escuro e competia com as ações).
-        // Da v4: `origin-(--var)` no lugar de `origin-[--var]`.
-        "animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 origin-(--radix-tooltip-content-transform-origin) overflow-hidden rounded-sm bg-accent-950 px-3 py-1.5 text-xs text-white shadow-md dark:bg-surface-elevated dark:text-text",
-        className,
+        // A LARGURA MÁXIMA MORA AQUI, na classe base — não em quem usa o tooltip.
+        //
+        // O Radix desenha o balão com `minWidth: max-content` (react-popper) e nada
+        // o limita: 267 caracteres viraram UMA linha de ~1467 px, com o fim do texto
+        // fora da tela em 1280, 1366 e 1440 (#1215). Declarar `max-w` só no ponto que
+        // mostrou o defeito conserta aquele texto LITERAL, que alguém consegue contar
+        // no código. O tooltip da bolha do inbox mostra `message.error_message`, que
+        // vem do provedor: não tem tamanho conhecido nem teto no banco (`text`), e
+        // nenhuma varredura de código pode medi-lo. Na base, o teto vale para todo
+        // tooltip, inclusive os que nascem de dado — e `break-words` é o par
+        // obrigatório disso: sem ele, um erro de provedor sem espaço (URL, hash) é
+        // cortado pelo `overflow-hidden` em vez de quebrar a linha.
+        "z-50 max-w-xs overflow-hidden break-words rounded-sm bg-accent-950 px-3 py-1.5 text-xs text-white shadow-md dark:bg-surface-elevated dark:text-text animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-(--radix-tooltip-content-transform-origin)",
+        className
       )}
       {...props}
     />

@@ -6,6 +6,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { idsDoContatoEGemeos } from "@/lib/channels/contato-por-telefone";
+import { ehOperante } from "@/lib/organizacao/operante";
 
 import { enviarTextoFixoPendente } from "./enviar-texto-fixo";
 import {
@@ -106,10 +107,52 @@ async function aplicarTextoAosEnrollmentsEmEspera(
   return aplicados;
 }
 
+/**
+ * Avança enrollments `active` já vencidos deste contato e manda o texto fixo
+ * neste request. O gatilho de retorno usa isto porque o cron de 1 minuto
+ * chega tarde demais para quem ACABOU de escrever.
+ */
+export async function avancarFollowupsAtivosDoContato(
+  admin: SupabaseClient,
+  organizationId: string,
+  contactId: string,
+): Promise<void> {
+  const contactIds = await idsDoContatoEGemeos(admin, organizationId, contactId);
+  const deps = tickDepsDe(admin);
+  for (let i = 0; i < 6; i++) {
+    const agora = new Date().toISOString();
+    const { data: vivos, error: vivosErr } = await admin
+      .from("followup_enrollments")
+      .select("*")
+      .eq("organization_id", organizationId)
+      .in("contact_id", contactIds)
+      .eq("status", "active")
+      .lte("next_eval_at", agora)
+      .limit(8);
+    if (vivosErr) throw new Error(vivosErr.message);
+    for (const row of vivos ?? []) {
+      await avancarEnrollmentAtivo(deps, row as EnrollmentRow);
+    }
+    const enviados = await enviarTextoFixoPendente(admin, contactIds);
+    if (!(vivos?.length) && !enviados) break;
+  }
+}
+
 export async function aplicarTextoNosFollowups(
   admin: SupabaseClient,
   sinal: SinalDeInboundFollowup,
 ): Promise<void> {
+  // Org parada não avança fluxo nem envia (spec cobrança do revendedor §1.3). O
+  // handler de reatividade continua rodando para ela por causa do opt-out e do
+  // handoff (`applyReactivityEvent`); só este passo, que enfileira e envia, para.
+  const { data: org, error: orgErr } = await admin
+    .from("organizations")
+    .select("status")
+    .eq("id", sinal.organizationId)
+    .maybeSingle();
+  if (orgErr) throw new Error(orgErr.message);
+  if (!ehOperante((org as { status?: string } | null)?.status)) return;
+
   const contactIds = await idsDoContatoEGemeos(admin, sinal.organizationId, sinal.contactId);
   const ultimo = await ultimoInboundDoContato(admin, sinal.organizationId, contactIds);
   const texto = (sinal.texto?.trim() || ultimo.texto).trim();

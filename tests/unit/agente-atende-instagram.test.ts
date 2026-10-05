@@ -364,6 +364,7 @@ describe("contato sem telefone — cada etapa que poderia depender dele", () => 
   it("elegibilidade (drain/turno e varredura de silêncio do follow-up) aceita telefone nulo", () => {
     const e = montarEstadoDeElegibilidade({
       aiGate: "open",
+      orgStatus: "active",
       contactPhoneNumber: null,
       forceHuman: false,
       assigneeKind: null,

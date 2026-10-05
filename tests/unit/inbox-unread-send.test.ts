@@ -65,4 +65,41 @@ describe("sendMessageHandler — unread zera ao responder", () => {
       organization_id: expect.any(String),
     });
   });
+
+  it("⭐ a resposta zera a ESPERA da Fila: `awaiting_since` = último inbound (issue #990)", async () => {
+    vi.stubEnv("WAHA_API_BASE_URL", "http://localhost:3030");
+    vi.stubEnv("WAHA_API_KEY", "hash123");
+    const ULTIMO_INBOUND = "2026-09-18T10:05:00.000Z";
+
+    const { supabase, capturas } = criarDubleDoHandler({
+      conversation: {
+        id: CONV,
+        organization_id: ORG,
+        contact_id: CONTACT,
+        channel_session_id: SESSION,
+        is_group: false,
+        group_chat_id: null,
+        last_inbound_at: ULTIMO_INBOUND,
+        contacts: { phone_number: "+553****8888", wa_identity: null, is_blocked: false },
+        channel_sessions: { provider: "waha", waha_session_name: "default", status: "WORKING", archived_at: null },
+      },
+    });
+
+    await sendMessageHandler(
+      supabase,
+      ctx,
+      { conversation_id: CONV, type: "text", body: "oi" } as SendMessageInput,
+    );
+
+    // A régua da espera da Fila é `awaiting_since`, e a resposta humana produz o
+    // MESMO valor que `fn_reply_record_receipt` grava no caminho do banco. Sem
+    // estas duas linhas — a coluna no `select` e o campo no update — a conversa já
+    // respondida continua contando a espera que a própria resposta encerrou: ela
+    // passa na frente de quem espera de verdade na Fila e infla a média que os
+    // outros clientes ouvem. Este caso vermelhece se qualquer uma das duas sair.
+    expect(capturas.selects.conversations?.at(-1)).toContain("last_inbound_at");
+    expect(capturas.patches.conversations?.at(-1)).toMatchObject({
+      awaiting_since: ULTIMO_INBOUND,
+    });
+  });
 });

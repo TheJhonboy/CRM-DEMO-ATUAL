@@ -14,13 +14,16 @@
  */
 import type { ProviderDeMensagem } from "./types";
 
-export type RotuloDoCanal = "whatsapp" | "instagram";
+export type RotuloDoCanal = "whatsapp" | "instagram" | "rede_social";
 
 const ROTULO: Record<ProviderDeMensagem, RotuloDoCanal> = {
   waha: "whatsapp",
   meta_cloud: "whatsapp",
   zernio: "whatsapp",
   instagram: "instagram",
+  // Redes sociais pelo intermediário (Facebook, LinkedIn…): meio próprio, não WhatsApp.
+  zernio_social: "rede_social",
+  datafy: "whatsapp",
 };
 
 /**

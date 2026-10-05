@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
  * O `pnpm test:db` prova contra Postgres real; aqui é a leitura dos artefatos
  * (migration versionada e baseline aplicado por quem instala).
  */
-const MIGRATION = "supabase/migrations/20260930120000_0275_canal_instagram_vocabulario.sql";
+const MIGRATION = "supabase/migrations/20261005210000_0558_canal_instagram_vocabulario.sql";
 const sql = readFileSync(MIGRATION, "utf8");
 const baseline = readFileSync("supabase/baseline.sql", "utf8");
 
@@ -17,7 +17,7 @@ const checkBlock = (src: string, nome: string) => {
   return src.slice(i, i + 1200);
 };
 
-describe("migration 0275", () => {
+describe("migration 0558", () => {
   it("o CHECK de provider aceita instagram e mantém os providers vigentes", () => {
     const b = checkBlock(sql, "channel_sessions_provider_check");
     for (const p of ["waha", "meta_cloud", "zernio", "wacalls", "instagram"]) {
@@ -59,7 +59,7 @@ describe("migration 0275", () => {
   });
 });
 
-describe("baseline espelha a 0275", () => {
+describe("baseline espelha a 0558", () => {
   it("CHECKs do baseline conhecem instagram e mantêm wacalls", () => {
     expect(checkBlock(baseline, "channel_sessions_provider_check")).toContain("'instagram'::text");
     const ref = checkBlock(baseline, "channel_sessions_provider_ref_check");
@@ -76,15 +76,15 @@ describe("baseline espelha a 0275", () => {
 
   it("a migration está no MANIFEST", () => {
     expect(readFileSync("supabase/migrations/MANIFEST.md", "utf8")).toContain(
-      "0275_canal_instagram_vocabulario",
+      "0558_canal_instagram_vocabulario",
     );
   });
 });
 
-/** 0276 — a conta Instagram é única entre os canais ATIVOS da organização (molde: 0165). */
-const MIGRATION_0276 = "supabase/migrations/20260930130000_0276_instagram_conta_unica_entre_ativos.sql";
-describe("migration 0276", () => {
-  const m = readFileSync(MIGRATION_0276, "utf8");
+/** 0559 — a conta Instagram é única entre os canais ATIVOS da organização (molde: 0165). */
+const MIGRATION_0559 = "supabase/migrations/20261005210100_0559_instagram_conta_unica_entre_ativos.sql";
+describe("migration 0559", () => {
+  const m = readFileSync(MIGRATION_0559, "utf8");
   const idx = /create unique index if not exists channel_sessions_instagram_account_id_ativo_unique\s+on public\.channel_sessions \(organization_id, instagram_account_id\)\s+where archived_at is null and instagram_account_id is not null;/;
 
   it("cria o índice único parcial por organização, só entre ativos", () => {
@@ -101,8 +101,8 @@ describe("migration 0276", () => {
   });
 });
 
-describe("migration 0277 (validade do token)", () => {
-  const M = "supabase/migrations/20261001120000_0277_instagram_validade_do_token.sql";
+describe("migration 0560 (validade do token)", () => {
+  const M = "supabase/migrations/20261005210200_0560_instagram_validade_do_token.sql";
   it("adiciona a coluna de validade, aditiva e idempotente, espelhada no baseline e no MANIFEST", () => {
     const m = readFileSync(M, "utf8");
     expect(m).toMatch(
@@ -111,7 +111,7 @@ describe("migration 0277 (validade do token)", () => {
     expect(m).toContain("comment on column public.channel_sessions.instagram_token_expires_at");
     expect(m).not.toMatch(/drop |not null|default /i);
     expect(baseline).toContain("add column if not exists instagram_token_expires_at timestamptz");
-    expect(readFileSync("supabase/migrations/MANIFEST.md", "utf8")).toContain("0277_instagram_validade_do_token");
+    expect(readFileSync("supabase/migrations/MANIFEST.md", "utf8")).toContain("0560_instagram_validade_do_token");
     expect(readFileSync("lib/database.types.ts", "utf8").match(/instagram_token_expires_at/g)?.length).toBe(3);
   });
 });

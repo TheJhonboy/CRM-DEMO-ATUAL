@@ -2,9 +2,11 @@
  * A porta de entrada do seam. Feature nenhuma importa `lib/waha/*` direto —
  * pede o adapter do provider da conversa e o descritor de capabilities.
  */
+import { datafyAdapter } from "./adapters/datafy";
 import { metaCloudAdapter } from "./adapters/meta-cloud";
 import { wahaAdapter } from "./adapters/waha";
 import { instagramAdapter } from "./adapters/instagram";
+import { socialAdapter } from "./social/adapter";
 import { zernioAdapter } from "./adapters/zernio";
 import type { ChannelAdapter, ChannelProvider, ProviderDeMensagem } from "./types";
 
@@ -17,6 +19,8 @@ const ADAPTERS: Record<ProviderDeMensagem, ChannelAdapter | null> = {
   meta_cloud: metaCloudAdapter,
   zernio: zernioAdapter,
   instagram: instagramAdapter,
+  zernio_social: socialAdapter,
+  datafy: datafyAdapter,
 };
 
 /**

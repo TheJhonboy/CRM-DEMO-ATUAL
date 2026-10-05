@@ -52,7 +52,7 @@
  * uso legítimo. Só os identificadores que são inequivocamente o TRANSPORTE
  * (colunas e host do Graph) entram.
  */
-const SEPARADO = /(?<![a-zA-Z0-9])(waha|meta_cloud|zernio|graph\.facebook\.com|graph\.instagram\.com|instagram_account_id|instagram_token_encrypted|instagram_scoped_id)(?![a-zA-Z0-9])/i;
+const SEPARADO = /(?<![a-zA-Z0-9])(waha|meta_cloud|zernio|datafy|graph\.facebook\.com|graph\.instagram\.com|instagram_account_id|instagram_token_encrypted|instagram_scoped_id)(?![a-zA-Z0-9])/i;
 
 /**
  * Grafia PascalCase dentro de identificador: `WahaClient`,
@@ -62,7 +62,7 @@ const SEPARADO = /(?<![a-zA-Z0-9])(waha|meta_cloud|zernio|graph\.facebook\.com|g
  * segmento. Não seguido de minúscula/dígito exclui `Wahalla` — onde `Waha` é
  * começo de outra palavra, não segmento próprio.
  */
-const PASCAL = /(Waha|Zernio|InstagramAccountId|InstagramTokenEncrypted|InstagramScopedId)(?![a-z0-9])/;
+const PASCAL = /(Waha|Zernio|Datafy|InstagramAccountId|InstagramTokenEncrypted|InstagramScopedId)(?![a-z0-9])/;
 
 /** Um trecho de código/prosa nomeia um provider de canal? */
 export function nomeiaProvider(texto: string): boolean {

@@ -5,7 +5,9 @@ import { useT } from "@/hooks/i18n/useT";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useBoard } from "@/hooks/kanban/useBoard";
-import { useMoveCard } from "@/hooks/kanban/useMoveCard";
+import { useMoveCard, type RecusaDeCampos, type RetomadaPendente } from "@/hooks/kanban/useMoveCard";
+import { useRenameStage } from "@/hooks/kanban/useRenameStage";
+import { CamposObrigatoriosDialog } from "./CamposObrigatoriosDialog";
 import { useAssignableMembers } from "@/hooks/inbox/useAssignableMembers";
 import { useAtRiskLeads } from "@/hooks/leads/useAtRiskLeads";
 import { useReactivations } from "@/hooks/leads/useReactivations";
@@ -14,6 +16,7 @@ import type { Lead } from "@/lib/types/leads";
 import type { Pipeline, Stage } from "@/lib/kanban/types";
 import { StageColumn } from "./StageColumn";
 import { LeadDossier } from "./LeadDossier";
+import { RetomarComoNovoNegocioDialog } from "./RetomarComoNovoNegocioDialog";
 import { camposDoFunil } from "@/lib/leads/campos-do-funil";
 
 interface KanbanBoardProps {
@@ -35,6 +38,13 @@ interface KanbanBoardProps {
   onSelectionChange?: (ids: string[]) => void;
   /** Lead a abrir já na montagem (deep link `?lead=` — ver o dossiê abaixo). */
   leadInicial?: string | null;
+  /**
+   * `manager`+ pode renomear a etapa direto no cabeçalho da coluna — mesmo
+   * corte de papel da rota (`PATCH .../stages/:stageId`, `requireRole("manager")`).
+   * `viewer`/`agent` também abrem este board (ele não é rota manager-only),
+   * então o cabeçalho fica só leitura para eles.
+   */
+  podeRenomearEtapa?: boolean;
 }
 
 function groupLeadsByStage(stages: Stage[], leads: Lead[]): Map<string, Lead[]> {
@@ -53,7 +63,7 @@ function groupLeadsByStage(stages: Stage[], leads: Lead[]): Map<string, Lead[]> 
 
 function BoardSkeleton() {
   return (
-    <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto p-4 max-md:-mx-6 md:snap-none">
+    <div className="flex min-h-0 flex-1 snap-x snap-mandatory gap-3 overflow-x-auto p-4 max-md:-mx-6 md:snap-none">
       {[0, 1, 2].map((c) => (
         <div
           key={c}
@@ -82,11 +92,22 @@ export function KanbanBoard({
   pulses: pulsesProp,
   onSelectionChange,
   leadInicial,
+  podeRenomearEtapa = false,
 }: KanbanBoardProps) {
   const t = useT();
   const useExternal = stagesProp !== undefined && leadsProp !== undefined;
   const queryResult = useBoard(useExternal ? null : pipelineId);
-  const moveCard = useMoveCard(pipelineId);
+  const renameStage = useRenameStage(pipelineId);
+  // A RECUSA DE CAMPOS ABRE DIÁLOGO, não toast (issue #1536): o 422 traz em
+  // `details.faltando` o que falta, o diálogo coleta, e o reenvio leva os
+  // valores NA MESMA escrita que muda a etapa. O hook é o MESMO de antes —
+  // esta opção só troca o destino do erro.
+  const [recusaDeCampos, setRecusaDeCampos] = useState<RecusaDeCampos | null>(null);
+  const [retomada, setRetomada] = useState<RetomadaPendente | null>(null);
+  const moveCard = useMoveCard(pipelineId, {
+    onCamposFaltando: setRecusaDeCampos,
+    onRetomada: setRetomada,
+  });
   const { data: members } = useAssignableMembers(true);
   const ownerNames = useMemo(
     () => new Map((members ?? []).map((m) => [m.user_id, m.full_name])),
@@ -256,17 +277,28 @@ export function KanbanBoard({
         handleDragEnd(resultado);
       }}
     >
-      {/* O snap obrigatório engole os passos pequenos do auto-scroll do @hello-pangea/dnd;
-          por isso ele fica desligado enquanto um card é arrastado e volta ao soltar,
-          recentralizando a coluna mais próxima.
-          O max-md:-mx-6 tira os 24px de padding lateral da `main` do shell no celular (o
-          único pai, a página do funil, não põe nenhum): as colunas de 85vw são medidas
-          contra a tela, então sem ele a próxima coluna começava ~8px além da borda do
-          contêiner e nada sugeria arrastar. O p-4 interno fica: 16px antes da primeira
-          coluna e a próxima aparece ~28px. */}
+      {/* UM contêiner de rolagem só, nos dois eixos. Rolar cada coluna por
+          conta própria seria o desenho "Trello", mas o @hello-pangea/dnd não
+          suporta Droppable rolável dentro de outro contêiner rolável ("nested
+          scroll containers are currently not supported") — o arraste perderia
+          a rolagem automática. Com o quadro como único pai rolável, o arraste
+          continua inteiro, e o cabeçalho de cada etapa fica preso em cima
+          (`sticky` em StageColumn). `items-start` + `min-h-full` na coluna: a
+          coluna curta ocupa a altura toda (dá para soltar card no vazio) e a
+          comprida cresce com os cards, com o fundo acompanhando.
+          Sem padding no ALTO, e é de propósito: o `sticky` prende o cabeçalho
+          na borda do conteúdo do contêiner, então um `pt-4` deixava uma faixa
+          de 16px acima dele por onde os cards apareciam rolando (medido no e2e
+          "o quadro cabe na tela"). O respiro até os filtros vem do `gap-4` da
+          página.
+          Mobile: o snap obrigatório engole os passos pequenos do auto-scroll do
+          @hello-pangea/dnd; por isso fica desligado enquanto um card é arrastado
+          e volta ao soltar. O max-md:-mx-6 tira os 24px de padding lateral da
+          `main` do shell no celular: as colunas de 85vw são medidas contra a tela. */}
       <div
         data-arrastando={arrastando}
-        className="flex h-full snap-x snap-mandatory gap-3 overflow-x-auto p-4 max-md:-mx-6 md:snap-none data-[arrastando=true]:snap-none"
+        className="flex min-h-0 flex-1 snap-x snap-mandatory items-start gap-3 overflow-auto px-4 pb-4 max-md:-mx-6 md:snap-none data-[arrastando=true]:snap-none"
+        data-quadro-do-funil
       >
         {data.stages.map((stage) => (
           <StageColumn
@@ -282,6 +314,8 @@ export function KanbanBoard({
             selectedLeadIds={selectedLeadIds}
             onSelectMany={handleSelectMany}
             onOpen={setDossieId}
+            podeRenomear={podeRenomearEtapa}
+            onRenomear={(nome) => renameStage.mutate({ stageId: stage.id, name: nome })}
           />
         ))}
       </div>
@@ -296,6 +330,34 @@ export function KanbanBoard({
             data.stages.find((s) => s.id === leadDoDossie.stage_id)?.name ?? "—"
           }
           ownerNames={ownerNames}
+        />
+      )}
+
+      <CamposObrigatoriosDialog
+        open={recusaDeCampos !== null}
+        onOpenChange={(aberto) => {
+          if (!aberto) setRecusaDeCampos(null);
+        }}
+        recusa={recusaDeCampos}
+        isPending={moveCard.isPending}
+        onConfirmar={({ customFields, wonReason }) => {
+          if (!recusaDeCampos) return;
+          const { args } = recusaDeCampos;
+          setRecusaDeCampos(null);
+          moveCard.mutate({
+            ...args,
+            customFields,
+            ...(wonReason !== undefined ? { wonReason } : {}),
+          });
+        }}
+      />
+      {retomada && (
+        <RetomarComoNovoNegocioDialog
+          open
+          onOpenChange={(v: boolean) => !v && setRetomada(null)}
+          leadId={retomada.leadId}
+          stageId={retomada.stageId}
+          pipelineId={pipelineId}
         />
       )}
     </DragDropContext>
